@@ -14,16 +14,13 @@ async function atualizarStats() {
       where('deleted', '==', false)
     );
     const petsQuery = query(collection(db, 'pets'), where('empresaId', '==', currentEmpresa.id));
-
     const [clientesSnap, petsSnap] = await Promise.all([
       getCountFromServer(clientesQuery),
       getCountFromServer(petsQuery)
     ]);
-
     document.getElementById('totalClientes').innerText = clientesSnap.data().count;
     document.getElementById('totalPets').innerText = petsSnap.data().count;
-    document.getElementById('faturamentoMes').innerHTML = 'R$ 0,00';
-    document.getElementById('agendamentosHoje').innerText = '0';
+    // Demais estatísticas podem ser implementadas depois
   } catch (error) {
     console.error("Erro ao carregar estatísticas:", error);
   }
@@ -36,6 +33,18 @@ function setupEventos() {
       if (modulo) window.location.href = modulo;
     });
   });
+  // Botão logout
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.onclick = () => {
+      auth.signOut().then(() => {
+        window.location.href = 'login.html';
+      }).catch((error) => {
+        console.error("Erro ao sair:", error);
+        showToast("Erro ao sair", "error");
+      });
+    };
+  }
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -43,13 +52,11 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = 'login.html';
     return;
   }
-
   try {
     currentEmpresa = await carregarEmpresaUsuario(user);
     document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || 'Empresa'}`;
     await atualizarStats();
     setupEventos();
-
     const status = verificarStatusEmpresa(currentEmpresa);
     const alertDiv = document.getElementById('trialAlert');
     if (status.status === 'expirado') {
@@ -69,15 +76,6 @@ onAuthStateChanged(auth, async (user) => {
     showToast("Erro ao carregar dados da empresa", "error");
   }
 });
-
-document.getElementById('logoutBtn').onclick = () => {
-  auth.signOut().then(() => {
-    window.location.href = 'login.html';
-  }).catch((error) => {
-    console.error("Erro ao sair:", error);
-    showToast("Erro ao sair", "error");
-  });
-};
 
 window.solicitarLiberacao = () => {
   const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);

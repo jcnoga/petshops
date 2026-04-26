@@ -1,7 +1,6 @@
-import { db } from './firebase-config.js';
+import { auth, db } from './firebase-config.js';
 import { collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Toast (mensagens flutuantes)
 export function showToast(message, type = 'info') {
   const existing = document.querySelector('.toast');
   if (existing) existing.remove();
@@ -12,7 +11,6 @@ export function showToast(message, type = 'info') {
   setTimeout(() => toast.remove(), 4000);
 }
 
-// Formatação de moeda
 export function formatCurrency(value) {
   if (isNaN(value)) value = 0;
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -39,7 +37,6 @@ export function configurarMascaraValor(id) {
   });
 }
 
-// Carrega (ou cria automaticamente) a empresa do usuário
 export async function carregarEmpresaUsuario(user) {
   try {
     const q = query(collection(db, 'empresas'), where('usuarioId', '==', user.uid));
@@ -48,7 +45,6 @@ export async function carregarEmpresaUsuario(user) {
       const doc = snap.docs[0];
       return { id: doc.id, ...doc.data() };
     }
-    // Cria nova empresa para o usuário
     const novaEmpresa = {
       usuarioId: user.uid,
       emp_razao_social: "Minha Empresa",
@@ -66,7 +62,6 @@ export async function carregarEmpresaUsuario(user) {
     return { id: docRef.id, ...novaEmpresa };
   } catch (error) {
     console.error("Erro ao criar/obter empresa:", error);
-    // Fallback apenas para desenvolvimento
     return {
       id: "empresa_teste",
       emp_razao_social: "Petshop Teste",
