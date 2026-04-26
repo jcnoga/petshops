@@ -4,12 +4,13 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "SUA_API_KEY",
-    authDomain: "SEU_PROJETO.firebaseapp.com",
-    projectId: "SEU_PROJETO",
-    storageBucket: "SEU_PROJETO.appspot.com",
-    messagingSenderId: "NUMERO",
-    appId: "APP_ID"
+  apiKey: "AIzaSyAQJT1bqaaoEf-FnffHDeVLKEGbMpJJzcM",
+  authDomain: "pet-shop-noga1.firebaseapp.com",
+  projectId: "pet-shop-noga1",
+  storageBucket: "pet-shop-noga1.firebasestorage.app",
+  messagingSenderId: "735321499822",
+  appId: "1:735321499822:web:7c60e77b3255311547a53f",
+  measurementId: "G-L5EXYXZ3V8"
 };
 
 const app = initializeApp(firebaseConfig);
