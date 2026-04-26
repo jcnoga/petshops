@@ -3,28 +3,530 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Dashboard Administrativo | Firebase</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>PerShop | Dashboard Executivo</title>
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js for future graphs (optional) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* Estilos completos (mantidos do original) */
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; }
-        .app-container { display: flex; min-height: 100vh; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #eef2f8 0%, #e0e8f0 100%);
+            min-height: 100vh;
+        }
+
+        /* ========== SIDEBAR MODERNA ========== */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
         .sidebar {
             width: 280px;
-            background: linear-gradient(180deg, #0a2a36 0%, #063040 100%);
-            color: white;
+            background: rgba(18, 30, 41, 0.95);
+            backdrop-filter: blur(8px);
+            color: #fff;
             position: fixed;
             height: 100vh;
             overflow-y: auto;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             z-index: 100;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 8px 0 30px rgba(0, 0, 0, 0.12);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
         }
-        /* ... demais estilos ... */
-        @media (max-width: 992px) { .sidebar { width: 80px; } .main-content { margin-left: 80px; } }
-        @media (max-width: 768px) { .main-content { padding: 15px; } }
+
+        .sidebar::-webkit-scrollbar { width: 5px; }
+        .sidebar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        .sidebar::-webkit-scrollbar-thumb { background: #2c7da0; border-radius: 10px; }
+
+        .sidebar-header {
+            padding: 28px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #2c7da0, #61a5c2);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 8px 14px -6px rgba(0,0,0,0.3);
+        }
+
+        .logo-text h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+
+        .logo-text p {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            letter-spacing: 1px;
+        }
+
+        .nav-section {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 20px 24px 8px 24px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 24px;
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.2s;
+            margin: 4px 0;
+            border-left: 3px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+            border-left-color: #61a5c2;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(44,125,160,0.25), transparent);
+            color: white;
+            border-left-color: #2c7da0;
+        }
+
+        .nav-item i {
+            width: 22px;
+            font-size: 1.1rem;
+        }
+
+        .nav-item span {
+            font-size: 0.85rem;
+        }
+
+        .nav-item.has-submenu {
+            justify-content: space-between;
+        }
+
+        .submenu-arrow {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+
+        .submenu {
+            display: none;
+            background: rgba(0, 0, 0, 0.2);
+            margin-left: 15px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .submenu.open {
+            display: block;
+        }
+
+        .submenu-item {
+            padding-left: 48px !important;
+        }
+
+        .admin-badge {
+            background: #e76f51;
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 40px;
+            margin-left: auto;
+        }
+
+        /* ========== MAIN CONTENT ========== */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 28px 36px;
+            transition: margin 0.3s;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(12px);
+            border-radius: 28px;
+            padding: 12px 28px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.03);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        .page-title h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1f5068, #2c7da0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .page-title p {
+            font-size: 0.75rem;
+            color: #6c86a0;
+            margin-top: 4px;
+        }
+
+        .user-area {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            padding: 6px 18px 6px 12px;
+            border-radius: 60px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            border: 1px solid #e2edf2;
+        }
+
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #2c7da0, #61a5c2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .user-details {
+            line-height: 1.3;
+        }
+
+        .user-name {
+            font-weight: 700;
+            color: #1f5068;
+            font-size: 0.85rem;
+        }
+
+        .user-email {
+            font-size: 0.7rem;
+            color: #7a9eb0;
+        }
+
+        .user-perfil {
+            font-size: 0.65rem;
+            background: #2c7da020;
+            padding: 2px 10px;
+            border-radius: 40px;
+            color: #2c7da0;
+            display: inline-block;
+            margin-top: 2px;
+        }
+
+        .btn {
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            background: white;
+            color: #2c7da0;
+            border: 1px solid #cbdde6;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #2c7da0;
+            color: #2c7da0;
+        }
+
+        .btn-outline:hover {
+            background: #2c7da0;
+            color: white;
+        }
+
+        /* Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(4px);
+            border-radius: 32px;
+            padding: 20px 24px;
+            transition: all 0.25s ease;
+            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            cursor: pointer;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: white;
+            box-shadow: 0 20px 30px -12px rgba(0,0,0,0.1);
+            border-color: #fff;
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(145deg, #eef5fa, #e2ecf3);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2c7da0;
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1a3e52;
+            letter-spacing: -1px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6c86a0;
+            margin-top: 8px;
+        }
+
+        .stat-sub {
+            font-size: 0.7rem;
+            color: #2a9d8f;
+            margin-top: 6px;
+        }
+
+        /* Welcome Message */
+        .welcome-message {
+            background: linear-gradient(105deg, #1f5068 0%, #2c7da0 100%);
+            border-radius: 28px;
+            padding: 28px 32px;
+            margin-bottom: 32px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15);
+        }
+
+        .welcome-message.warning {
+            background: linear-gradient(105deg, #e9c46a, #e0b354);
+            color: #1f5068;
+        }
+
+        .welcome-message.expired {
+            background: linear-gradient(105deg, #e76f51, #d45a3a);
+        }
+
+        .trial-alert-bar {
+            margin-bottom: 20px;
+            border-radius: 20px;
+            padding: 12px 24px;
+            background: #fff3e0;
+            border-left: 6px solid #e9c46a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        /* Sections */
+        .recent-section {
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 24px 28px;
+            margin-bottom: 32px;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .section-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1f5068;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 14px;
+        }
+
+        .quick-btn {
+            background: white;
+            border-radius: 24px;
+            padding: 16px;
+            text-align: center;
+            transition: 0.2s;
+            cursor: pointer;
+            border: 1px solid #e2edf2;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+
+        .quick-btn i {
+            font-size: 1.6rem;
+            color: #2c7da0;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .quick-btn span {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1f5068;
+        }
+
+        .quick-btn:hover {
+            transform: translateY(-3px);
+            background: #2c7da0;
+            border-color: transparent;
+        }
+
+        .quick-btn:hover i,
+        .quick-btn:hover span {
+            color: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.7rem;
+            color: #8aa4b8;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            margin-top: 30px;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 40px;
+            max-width: 400px;
+            width: 90%;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1f5068;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            z-index: 1100;
+            animation: fadeInUp 0.2s ease;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 80px;
+            }
+            .sidebar-header .logo-text, .nav-item span, .nav-section {
+                display: none;
+            }
+            .nav-item {
+                justify-content: center;
+                padding: 12px;
+            }
+            .main-content {
+                margin-left: 80px;
+            }
+            .user-info {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -37,7 +539,7 @@
             </div>
         </div>
         <div class="nav-section">PRINCIPAL</div>
-        <div class="nav-item" data-page="index.html"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></div>
+        <div class="nav-item active" data-page="index.html"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></div>
         <div class="nav-section">🐾 GESTÃO DE CLIENTES</div>
         <div class="nav-item" data-page="clientes.html"><i class="fas fa-user-friends"></i><span>Clientes</span></div>
         <div class="nav-item" data-page="pets.html"><i class="fas fa-paw"></i><span>Pets</span></div>
@@ -63,19 +565,18 @@
             <div class="nav-item submenu-item" data-page="templates.html"><i class="fas fa-file-alt"></i><span>Templates</span></div>
         </div>
         <div id="permissoesMenuItem" class="nav-item" style="display: none;" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span><span class="admin-badge">Admin</span></div>
-        <div id="usuariosMenuItem" class="nav-item" style="display: none;" data-page="usuario.html"><i class="fas fa-users"></i><span>Usuários</span><span class="admin-badge">Admin</span></div>
+        <div id="usuariosMenuItem" class="nav-item" style="display: none;" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span><span class="admin-badge">Admin</span></div>
         <div class="nav-section">📷 GALERIA</div>
         <div class="nav-item" data-page="fotos-pet.html"><i class="fas fa-images"></i><span>Fotos dos Pets</span></div>
     </aside>
 
     <main class="main-content">
         <div class="top-bar">
-            <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1><p>Visão geral do seu negócio</p></div>
+            <div class="page-title">
+                <h1><i class="fas fa-chart-line"></i> Dashboard</h1>
+                <p>Visão geral do seu negócio em tempo real</p>
+            </div>
             <div class="user-area">
-                <div class="empresa-selector" style="display: none;"> <!-- removido seletor -->
-                    <label><i class="fas fa-building"></i> Empresa:</label>
-                    <select id="empresaSelector" class="empresa-select"></select>
-                </div>
                 <div class="user-info" id="userInfo">
                     <div class="user-avatar" id="userAvatar">A</div>
                     <div class="user-details">
@@ -84,22 +585,53 @@
                         <span class="user-perfil" id="userPerfil"></span>
                     </div>
                 </div>
-                <button id="refreshBtn" class="btn btn-outline" title="Atualizar dados"><i class="fas fa-sync-alt"></i></button>
+                <button id="refreshBtn" class="btn btn-outline" title="Atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
                 <button id="logoutBtn" class="btn btn-outline" title="Sair"><i class="fas fa-sign-out-alt"></i> Sair</button>
             </div>
         </div>
+
         <div id="trialAlertBar"></div>
-        <div class="welcome-message" id="welcomeMessage"></div>
-        <div class="stats-grid" id="statsGrid">
-            <div class="stat-card" data-page="clientes.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-friends"></i></div></div><div class="stat-value" id="totalClientes">0</div><div class="stat-label">Clientes</div></div>
-            <div class="stat-card" data-page="pets.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div><div class="stat-value" id="totalPets">0</div><div class="stat-label">Pets</div></div>
-            <div class="stat-card" data-page="agendamentos.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div></div><div class="stat-value" id="totalAgendamentos">0</div><div class="stat-label">Agendamentos</div></div>
-            <div class="stat-card" data-page="produtos.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-box"></i></div></div><div class="stat-value" id="totalProdutos">0</div><div class="stat-label">Produtos</div></div>
-            <div class="stat-card" data-page="financeiro.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="totalFinanceiro">R$ 0</div><div class="stat-label">Faturamento Total</div><div class="stat-sub" id="faturamentoMes">Este mês: R$ 0</div></div>
-            <div class="stat-card" data-page="profissionais.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div><div class="stat-value" id="totalProfissionais">0</div><div class="stat-label">Profissionais</div></div>
+
+        <div class="welcome-message" id="welcomeMessage">
+            <div><h2><i class="fas fa-paw"></i> Bem‑vindo ao PerShop Enterprise!</h2><p>Gerencie clientes, pets, agendamentos e muito mais.</p></div>
         </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card" data-page="clientes.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-user-friends"></i></div></div>
+                <div class="stat-value" id="totalClientes">0</div>
+                <div class="stat-label">Clientes Ativos</div>
+            </div>
+            <div class="stat-card" data-page="pets.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div>
+                <div class="stat-value" id="totalPets">0</div>
+                <div class="stat-label">Pets Cadastrados</div>
+            </div>
+            <div class="stat-card" data-page="agendamentos.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div></div>
+                <div class="stat-value" id="totalAgendamentos">0</div>
+                <div class="stat-label">Agendamentos</div>
+            </div>
+            <div class="stat-card" data-page="produtos.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-box"></i></div></div>
+                <div class="stat-value" id="totalProdutos">0</div>
+                <div class="stat-label">Produtos</div>
+            </div>
+            <div class="stat-card" data-page="financeiro.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div>
+                <div class="stat-value" id="totalFinanceiro">R$ 0</div>
+                <div class="stat-label">Faturamento Total</div>
+                <div class="stat-sub" id="faturamentoMes">Este mês: R$ 0</div>
+            </div>
+            <div class="stat-card" data-page="profissionais.html">
+                <div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div>
+                <div class="stat-value" id="totalProfissionais">0</div>
+                <div class="stat-label">Profissionais</div>
+            </div>
+        </div>
+
         <div class="recent-section">
-            <div class="section-header"><h3><i class="fas fa-bolt"></i> Ações Rápidas</h3></div>
+            <div class="section-header"><h3><i class="fas fa-bolt"></i> Atalhos Rápidos</h3></div>
             <div class="quick-actions">
                 <div class="quick-btn" data-page="clientes.html"><i class="fas fa-user-plus"></i><span>Novo Cliente</span></div>
                 <div class="quick-btn" data-page="pets.html"><i class="fas fa-paw"></i><span>Novo Pet</span></div>
@@ -109,6 +641,7 @@
                 <div class="quick-btn" data-page="vacinas.html"><i class="fas fa-syringe"></i><span>Nova Vacina</span></div>
             </div>
         </div>
+
         <div class="recent-section">
             <div class="section-header"><h3><i class="fas fa-cubes"></i> Módulos do Sistema</h3></div>
             <div class="quick-actions">
@@ -119,17 +652,23 @@
                 <div class="quick-btn" data-page="canais.html"><i class="fas fa-plug"></i><span>Canais</span></div>
                 <div class="quick-btn" data-page="templates.html"><i class="fas fa-file-alt"></i><span>Templates</span></div>
                 <div class="quick-btn" data-page="empresa.html"><i class="fas fa-building"></i><span>Empresa</span></div>
+                <div class="quick-btn" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span></div>
+                <div class="quick-btn" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span></div>
             </div>
         </div>
-        <div class="footer"><i class="fas fa-database"></i> PerShop Enterprise - Sistema completo de gestão para PetShop</div>
+
+        <div class="footer">
+            <i class="fas fa-database"></i> PerShop Enterprise – Gestão completa para PetShop
+        </div>
     </main>
 </div>
+
 <div id="logoutModal" class="modal">
     <div class="modal-content">
         <i class="fas fa-question-circle" style="font-size:3rem; color:#e9c46a;"></i>
         <h3>Deseja realmente sair?</h3>
         <p>Você será desconectado do sistema.</p>
-        <div class="modal-buttons">
+        <div class="modal-buttons" style="margin-top:20px;">
             <button class="btn btn-outline" onclick="fecharModalLogout()">Cancelar</button>
             <button class="btn btn-danger" onclick="confirmarLogout()">Sair</button>
         </div>
@@ -204,19 +743,19 @@
         const welcomeDiv = document.getElementById('welcomeMessage');
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
-            welcomeDiv.innerHTML = `<h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa selecionada. Contate o administrador.</p>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p></div>`;
             return;
         }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
-            welcomeDiv.innerHTML = `<h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else if (statusInfo.status === 'trial_urgente') {
             welcomeDiv.className = 'welcome-message warning';
-            welcomeDiv.innerHTML = `<h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else {
             welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
         }
     }
 
@@ -225,9 +764,9 @@
         if (!currentEmpresa) { alertDiv.innerHTML = ''; return; }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'trial_urgente') {
-            alertDiv.innerHTML = `<div class="trial-alert-bar warning"><div><i class="fas fa-hourglass-half"></i> <strong>Atenção:</strong> Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
+            alertDiv.innerHTML = `<div class="trial-alert-bar"><div><i class="fas fa-hourglass-half"></i> <strong>Atenção:</strong> Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
         } else if (statusInfo.status === 'expirado') {
-            alertDiv.innerHTML = `<div class="trial-alert-bar expired"><div><i class="fas fa-hourglass-end"></i> <strong>ACESSO BLOQUEADO:</strong> Período de teste expirado!</div><button class="btn btn-danger" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
+            alertDiv.innerHTML = `<div class="trial-alert-bar" style="background:#fce4e4; border-left-color:#e76f51;"><div><i class="fas fa-hourglass-end"></i> <strong>ACESSO BLOQUEADO:</strong> Período de teste expirado!</div><button class="btn btn-danger" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
         } else {
             alertDiv.innerHTML = '';
         }
@@ -278,7 +817,6 @@
                 await auth.signOut();
                 return;
             }
-            document.getElementById('empresaInfo')?.remove(); // se existir, remove
             await carregarDadosEmpresa();
             atualizarStats();
             atualizarWelcomeMessage();
