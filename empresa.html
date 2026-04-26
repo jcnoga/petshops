@@ -20,7 +20,6 @@
         .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
         .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
-        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
         .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
         .btn-outline:hover { background: #2c7da0; color: white; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
@@ -38,23 +37,12 @@
         .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
         .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
-        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
         .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .toast-success { background: #2a9d8f; }
-        .toast-error { background: #e76f51; }
-        .toast-info { background: #2c7da0; }
         .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
         .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
-        .breadcrumb a { color: #2c7da0; text-decoration: none; }
-        .breadcrumb a:hover { text-decoration: underline; }
         .loading-screen { text-align: center; padding: 60px; }
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
-        .acesso-bloqueado i { font-size: 4rem; color: #e76f51; margin-bottom: 20px; }
-        .acesso-bloqueado h2 { color: #e76f51; margin-bottom: 15px; }
         .hidden { display: none !important; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } }
     </style>
@@ -77,13 +65,11 @@
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
 
-    <!-- Loading -->
     <div id="loadingScreen" class="loading-screen">
         <i class="fas fa-spinner fa-spin"></i>
         <p>Carregando configuração da empresa...</p>
     </div>
 
-    <!-- Mensagem de bloqueio (se não for admin) -->
     <div id="blockedContent" class="acesso-bloqueado hidden">
         <i class="fas fa-lock"></i>
         <h2>⛔ Acesso Restrito</h2>
@@ -108,16 +94,7 @@
                     <div class="input-group"><label><i class="fas fa-mail-bulk"></i> CEP</label><input type="text" id="empCep" placeholder="00000-000"></div>
                     <div class="input-group"><label><i class="fas fa-city"></i> Cidade</label><input type="text" id="empCidade" placeholder="Cidade"></div>
                     <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> Estado</label>
-                        <select id="empEstado">
-                            <option value="">Selecione</option>
-                            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option>
-                            <option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option>
-                            <option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option>
-                            <option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option>
-                            <option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
-                        </select>
+                        <select id="empEstado"><option value="">Selecione</option><option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option></select>
                     </div>
                     <div class="input-group"><label><i class="fas fa-phone"></i> Telefone</label><input type="text" id="empTelefone" placeholder="(00) 0000-0000"></div>
                     <div class="input-group"><label class="required"><i class="fab fa-whatsapp"></i> WhatsApp</label><input type="text" id="empWhatsapp" placeholder="(00) 00000-0000"></div>
@@ -144,90 +121,36 @@
 </div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    
-    // Importa funções compartilhadas do util.js
+    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin,
         aplicarMascaraCNPJ, aplicarMascaraTelefone, aplicarMascaraCEP,
         verificarStatusEmpresa
     } from './util.js';
 
-    // ==================== CONSTANTES ====================
-    const DIAS_TESTE = 15;
-    
-    // ==================== ESTADO ====================
     let currentUser = null;
     let currentEmpresa = null;
     let isAdminUser = false;
-    let empresaId = null;
-    
-    // ==================== FUNÇÕES DE STATUS E DATAS ====================
-    function getDataExpiracao() { 
-        const d = new Date(); 
-        d.setDate(d.getDate() + DIAS_TESTE); 
-        return d.toISOString(); 
-    }
-    
-    // ==================== CARREGAR EMPRESA DO USUÁRIO ====================
+
     async function carregarEmpresa() {
         if (!currentUser) return null;
-        // Obtém o ID da empresa a partir do documento do usuário
         const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
-        if (!userDoc.exists()) {
-            showToast('Perfil de usuário não encontrado.', 'error');
-            return null;
-        }
+        if (!userDoc.exists()) return null;
         const userData = userDoc.data();
         const empresaId = userData.empresaId;
-        if (!empresaId) {
-            // Se o usuário não tem empresa associada, criamos uma nova automaticamente
-            return await criarEmpresaParaUsuario(userData);
-        }
+        if (!empresaId) return null;
         const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
         if (!empresaDoc.exists()) return null;
         return { id: empresaDoc.id, ...empresaDoc.data() };
     }
 
-    async function criarEmpresaParaUsuario(userData) {
-        const novaEmpresa = {
-            emp_razao_social: `${userData.nome || 'Empresa'} LTDA`,
-            emp_nome_fantasia: userData.nome || 'Meu PetShop',
-            emp_cnpj: '',
-            emp_endereco: '',
-            emp_cep: '',
-            emp_cidade: '',
-            emp_estado: '',
-            emp_telefone: '',
-            emp_whatsapp: '',
-            emp_cliente_inativo: null,
-            emp_status: 'inativo',
-            emp_data_expiracao: getDataExpiracao(),
-            emp_dias_liberados: DIAS_TESTE,
-            emp_dias_faltantes: DIAS_TESTE,
-            emp_criado_em: new Date().toISOString(),
-            emp_criado_por: currentUser.uid,
-            emp_atualizado_em: new Date().toISOString()
-        };
-        const empresaRef = doc(collection(db, 'empresas'));
-        await setDoc(empresaRef, novaEmpresa);
-        // Atualiza o usuário com o ID da nova empresa
-        await updateDoc(doc(db, 'usuarios', currentUser.uid), { empresaId: empresaRef.id });
-        showToast('Empresa criada automaticamente! Preencha os dados.', 'success');
-        return { id: empresaRef.id, ...novaEmpresa };
-    }
-    
-    // ==================== ATUALIZAR EMPRESA ====================
     async function updateEmpresa(id, updates) {
         await updateDoc(doc(db, 'empresas', id), { ...updates, emp_atualizado_em: new Date().toISOString() });
         showToast('Empresa atualizada com sucesso!', 'success');
-        // Recarrega os dados para exibir atualizados
         await recarregarDados();
     }
-    
-    // ==================== FORMULÁRIO ====================
+
     function getFormData() {
         return {
             emp_razao_social: document.getElementById('empRazaoSocial').value,
@@ -242,7 +165,7 @@
             emp_cliente_inativo: document.getElementById('empClienteInativo').value || null
         };
     }
-    
+
     function fillForm(empresa) {
         document.getElementById('empRazaoSocial').value = empresa.emp_razao_social || '';
         document.getElementById('empNomeFantasia').value = empresa.emp_nome_fantasia || '';
@@ -255,24 +178,12 @@
         document.getElementById('empWhatsapp').value = empresa.emp_whatsapp || '';
         document.getElementById('empClienteInativo').value = empresa.emp_cliente_inativo || '';
     }
-    
+
     async function salvarEmpresa() {
-        if (!isAdminUser) { 
-            showToast('Apenas administradores podem editar a empresa.', 'error'); 
-            return; 
-        }
-        if (!document.getElementById('empRazaoSocial').value.trim()) { 
-            showToast('Razão Social obrigatória!', 'error'); 
-            return; 
-        }
-        if (!document.getElementById('empCnpj').value.trim()) { 
-            showToast('CNPJ obrigatório!', 'error'); 
-            return; 
-        }
-        if (!document.getElementById('empWhatsapp').value.trim()) { 
-            showToast('WhatsApp obrigatório!', 'error'); 
-            return; 
-        }
+        if (!isAdminUser) { showToast('Apenas administradores podem editar a empresa.', 'error'); return; }
+        if (!document.getElementById('empRazaoSocial').value.trim()) { showToast('Razão Social obrigatória!', 'error'); return; }
+        if (!document.getElementById('empCnpj').value.trim()) { showToast('CNPJ obrigatório!', 'error'); return; }
+        if (!document.getElementById('empWhatsapp').value.trim()) { showToast('WhatsApp obrigatório!', 'error'); return; }
         const data = getFormData();
         if (currentEmpresa && currentEmpresa.id) {
             await updateEmpresa(currentEmpresa.id, data);
@@ -280,13 +191,9 @@
             showToast('Nenhuma empresa encontrada para atualizar.', 'error');
         }
     }
-    
-    // ==================== ALERTA DE TRIAL ====================
+
     function atualizarTrialAlert() {
-        if (!currentEmpresa) { 
-            document.getElementById('trialAlert').style.display = 'none'; 
-            return; 
-        }
+        if (!currentEmpresa) { document.getElementById('trialAlert').style.display = 'none'; return; }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         const alertDiv = document.getElementById('trialAlert');
         if (statusInfo.status === 'expirado') {
@@ -304,22 +211,18 @@
         } else if (statusInfo.status === 'ativo') {
             alertDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
             alertDiv.style.display = 'flex';
-            alertDiv.className = 'trial-alert';
             alertDiv.style.background = '#e0f2e9';
             alertDiv.style.borderLeftColor = '#2a9d8f';
-        } else { 
-            alertDiv.style.display = 'none'; 
-        }
+        } else { alertDiv.style.display = 'none'; }
     }
-    
+
     window.solicitarLiberacao = function() {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
         const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
         showToast('Abrindo cliente de e-mail...', 'info');
     };
-    
-    // ==================== RECARREGAR DADOS ====================
+
     async function recarregarDados() {
         currentEmpresa = await carregarEmpresa();
         if (currentEmpresa) {
@@ -328,8 +231,7 @@
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
         }
     }
-    
-    // ==================== MÁSCARAS ====================
+
     function applyMasks() {
         const cnpj = document.getElementById('empCnpj');
         cnpj.addEventListener('input', (e) => { e.target.value = aplicarMascaraCNPJ(e.target.value); });
@@ -340,8 +242,7 @@
         const whats = document.getElementById('empWhatsapp'); 
         whats.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
     }
-    
-    // ==================== INICIALIZAÇÃO ====================
+
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -352,7 +253,6 @@
                 document.getElementById('conteudoPrincipal').style.display = 'none';
                 return;
             }
-            // Carrega a empresa do usuário (cria automaticamente se não existir)
             currentEmpresa = await carregarEmpresa();
             if (currentEmpresa) {
                 fillForm(currentEmpresa);
@@ -368,14 +268,11 @@
             window.location.href = 'login.html';
         }
     });
-    
-    // ==================== EVENTOS ====================
+
     document.getElementById('saveEmpresaBtn').onclick = salvarEmpresa;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     window.solicitarLiberacao = solicitarLiberacao;
     window.logout = () => auth.signOut();
-    
-    console.log('✅ Empresa - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>
