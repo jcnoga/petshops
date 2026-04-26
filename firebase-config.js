@@ -2,12 +2,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// ⚠️ SUBSTITUA PELAS SUAS CREDENCIAIS REAIS (obtidas no Console Firebase)
 const firebaseConfig = {
-  apiKey: "AIzaSyAQJT1bqaaoEf-FnffHDeVLKEGbMpJJzcM",
-  authDomain: "pet-shop-noga1.firebaseapp.com",
-  projectId: "pet-shop-noga1",
-  storageBucket: "pet-shop-noga1.firebasestorage.app",
-  messagingSenderId: "735321499822",
-  appId: "1:735321499822:web:7c60e77b3255311547a53f",
-  measurementId: "G-L5EXYXZ3V8"
+  apiKey: "AIzaSyD_xxxxxxxxxxxxxxxxxxxxx",
+  authDomain: "seu-projeto.firebaseapp.com",
+  projectId: "seu-projeto",
+  storageBucket: "seu-projeto.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef123456"
 };
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
