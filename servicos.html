@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Serviços | Firebase + Firestore</title>
+    <!-- Bibliotecas para PDF e Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-danger { background: #e76f51; color: white; }
+        .btn-warning { background: #e9c46a; color: #1f5068; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; margin-top: 5px; }
+        .filters-card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 30px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .filter-group input, .filter-group select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; cursor: pointer; }
+        .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .chart-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .chart-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; color: #1f5068; }
+        .chart-container { position: relative; height: 250px; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .status-ativo { background: #2a9d8f20; color: #2a9d8f; }
+        .status-inativo { background: #e9c46a20; color: #e9c46a; }
+        .action-buttons { display: flex; gap: 6px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 550px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; max-width: 60%; word-break: break-word; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .toast-warning { background: #e9c46a; color: #1f5068; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 10; }
+        .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } .search-area input { width: 100%; } }
+    </style>
+</head>
+<body>
+<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
+    <a href="index.html">Dashboard</a> > 
+    <span>Serviços</span>
+</div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-cut"></i></div><h1>PerShop <span>Serviços</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo de serviços...</p></div>
+
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card" onclick="aplicarFiltroStatus('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-concierge-bell"></i></div></div><div class="stat-value" id="totalServicos">0</div><div class="stat-label">Total</div></div>
+            <div class="stat-card" onclick="aplicarFiltroStatus('true')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="totalAtivos">0</div><div class="stat-label">Ativos</div></div>
+            <div class="stat-card" onclick="aplicarFiltroCategoria('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="precoMedio">R$ 0</div><div class="stat-label">Preço Médio</div></div>
+            <div class="stat-card" onclick="aplicarFiltroCategoria('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-clock"></i></div></div><div class="stat-value" id="duracaoMedia">0 min</div><div class="stat-label">Duração Média</div></div>
+        </div>
+
+        <div class="filters-card">
+            <div class="filter-row">
+                <div class="filter-group"><label><i class="fas fa-search"></i> Buscar</label><input type="text" id="searchInput" placeholder="Nome, categoria, tags..."></div>
+                <div class="filter-group"><label><i class="fas fa-tag"></i> Status</label><select id="statusFilter"><option value="">Todos</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select></div>
+                <div class="filter-group"><label><i class="fas fa-layer-group"></i> Categoria</label><select id="categoriaFilter"><option value="">Todas</option><option value="banho">🛁 Banho</option><option value="tosa">✂️ Tosa</option><option value="veterinario">🩺 Veterinário</option><option value="estetica">💅 Estética</option><option value="hospedagem">🏠 Hospedagem</option><option value="outro">📌 Outro</option></select></div>
+                <div class="filter-group"><button id="clearFiltersBtn" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button></div>
+                <div class="filter-group"><button id="exportPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div>
+            </div>
+        </div>
+
+        <div class="chart-row">
+            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-bar"></i> Serviços por Categoria</div><div class="chart-container"><canvas id="categoriaChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-line"></i> Preço Médio por Categoria</div><div class="chart-container"><canvas id="precoChart"></canvas></div></div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Cadastro de Serviço</h2><p>Preencha os campos para cadastrar um serviço</p></div>
+            <div class="form-body">
+                <div class="form-grid">
+                    <div class="input-group"><label class="required"><i class="fas fa-tag"></i> Nome</label><input type="text" id="serNome" placeholder="Ex: Banho e Tosa"></div>
+                    <div class="input-group"><label class="required"><i class="fas fa-dollar-sign"></i> Preço (R$)</label><input type="text" id="serPreco" placeholder="0,00"></div>
+                    <div class="input-group"><label><i class="fas fa-stopwatch"></i> Duração (min)</label><input type="number" id="serDuracao" placeholder="60" min="0" step="5"></div>
+                    <div class="input-group"><label><i class="fas fa-layer-group"></i> Categoria</label><select id="serCategoria"><option value="">Selecione</option><option value="banho">🛁 Banho</option><option value="tosa">✂️ Tosa</option><option value="veterinario">🩺 Veterinário</option><option value="estetica">💅 Estética</option><option value="hospedagem">🏠 Hospedagem</option><option value="outro">📌 Outro</option></select></div>
+                    <div class="input-group"><label><i class="fas fa-circle"></i> Status</label><select id="serAtivo"><option value="true">✅ Ativo</option><option value="false">⭕ Inativo</option></select></div>
+                    <div class="input-group"><label><i class="fas fa-percent"></i> Comissão (%)</label><input type="number" id="serComissao" step="0.01" min="0" max="100" placeholder="0" value="0"></div>
+                    <div class="input-group"><label><i class="fas fa-tags"></i> Tags</label><input type="text" id="serTags" placeholder="Ex: banho, tosa, hidratação"></div>
+                    <div class="input-group" style="grid-column: span 2;"><label><i class="fas fa-align-left"></i> Descrição</label><textarea id="serDescricao" rows="2"></textarea></div>
+                    <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button><button type="button" id="saveServicoBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header">
+                <h3><i class="fas fa-list"></i> Serviços</h3>
+                <div class="search-area">
+                    <input type="text" id="tableSearch" placeholder="🔍 Buscar...">
+                    <button id="clearTableFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button>
+                </div>
+            </div>
+            <div class="table-wrapper"><table id="servicosTable"><thead><tr><th>Serviço</th><th>Preço</th><th>Duração</th><th>Categoria</th><th>Comissão</th><th>Status</th><th>Ações</th></tr></thead><tbody id="servicosTableBody"></tbody>}</div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+    <div class="footer">PerShop Enterprise - Módulo de Serviços | Dados em tempo real com Firebase</div>
+</div>
+
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-cut"></i> Detalhes do Serviço</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<script type="module">
+    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ==================== CONSTANTES ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingId = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let servicosCache = [];
+    let agendamentosCache = [];
+    let categoriaChart = null;
+    let precoChart = null;
+
+    // ==================== FUNÇÕES AUXILIARES ====================
+    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value || 0); }
+    function parseCurrency(value) { if (!value) return 0; if (typeof value === 'number') return value; let num = value.toString().replace(/\./g, '').replace(',', '.'); return parseFloat(num) || 0; }
+    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
+
+    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    async function carregarDadosEmpresa() {
+        if (!currentEmpresa) return;
+        const empresaId = currentEmpresa.id;
+        const servicosSnap = await getDocs(query(collection(db, 'servicos'), where('empresaId', '==', empresaId)));
+        servicosCache = servicosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const agendamentosSnap = await getDocs(query(collection(db, 'agendamentos'), where('empresaId', '==', empresaId)));
+        agendamentosCache = agendamentosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // ==================== CRUD ====================
+    async function addServico(data) {
+        if (servicosCache.some(s => s.nome.toLowerCase() === data.nome.toLowerCase())) {
+            showToast('Já existe um serviço com este nome!', 'error'); return false;
+        }
+        const newDoc = {
+            ...data,
+            empresaId: currentEmpresa.id,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+            criado_por: currentUser.uid
+        };
+        const docRef = await addDoc(collection(db, 'servicos'), newDoc);
+        newDoc.id = docRef.id;
+        servicosCache.unshift(newDoc);
+        renderServicos();
+        updateStats();
+        updateCharts();
+        showToast('Serviço cadastrado com sucesso!', 'success');
+        return true;
+    }
+    async function updateServico(id, updates) {
+        const oldServico = servicosCache.find(s => s.id === id);
+        if (updates.nome && updates.nome.toLowerCase() !== oldServico?.nome.toLowerCase() && servicosCache.some(s => s.nome.toLowerCase() === updates.nome.toLowerCase() && s.id !== id)) {
+            showToast('Já existe um serviço com este nome!', 'error'); return false;
+        }
+        await updateDoc(doc(db, 'servicos', id), { ...updates, atualizado_em: new Date().toISOString() });
+        const idx = servicosCache.findIndex(s => s.id === id);
+        if (idx !== -1) servicosCache[idx] = { ...servicosCache[idx], ...updates };
+        renderServicos();
+        updateStats();
+        updateCharts();
+        showToast('Serviço atualizado!', 'success');
+        return true;
+    }
+    async function deleteServico(id) {
+        const servico = servicosCache.find(s => s.id === id);
+        if (!servico) { showToast('Serviço não encontrado!', 'error'); return; }
+        const agendamentosVinculados = agendamentosCache.filter(a => a.servicoId === id || a.servico === servico.nome);
+        let msg = `⚠️ Excluir "${servico.nome}"?`;
+        if (agendamentosVinculados.length > 0) msg += `\n\n📌 Este serviço possui ${agendamentosVinculados.length} agendamento(s) vinculado(s).`;
+        if (confirm(msg)) {
+            await deleteDoc(doc(db, 'servicos', id));
+            servicosCache = servicosCache.filter(s => s.id !== id);
+            renderServicos();
+            updateStats();
+            updateCharts();
+            showToast('Serviço excluído!', 'success');
+        }
+    }
+
+    // ==================== FORMULÁRIO ====================
+    function getFormData() {
+        return {
+            nome: document.getElementById('serNome').value,
+            preco: parseCurrency(document.getElementById('serPreco').value),
+            duracao: parseInt(document.getElementById('serDuracao').value) || 0,
+            categoria: document.getElementById('serCategoria').value,
+            ativo: document.getElementById('serAtivo').value === 'true',
+            comissao: parseFloat(document.getElementById('serComissao').value) || 0,
+            tags: document.getElementById('serTags').value,
+            descricao: document.getElementById('serDescricao').value
+        };
+    }
+    function validarFormulario() {
+        const nome = document.getElementById('serNome').value.trim();
+        if (!nome) { showToast('Nome do serviço é obrigatório!', 'error'); return false; }
+        const preco = parseCurrency(document.getElementById('serPreco').value);
+        if (preco <= 0) { showToast('Preço deve ser maior que zero!', 'error'); return false; }
+        const categoria = document.getElementById('serCategoria').value;
+        if (!categoria) { showToast('Selecione uma categoria!', 'error'); return false; }
+        const comissao = parseFloat(document.getElementById('serComissao').value) || 0;
+        if (comissao < 0 || comissao > 100) { showToast('Comissão deve estar entre 0% e 100%!', 'error'); return false; }
+        return true;
+    }
+    function resetForm() {
+        document.getElementById('serNome').value = '';
+        document.getElementById('serPreco').value = '';
+        document.getElementById('serDuracao').value = '';
+        document.getElementById('serCategoria').value = '';
+        document.getElementById('serAtivo').value = 'true';
+        document.getElementById('serComissao').value = '0';
+        document.getElementById('serTags').value = '';
+        document.getElementById('serDescricao').value = '';
+        editingId = null;
+        document.getElementById('cancelEditBtn').style.display = 'none';
+        const btn = document.getElementById('saveServicoBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+    function fillForm(s) {
+        document.getElementById('serNome').value = s.nome || '';
+        document.getElementById('serPreco').value = formatCurrency(s.preco || 0);
+        document.getElementById('serDuracao').value = s.duracao || 0;
+        document.getElementById('serCategoria').value = s.categoria || '';
+        document.getElementById('serAtivo').value = s.ativo ? 'true' : 'false';
+        document.getElementById('serComissao').value = s.comissao || 0;
+        document.getElementById('serTags').value = s.tags || '';
+        document.getElementById('serDescricao').value = s.descricao || '';
+    }
+    async function salvarServico() {
+        if (!validarFormulario()) return;
+        const data = getFormData();
+        if (editingId) await updateServico(editingId, data);
+        else await addServico(data);
+        resetForm();
+    }
+    function cancelEdit() { resetForm(); }
+
+    // ==================== EDIT, VIEW, DELETE ====================
+    window.editServico = function(id) {
+        const s = servicosCache.find(s => s.id === id);
+        if (s) { fillForm(s); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveServicoBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+    };
+    window.viewServico = function(id) {
+        const s = servicosCache.find(s => s.id === id);
+        if (!s) return;
+        const statusClass = s.ativo ? 'status-ativo' : 'status-inativo';
+        const categoriaIcon = s.categoria === 'banho' ? '🛁' : (s.categoria === 'tosa' ? '✂️' : (s.categoria === 'veterinario' ? '🩺' : (s.categoria === 'estetica' ? '💅' : (s.categoria === 'hospedagem' ? '🏠' : '📌'))));
+        const tags = s.tags ? s.tags.split(',').map(t => `<span class="badge" style="background:#2c7da020; margin:2px;">${escapeHtml(t.trim())}</span>`).join('') : '-';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(s.nome)}</span></div>
+            <div class="info-row"><span class="info-label">Preço:</span><span class="info-value">R$ ${formatCurrency(s.preco || 0)}</span></div>
+            <div class="info-row"><span class="info-label">Duração:</span><span class="info-value">${s.duracao || 0} min</span></div>
+            <div class="info-row"><span class="info-label">Categoria:</span><span class="info-value">${categoriaIcon} ${escapeHtml(s.categoria || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Comissão:</span><span class="info-value">${s.comissao || 0}%</span></div>
+            <div class="info-row"><span class="info-label">Tags:</span><span class="info-value">${tags}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${s.ativo ? 'Ativo' : 'Inativo'}</span></span></div>
+            <div class="info-row"><span class="info-label">Cadastrado em:</span><span class="info-value">${new Date(s.criado_em).toLocaleDateString('pt-BR')}</span></div>
+            ${s.descricao ? `<div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(s.descricao)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.deleteServico = deleteServico;
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+
+    // ==================== GRÁFICOS ====================
+    function updateCharts() {
+        const ativos = servicosCache.filter(s => s.ativo);
+        // Gráfico de serviços por categoria
+        const categorias = {};
+        ativos.forEach(s => { if (s.categoria) categorias[s.categoria] = (categorias[s.categoria] || 0) + 1; });
+        const categoriaLabels = Object.keys(categorias).map(c => {
+            const nomes = { banho: 'Banho', tosa: 'Tosa', veterinario: 'Veterinário', estetica: 'Estética', hospedagem: 'Hospedagem', outro: 'Outro' };
+            return nomes[c] || c;
+        });
+        if (categoriaChart) categoriaChart.destroy();
+        const ctx1 = document.getElementById('categoriaChart').getContext('2d');
+        categoriaChart = new Chart(ctx1, {
+            type: 'bar', data: { labels: categoriaLabels, datasets: [{ label: 'Quantidade de Serviços', data: Object.values(categorias), backgroundColor: '#2c7da0', borderRadius: 8 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+        });
+        // Gráfico de preço médio por categoria
+        const totalPrecoPorCategoria = {};
+        const countPorCategoria = {};
+        ativos.forEach(s => {
+            if (s.categoria && s.preco) {
+                totalPrecoPorCategoria[s.categoria] = (totalPrecoPorCategoria[s.categoria] || 0) + s.preco;
+                countPorCategoria[s.categoria] = (countPorCategoria[s.categoria] || 0) + 1;
+            }
+        });
+        const precosMedios = {};
+        Object.keys(totalPrecoPorCategoria).forEach(c => precosMedios[c] = totalPrecoPorCategoria[c] / countPorCategoria[c]);
+        if (precoChart) precoChart.destroy();
+        const ctx2 = document.getElementById('precoChart').getContext('2d');
+        precoChart = new Chart(ctx2, {
+            type: 'line', data: { labels: Object.keys(precosMedios).map(c => ({ banho:'Banho', tosa:'Tosa', veterinario:'Veterinário', estetica:'Estética', hospedagem:'Hospedagem', outro:'Outro' }[c] || c)), datasets: [{ label: 'Preço Médio (R$)', data: Object.values(precosMedios), borderColor: '#2a9d8f', backgroundColor: 'rgba(42,157,143,0.1)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `R$ ${formatCurrency(ctx.raw)}` } } } }
+        });
+    }
+
+    // ==================== RENDER ====================
+    function renderServicos() {
+        let filtered = servicosCache.filter(s => {
+            const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
+            const searchFilter = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const term = (searchTerm || searchFilter).toLowerCase();
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
+            return (!term || s.nome.toLowerCase().includes(term) || (s.tags || '').toLowerCase().includes(term)) &&
+                   (!statusFilter || (s.ativo ? 'true' : 'false') === statusFilter) &&
+                   (!categoriaFilter || s.categoria === categoriaFilter);
+        });
+        filtered.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('servicosTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum serviço encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(s => {
+            const statusClass = s.ativo ? 'status-ativo' : 'status-inativo';
+            const categoriaIcon = s.categoria === 'banho' ? '🛁' : (s.categoria === 'tosa' ? '✂️' : (s.categoria === 'veterinario' ? '🩺' : (s.categoria === 'estetica' ? '💅' : (s.categoria === 'hospedagem' ? '🏠' : '📌'))));
+            const categoriaDisplay = s.categoria === 'banho' ? 'Banho' : (s.categoria === 'tosa' ? 'Tosa' : (s.categoria === 'veterinario' ? 'Veterinário' : (s.categoria === 'estetica' ? 'Estética' : (s.categoria === 'hospedagem' ? 'Hospedagem' : s.categoria))));
+            return `<tr>
+                <td><strong>${escapeHtml(s.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(s.tags || '')}</span></td>
+                <td><strong style="color:#2a9d8f;">R$ ${formatCurrency(s.preco || 0)}</strong></td>
+                <td>⏱️ ${s.duracao || 0} min</span></td>
+                <td>${categoriaIcon} ${categoriaDisplay}</span></td>
+                <td>${s.comissao || 0}%</span></td>
+                <td><span class="status-badge ${statusClass}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewServico('${s.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editServico('${s.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteServico('${s.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+    function goToPage(page) { currentPage = page; renderServicos(); }
+
+    function updateStats() {
+        document.getElementById('totalServicos').innerText = servicosCache.length;
+        document.getElementById('totalAtivos').innerText = servicosCache.filter(s => s.ativo).length;
+        const ativos = servicosCache.filter(s => s.ativo);
+        const precoMedio = ativos.length ? ativos.reduce((s, p) => s + (p.preco || 0), 0) / ativos.length : 0;
+        document.getElementById('precoMedio').innerHTML = `R$ ${formatCurrency(precoMedio)}`;
+        const duracaoMedia = ativos.length ? Math.round(ativos.reduce((s, p) => s + (p.duracao || 0), 0) / ativos.length) : 0;
+        document.getElementById('duracaoMedia').innerHTML = `${duracaoMedia} min`;
+    }
+
+    function aplicarFiltroStatus(status) { document.getElementById('statusFilter').value = status; currentPage = 1; renderServicos(); updateCharts(); }
+    function aplicarFiltroCategoria(categoria) { document.getElementById('categoriaFilter').value = categoria; currentPage = 1; renderServicos(); updateCharts(); }
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('tableSearch').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('categoriaFilter').value = '';
+        currentPage = 1;
+        renderServicos();
+        updateCharts();
+        showToast('Filtros limpos!', 'success');
+    }
+    function clearTableFilters() { document.getElementById('tableSearch').value = ''; renderServicos(); showToast('Filtros limpos!', 'success'); }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportarPDF() {
+        let servicos = servicosCache.filter(s => {
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
+            return (!searchTerm || s.nome.toLowerCase().includes(searchTerm) || (s.tags || '').toLowerCase().includes(searchTerm)) &&
+                   (!statusFilter || (s.ativo ? 'true' : 'false') === statusFilter) &&
+                   (!categoriaFilter || s.categoria === categoriaFilter);
+        });
+        if (servicos.length === 0) { showToast('Não há serviços para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Serviços', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
+            doc.text(`Total: ${servicos.length} serviços`, 14, 46);
+            const ativos = servicos.filter(s => s.ativo).length;
+            const precoMedioTotal = servicos.reduce((s, p) => s + (p.preco || 0), 0) / servicos.length;
+            doc.setFontSize(9); doc.text(`Serviços Ativos: ${ativos}`, 14, 54);
+            doc.text(`Preço Médio: R$ ${formatCurrency(precoMedioTotal)}`, 14, 62);
+            const colunas = [{ label: 'Serviço', width: 50 }, { label: 'Preço', width: 30 }, { label: 'Duração', width: 30 }, { label: 'Categoria', width: 35 }, { label: 'Comissão', width: 25 }, { label: 'Status', width: 25 }];
+            let y = 72;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0); y += 12;
+            for (const s of servicos) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                const categoriaDisplay = s.categoria === 'banho' ? 'Banho' : (s.categoria === 'tosa' ? 'Tosa' : (s.categoria === 'veterinario' ? 'Veterinário' : (s.categoria === 'estetica' ? 'Estética' : (s.categoria === 'hospedagem' ? 'Hospedagem' : s.categoria))));
+                doc.text((s.nome || '-').substring(0,30), x+2, y+4); x += 50;
+                doc.text(`R$ ${formatCurrency(s.preco || 0)}`, x+2, y+4); x += 30;
+                doc.text(`${s.duracao || 0} min`, x+2, y+4); x += 30;
+                doc.text(categoriaDisplay, x+2, y+4); x += 35;
+                doc.text(`${s.comissao || 0}%`, x+2, y+4); x += 25;
+                doc.text(s.ativo ? 'Ativo' : 'Inativo', x+2, y+4);
+                y += 8; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`servicos_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado com sucesso!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    // ==================== MÁSCARAS ====================
+    function applyMasks() {
+        document.getElementById('serPreco').addEventListener('input', (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v === '') { e.target.value = ''; return; }
+            e.target.value = formatCurrency(parseInt(v)/100);
+        });
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    async function carregarEmpresaUsuario(user) {
+        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+        if (!userDoc.exists()) { showToast('Perfil não encontrado!', 'error'); await auth.signOut(); return null; }
+        const userData = userDoc.data();
+        const empresaId = userData.empresaAtiva;
+        if (!empresaId) { showToast('Nenhuma empresa associada.', 'error'); return null; }
+        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+        if (!empresaDoc.exists()) return null;
+        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
+        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
+        return empresa;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            await carregarDadosEmpresa();
+            renderServicos();
+            updateStats();
+            updateCharts();
+            applyMasks();
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveServicoBtn').onclick = salvarServico;
+    document.getElementById('cancelEditBtn').onclick = cancelEdit;
+    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderServicos(); updateCharts(); });
+    document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderServicos(); updateCharts(); });
+    document.getElementById('categoriaFilter').addEventListener('change', () => { currentPage = 1; renderServicos(); updateCharts(); });
+    document.getElementById('tableSearch').addEventListener('input', () => { currentPage = 1; renderServicos(); });
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+    document.getElementById('clearTableFilters').onclick = clearTableFilters;
+    document.getElementById('exportPdfBtn').onclick = exportarPDF;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = fecharModal;
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
+    window.goToPage = goToPage;
+    window.solicitarLiberacao = () => {};
+    window.aplicarFiltroStatus = aplicarFiltroStatus;
+    window.aplicarFiltroCategoria = aplicarFiltroCategoria;
+    console.log('✅ Serviços - Refatorado para Firebase/Firestore');
+</script>
+</body>
+</html>

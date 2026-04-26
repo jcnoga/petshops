@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Permissões | Firebase + Firestore</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-success { background: #2a9d8f; color: white; }
+        .btn-danger { background: #e76f51; color: white; }
+        .btn-warning { background: #e9c46a; color: #1f5068; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
+        .filters-card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 30px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .filter-group input, .filter-group select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; cursor: pointer; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group select, .input-group input { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        
+        /* Permissões em Checklist */
+        .permissions-container {
+            background: #f8fbfd;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .permissions-module {
+            margin-bottom: 20px;
+            border: 1px solid #e2edf2;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .module-header {
+            background: #f0f4f8;
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #1f5068;
+        }
+        .module-header:hover { background: #e8ecf0; }
+        .module-header i { transition: transform 0.2s; }
+        .module-header.open i { transform: rotate(90deg); }
+        .module-body {
+            padding: 15px 20px;
+            display: none;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+        }
+        .module-body.open { display: grid; }
+        .permission-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2edf2;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .permission-check:hover { background: #e8f4f8; border-color: #2c7da0; }
+        .permission-check input { width: 18px; height: 18px; cursor: pointer; accent-color: #2c7da0; margin: 0; }
+        .permission-check label { cursor: pointer; font-size: 0.8rem; color: #4a6272; margin: 0; text-transform: none; font-weight: normal; flex: 1; }
+        .permission-check input:checked + label { color: #2c7da0; font-weight: 500; }
+        
+        .module-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .module-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #7a9eb0;
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            transition: all 0.2s;
+        }
+        .module-actions button:hover {
+            background: #e2edf2;
+            color: #2c7da0;
+        }
+        
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .permissao-search { margin-bottom: 15px; }
+        .permissao-search input { width: 100%; padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .permissao-badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; background: #2c7da020; color: #2c7da0; margin: 2px; cursor: pointer; transition: all 0.2s; }
+        .permissao-badge:hover { background: #2c7da0; color: white; transform: scale(1.05); }
+        .action-buttons { display: flex; gap: 6px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.copy:hover { background: #e9c46a; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 550px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; max-width: 60%; word-break: break-word; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .toast-warning { background: #e9c46a; color: #1f5068; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
+        .acesso-bloqueado i { font-size: 4rem; color: #e76f51; margin-bottom: 20px; }
+        .acesso-bloqueado h2 { color: #e76f51; margin-bottom: 15px; }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .module-body { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
+    <a href="index.html">Dashboard</a> > 
+    <span>Permissões</span>
+</div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-lock"></i></div><h1>PerShop <span>Permissões</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+
+    <!-- Loading -->
+    <div id="loadingScreen" class="loading-screen">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Carregando módulo de permissões...</p>
+    </div>
+
+    <!-- Mensagem de bloqueio (se não for admin) -->
+    <div id="blockedContent" class="acesso-bloqueado hidden">
+        <i class="fas fa-lock"></i>
+        <h2>⛔ Acesso Restrito</h2>
+        <p>Você não tem permissão para acessar esta área.</p>
+        <p>O módulo de <strong>Permissões</strong> é exclusivo para <strong>Administradores</strong>.</p>
+        <button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar ao Dashboard</button>
+        <button class="btn btn-outline" onclick="logout()" style="margin-left:10px;">Sair</button>
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div><div class="stat-value" id="totalUsuarios">0</div><div class="stat-label">Usuários</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-lock"></i></div></div><div class="stat-value" id="totalPermissoes">0</div><div class="stat-label">Permissões</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-shield-alt"></i></div></div><div class="stat-value" id="totalModulos">0</div><div class="stat-label">Módulos</div></div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-header"><h2><i class="fas fa-user-shield"></i> Gerenciar Permissões</h2><p>Selecione o usuário e marque as permissões desejadas</p></div>
+            <div class="form-body">
+                <div class="form-grid">
+                    <div class="input-group"><label class="required"><i class="fas fa-user"></i> Usuário</label><select id="permUsuarioId"><option value="">Carregando usuários...</option></select></div>
+                    
+                    <div class="permissao-search">
+                        <input type="text" id="permissaoSearch" placeholder="🔍 Buscar permissão...">
+                    </div>
+                    
+                    <div class="permissions-container" id="permissionsContainer">
+                        <div style="text-align:center; padding:40px;">Selecione um usuário para gerenciar as permissões</div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" id="copyPermissoesBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-copy"></i> Copiar de Outro Usuário</button>
+                        <button type="button" id="savePermissaoBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Permissões</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header"><h3><i class="fas fa-list"></i> Permissões por Usuário</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar usuário..."></div></div>
+            <div class="table-wrapper"><table id="permissoesTable"><thead><tr><th>Usuário</th><th>Permissões</th><th>Ações</th></tr></thead><tbody id="permissoesTableBody"></tbody>}</div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+    
+    <div class="footer">PerShop Enterprise - Módulo de Permissões | Gestão de acesso por checklist</div>
+</div>
+
+<!-- Modal Copiar Permissões -->
+<div id="copyModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header"><h3><i class="fas fa-copy"></i> Copiar Permissões</h3><button class="modal-close" onclick="fecharCopyModal()">&times;</button></div>
+        <div class="modal-body">
+            <div class="input-group"><label>Usuário de origem</label><select id="copyUsuarioOrigem"><option value="">Selecione</option></select></div>
+            <div class="info-row"><span class="info-label">Ação:</span><span class="info-value">Substituirá todas as permissões atuais</span></div>
+            <div class="modal-buttons" style="margin-top:20px;">
+                <button class="btn btn-outline" onclick="fecharCopyModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarCopiarPermissoes()">Copiar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ==================== CONFIGURAÇÃO DOS MÓDULOS E PERMISSÕES ====================
+    const MODULOS_PERMISSOES = [
+        { nome: "Clientes", icone: "fa-user-friends", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Pets", icone: "fa-paw", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Agendamentos", icone: "fa-calendar-check", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Produtos", icone: "fa-box", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Financeiro", icone: "fa-chart-line", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Profissionais", icone: "fa-user-md", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Serviços", icone: "fa-cut", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Vacinas", icone: "fa-syringe", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Lembretes", icone: "fa-bell", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Relatórios", icone: "fa-chart-bar", permissoes: ["visualizar", "exportar"] },
+        { nome: "Usuários", icone: "fa-users", permissoes: ["visualizar", "cadastrar", "editar", "excluir"] },
+        { nome: "Configurações", icone: "fa-cog", permissoes: ["visualizar", "editar"] }
+    ];
+    
+    // ==================== ESTADO GLOBAL ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let isAdmin = false;
+    let usuarioSelecionadoId = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let usuariosCache = [];
+    let permissoesCache = [];   // { id, usuarioId, permissao, empresaId }
+
+    // ==================== FUNÇÕES AUXILIARES ====================
+    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
+
+    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    async function carregarUsuarios() {
+        const q = query(collection(db, 'usuarios'));
+        const snapshot = await getDocs(q);
+        usuariosCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return usuariosCache;
+    }
+    async function carregarPermissoes() {
+        if (!currentEmpresa) { permissoesCache = []; return; }
+        const q = query(collection(db, 'permissoes'), where('empresaId', '==', currentEmpresa.id));
+        const snapshot = await getDocs(q);
+        permissoesCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return permissoesCache;
+    }
+
+    // ==================== GERAR CHECKLIST DE PERMISSÕES ====================
+    function gerarChecklistPermissoes() {
+        const container = document.getElementById('permissionsContainer');
+        const searchTerm = document.getElementById('permissaoSearch')?.value.toLowerCase() || '';
+        
+        if (!usuarioSelecionadoId) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+            return;
+        }
+        
+        const permissoesDoUsuario = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
+        const permissoesMap = new Map();
+        permissoesDoUsuario.forEach(p => { permissoesMap.set(p.permissao, true); });
+        
+        let html = '';
+        let totalModulos = 0;
+        
+        MODULOS_PERMISSOES.forEach(modulo => {
+            const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
+            const moduloNomeLower = modulo.nome.toLowerCase();
+            const moduloMatch = moduloNomeLower.includes(searchTerm);
+            const permissoesFiltradas = modulo.permissoes.filter(perm => moduloMatch || perm.toLowerCase().includes(searchTerm));
+            if (permissoesFiltradas.length === 0 && searchTerm && !moduloMatch) return;
+            totalModulos++;
+            html += `
+                <div class="permissions-module">
+                    <div class="module-header" onclick="toggleModule('${moduloId}')">
+                        <span><i class="fas ${modulo.icone}"></i> ${modulo.nome}</span>
+                        <div class="module-actions">
+                            <button onclick="event.stopPropagation(); marcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Marcar todos"><i class="fas fa-check-double"></i> Todos</button>
+                            <button onclick="event.stopPropagation(); desmarcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Desmarcar todos"><i class="fas fa-times"></i> Nenhum</button>
+                            <i class="fas fa-chevron-right" id="icon_${moduloId}"></i>
+                        </div>
+                    </div>
+                    <div class="module-body" id="body_${moduloId}">
+            `;
+            modulo.permissoes.forEach(perm => {
+                const permKey = `${modulo.nome.toLowerCase()}.${perm.toLowerCase()}`;
+                const permNome = perm.charAt(0).toUpperCase() + perm.slice(1);
+                const checked = permissoesMap.has(permKey) ? 'checked' : '';
+                html += `
+                    <label class="permission-check" data-permissao="${permKey}">
+                        <input type="checkbox" name="permissao" value="${permKey}" ${checked} onchange="marcarPermissao(this)">
+                        <label>${permNome}</label>
+                    </label>
+                `;
+            });
+            html += `</div></div>`;
+        });
+        
+        if (totalModulos === 0 && searchTerm) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">🔍 Nenhuma permissão encontrada para esta busca</div>';
+        } else {
+            container.innerHTML = html;
+            MODULOS_PERMISSOES.forEach(modulo => {
+                const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
+                const body = document.getElementById(`body_${moduloId}`);
+                const icon = document.getElementById(`icon_${moduloId}`);
+                if (body && body.children.length > 0 && !body.classList.contains('open')) {
+                    body.classList.add('open');
+                    if (icon) icon.style.transform = 'rotate(90deg)';
+                }
+            });
+        }
+    }
+    
+    window.toggleModule = function(moduleId) {
+        const body = document.getElementById(`body_${moduleId}`);
+        const icon = document.getElementById(`icon_${moduleId}`);
+        if (body.classList.contains('open')) {
+            body.classList.remove('open');
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        } else {
+            body.classList.add('open');
+            if (icon) icon.style.transform = 'rotate(90deg)';
+        }
+    };
+    window.marcarPermissao = function(checkbox) { /* apenas registro */ };
+    window.marcarTodosModulo = function(moduleId, moduloNome) {
+        const body = document.getElementById(`body_${moduleId}`);
+        if (body) {
+            const checkboxes = body.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            showToast(`${moduloNome}: todas as permissões marcadas`, 'info');
+        }
+    };
+    window.desmarcarTodosModulo = function(moduleId, moduloNome) {
+        const body = document.getElementById(`body_${moduleId}`);
+        if (body) {
+            const checkboxes = body.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            showToast(`${moduloNome}: todas as permissões desmarcadas`, 'info');
+        }
+    };
+
+    // ==================== SALVAR PERMISSÕES ====================
+    async function salvarPermissoes() {
+        if (!usuarioSelecionadoId) { showToast('Selecione um usuário primeiro!', 'error'); return; }
+        if (!confirm('Confirmar alterações nas permissões?')) return;
+        
+        const checkboxes = document.querySelectorAll('input[name="permissao"]');
+        const permissoesSelecionadas = [];
+        checkboxes.forEach(cb => { if (cb.checked) permissoesSelecionadas.push(cb.value); });
+        
+        // Remover permissões antigas deste usuário
+        const permissoesAntigas = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
+        for (const p of permissoesAntigas) {
+            await deleteDoc(doc(db, 'permissoes', p.id));
+        }
+        
+        // Adicionar novas permissões
+        const novasPermissoes = [];
+        for (const perm of permissoesSelecionadas) {
+            const novoDoc = {
+                usuarioId: usuarioSelecionadoId,
+                permissao: perm,
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid
+            };
+            const docRef = await addDoc(collection(db, 'permissoes'), novoDoc);
+            novoDoc.id = docRef.id;
+            novasPermissoes.push(novoDoc);
+        }
+        
+        // Atualizar cache
+        permissoesCache = permissoesCache.filter(p => p.usuarioId !== usuarioSelecionadoId);
+        permissoesCache.push(...novasPermissoes);
+        
+        gerarChecklistPermissoes();
+        atualizarSelectUsuariosComPermissoes();
+        renderPermissoes();
+        updateStats();
+        showToast('Permissões salvas com sucesso!', 'success');
+    }
+
+    // ==================== COPIAR PERMISSÕES ====================
+    function mostrarModalCopiar() {
+        const selectOrigem = document.getElementById('copyUsuarioOrigem');
+        selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
+            usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        document.getElementById('copyModal').style.display = 'flex';
+    }
+    function fecharCopyModal() { document.getElementById('copyModal').style.display = 'none'; }
+    async function confirmarCopiarPermissoes() {
+        const usuarioOrigemId = document.getElementById('copyUsuarioOrigem').value;
+        if (!usuarioOrigemId) { showToast('Selecione um usuário de origem!', 'error'); return; }
+        
+        const permissoesOrigem = permissoesCache.filter(p => p.usuarioId === usuarioOrigemId);
+        // Remover permissões antigas do destino
+        const permissoesDestinoAntigas = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
+        for (const p of permissoesDestinoAntigas) {
+            await deleteDoc(doc(db, 'permissoes', p.id));
+        }
+        // Adicionar novas
+        const novasPermissoes = [];
+        for (const perm of permissoesOrigem) {
+            const novoDoc = {
+                usuarioId: usuarioSelecionadoId,
+                permissao: perm.permissao,
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid,
+                copiado_de: usuarioOrigemId
+            };
+            const docRef = await addDoc(collection(db, 'permissoes'), novoDoc);
+            novoDoc.id = docRef.id;
+            novasPermissoes.push(novoDoc);
+        }
+        // Atualizar cache
+        permissoesCache = permissoesCache.filter(p => p.usuarioId !== usuarioSelecionadoId);
+        permissoesCache.push(...novasPermissoes);
+        
+        gerarChecklistPermissoes();
+        atualizarSelectUsuariosComPermissoes();
+        renderPermissoes();
+        updateStats();
+        showToast('Permissões copiadas com sucesso!', 'success');
+        fecharCopyModal();
+    }
+
+    // ==================== CARREGAR PERMISSÕES DO USUÁRIO ====================
+    function carregarPermissoesDoUsuario() {
+        const usuarioId = document.getElementById('permUsuarioId').value;
+        if (!usuarioId) {
+            usuarioSelecionadoId = null;
+            document.getElementById('permissionsContainer').innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+            document.getElementById('copyPermissoesBtn').style.display = 'none';
+            return;
+        }
+        usuarioSelecionadoId = usuarioId;
+        gerarChecklistPermissoes();
+        document.getElementById('copyPermissoesBtn').style.display = 'inline-block';
+    }
+
+    // ==================== RENDER TABELA DE PERMISSÕES ====================
+    function renderPermissoes() {
+        // Agrupar permissões por usuário
+        const permissoesPorUsuario = new Map();
+        permissoesCache.forEach(p => {
+            if (!permissoesPorUsuario.has(p.usuarioId)) permissoesPorUsuario.set(p.usuarioId, []);
+            permissoesPorUsuario.get(p.usuarioId).push(p.permissao);
+        });
+        
+        let usuariosComPermissoes = Array.from(permissoesPorUsuario.keys()).map(uid => {
+            const usuario = usuariosCache.find(u => u.id === uid);
+            return { usuario, permissoes: permissoesPorUsuario.get(uid) };
+        }).filter(item => item.usuario);
+        
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        if (searchTerm) {
+            usuariosComPermissoes = usuariosComPermissoes.filter(item => 
+                (item.usuario?.nome || '').toLowerCase().includes(searchTerm) || 
+                (item.usuario?.email || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        
+        const totalPages = Math.ceil(usuariosComPermissoes.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = usuariosComPermissoes.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('permissoesTableBody');
+        if (paginated.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário com permissões encontrado<\/td><\/tr>';
+            document.getElementById('pagination').innerHTML = '';
+            return;
+        }
+        
+        tbody.innerHTML = paginated.map(item => {
+            const permissoesFormatadas = item.permissoes.map(p => {
+                const parts = p.split('.');
+                const modulo = parts[0];
+                const acao = parts[1];
+                const moduloDisplay = modulo.charAt(0).toUpperCase() + modulo.slice(1);
+                const acaoIcon = acao === 'visualizar' ? '👁️' : (acao === 'cadastrar' ? '✏️' : (acao === 'editar' ? '📝' : (acao === 'excluir' ? '🗑️' : (acao === 'exportar' ? '📄' : '⚙️'))));
+                return `<span class="permissao-badge" onclick="filtrarPorPermissao('${p}')" title="Filtrar por esta permissão">${acaoIcon} ${moduloDisplay} › ${acao}</span>`;
+            }).join('');
+            return `<tr>
+                <td><strong>${escapeHtml(item.usuario?.nome || '-')}</strong><br><span style="font-size:0.7rem; color:#7a9eb0;">${escapeHtml(item.usuario?.email || '')}</span><br><span class="badge" style="margin-top:4px;">${item.permissoes.length} permissões</span></td>
+                <td style="max-width:500px;">${permissoesFormatadas || '-'}</td>
+                <td class="action-buttons">
+                    <button class="action-btn edit" onclick="editarPermissoes('${item.usuario.id}')" title="Editar permissões"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn copy" onclick="copiarPermissoesUsuario('${item.usuario.id}')" title="Copiar permissões deste usuário"><i class="fas fa-copy"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+        
+        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) { pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`; }
+        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+    
+    function goToPage(page) { currentPage = page; renderPermissoes(); }
+    function filtrarPorPermissao(permissao) {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = permissao.split('.')[0];
+            currentPage = 1;
+            renderPermissoes();
+            showToast(`Filtrando por: ${permissao.split('.')[0]}`, 'info');
+        }
+    }
+    function editarPermissoes(usuarioId) {
+        const select = document.getElementById('permUsuarioId');
+        select.value = usuarioId;
+        carregarPermissoesDoUsuario();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        showToast('Carregando permissões do usuário...', 'info');
+    }
+    function copiarPermissoesUsuario(usuarioId) {
+        if (usuarioSelecionadoId) {
+            document.getElementById('copyModal').style.display = 'flex';
+            const selectOrigem = document.getElementById('copyUsuarioOrigem');
+            selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
+                usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}" ${u.id === usuarioId ? 'selected' : ''}>${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        } else {
+            showToast('Selecione um usuário destino primeiro!', 'error');
+        }
+    }
+
+    // ==================== UPDATE STATS ====================
+    function updateStats() {
+        document.getElementById('totalUsuarios').innerText = usuariosCache.length;
+        document.getElementById('totalPermissoes').innerText = permissoesCache.length;
+        document.getElementById('totalModulos').innerText = MODULOS_PERMISSOES.length;
+    }
+    
+    // ==================== SELECT DE USUÁRIOS ====================
+    function atualizarSelectUsuariosComPermissoes() {
+        const select = document.getElementById('permUsuarioId');
+        if (!select) return;
+        const permissoesCount = new Map();
+        permissoesCache.forEach(p => {
+            permissoesCount.set(p.usuarioId, (permissoesCount.get(p.usuarioId) || 0) + 1);
+        });
+        select.innerHTML = '<option value="">Selecione um usuário</option>';
+        usuariosCache.forEach(u => {
+            const countPerm = permissoesCount.get(u.id) || 0;
+            const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : '👤');
+            select.innerHTML += `<option value="${u.id}">${perfilIcon} ${escapeHtml(u.nome)} - ${countPerm} permissões</option>`;
+        });
+    }
+
+    // ==================== VERIFICAR ACESSO ADMIN ====================
+    async function verificarAcessoAdmin() {
+        if (!currentUser) return false;
+        const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
+        if (!userDoc.exists()) return false;
+        const perfil = userDoc.data().perfil;
+        return perfil === 'admin';
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    async function carregarEmpresaUsuario(user) {
+        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+        if (!userDoc.exists()) { await auth.signOut(); return null; }
+        const userData = userDoc.data();
+        const empresaId = userData.empresaAtiva;
+        if (!empresaId) return null;
+        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+        if (!empresaDoc.exists()) return null;
+        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
+        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
+        return empresa;
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            const empresa = await carregarEmpresaUsuario(user);
+            if (!empresa) { window.location.href = 'empresa.html'; return; }
+            currentEmpresa = empresa;
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${empresa.emp_razao_social || empresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            isAdmin = await verificarAcessoAdmin();
+            if (!isAdmin) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('blockedContent').classList.remove('hidden');
+                document.getElementById('conteudoPrincipal').style.display = 'none';
+                return;
+            }
+            
+            await carregarUsuarios();
+            await carregarPermissoes();
+            atualizarSelectUsuariosComPermissoes();
+            renderPermissoes();
+            updateStats();
+            
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('blockedContent').classList.add('hidden');
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+    
+    // ==================== EVENTOS ====================
+    document.getElementById('permUsuarioId').addEventListener('change', carregarPermissoesDoUsuario);
+    document.getElementById('savePermissaoBtn').onclick = salvarPermissoes;
+    document.getElementById('copyPermissoesBtn').onclick = mostrarModalCopiar;
+    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderPermissoes(); });
+    document.getElementById('permissaoSearch').addEventListener('input', () => gerarChecklistPermissoes());
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    window.onclick = (e) => { if (e.target === document.getElementById('copyModal')) fecharCopyModal(); };
+    window.fecharCopyModal = fecharCopyModal;
+    window.confirmarCopiarPermissoes = confirmarCopiarPermissoes;
+    window.goToPage = goToPage;
+    window.logout = () => auth.signOut();
+    
+    console.log('✅ Permissões - Refatorado para Firebase/Firestore');
+</script>
+</body>
+</html>
