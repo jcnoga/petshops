@@ -8,21 +8,13 @@ let currentEmpresa = null;
 async function atualizarStats() {
   if (!currentEmpresa) return;
   try {
-    const clientesQuery = query(
-      collection(db, 'clientes'),
-      where('empresaId', '==', currentEmpresa.id),
-      where('deleted', '==', false)
-    );
+    const clientesQuery = query(collection(db, 'clientes'), where('empresaId', '==', currentEmpresa.id), where('deleted', '==', false));
     const petsQuery = query(collection(db, 'pets'), where('empresaId', '==', currentEmpresa.id));
-    const [clientesSnap, petsSnap] = await Promise.all([
-      getCountFromServer(clientesQuery),
-      getCountFromServer(petsQuery)
-    ]);
+    const [clientesSnap, petsSnap] = await Promise.all([getCountFromServer(clientesQuery), getCountFromServer(petsQuery)]);
     document.getElementById('totalClientes').innerText = clientesSnap.data().count;
     document.getElementById('totalPets').innerText = petsSnap.data().count;
-    // Demais estatísticas podem ser implementadas depois
   } catch (error) {
-    console.error("Erro ao carregar estatísticas:", error);
+    console.error(error);
   }
 }
 
@@ -33,19 +25,13 @@ function setupEventos() {
       if (modulo) window.location.href = modulo;
     });
   });
-  // Botão logout
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.onclick = () => {
-      auth.signOut().then(() => {
-        window.location.href = 'login.html';
-      }).catch((error) => {
-        console.error("Erro ao sair:", error);
-        showToast("Erro ao sair", "error");
-      });
-    };
-  }
 }
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  auth.signOut().then(() => {
+    window.location.href = 'login.html';
+  }).catch(console.error);
+});
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -60,26 +46,24 @@ onAuthStateChanged(auth, async (user) => {
     const status = verificarStatusEmpresa(currentEmpresa);
     const alertDiv = document.getElementById('trialAlert');
     if (status.status === 'expirado') {
-      alertDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Período de teste EXPIRADO! Entre em contato.</div>`;
+      alertDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Período de teste expirado!</div>`;
       alertDiv.style.display = 'flex';
     } else if (status.status === 'trial_urgente') {
-      alertDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Seu trial termina em <strong>${status.diasRestantes}</strong> dias. Solicite liberação.</div><button class="btn btn-outline" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+      alertDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Trial termina em ${status.diasRestantes} dias!</div><button class="btn btn-outline" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
       alertDiv.style.display = 'flex';
     } else if (status.status === 'trial') {
-      alertDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${status.diasRestantes}</strong> dias restantes.</div>`;
+      alertDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Trial: ${status.diasRestantes} dias restantes.</div>`;
       alertDiv.style.display = 'flex';
-    } else {
-      alertDiv.style.display = 'none';
     }
   } catch (error) {
-    console.error("Erro ao inicializar:", error);
-    showToast("Erro ao carregar dados da empresa", "error");
+    console.error(error);
+    showToast('Erro ao carregar dados', 'error');
   }
 });
 
 window.solicitarLiberacao = () => {
   const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-  const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_telefone || '-'}\nAguardo retorno.`);
+  const corpo = encodeURIComponent(`Solicito liberação.\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}`);
   window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-  showToast('Abrindo cliente de e-mail...', 'info');
+  showToast('Abrindo e-mail...', 'info');
 };

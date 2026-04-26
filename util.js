@@ -1,4 +1,4 @@
-import { auth, db } from './firebase-config.js';
+import { db } from './firebase-config.js';
 import { collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 export function showToast(message, type = 'info') {
@@ -12,7 +12,6 @@ export function showToast(message, type = 'info') {
 }
 
 export function formatCurrency(value) {
-  if (isNaN(value)) value = 0;
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
@@ -54,19 +53,13 @@ export async function carregarEmpresaUsuario(user) {
       emp_email: user.email,
       plano: "trial",
       trial_expiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: new Date()
     };
     const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
-    console.log("✅ Empresa criada com ID:", docRef.id);
     return { id: docRef.id, ...novaEmpresa };
   } catch (error) {
-    console.error("Erro ao criar/obter empresa:", error);
-    return {
-      id: "empresa_teste",
-      emp_razao_social: "Petshop Teste",
-      plano: "ativo"
-    };
+    console.error(error);
+    return { id: 'empresa_teste', emp_razao_social: 'Petshop Teste', plano: 'ativo' };
   }
 }
 
