@@ -96,6 +96,9 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-screen { text-align: center; padding: 60px; }
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .search-area input { width: 100%; } }
     </style>
 </head>
@@ -166,9 +169,15 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-user-md"></i> Detalhes do Profissional</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatarData, validarEmail, validarTelefone,
+        aplicarMascaraTelefone, carregarEmpresaUsuario, verificarStatusEmpresa
+    } from './util.js';
 
     // ==================== CONSTANTES ====================
     let currentUser = null;
@@ -179,9 +188,7 @@
     let profissionaisCache = [];
     let agendamentosCache = [];
 
-    // ==================== FUNÇÕES AUXILIARES ====================
-    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function formatarData(dataStr) { if (!dataStr) return '-'; return new Date(dataStr).toLocaleDateString('pt-BR'); }
+    // ==================== FUNÇÕES AUXILIARES ESPECÍFICAS ====================
     function calcularIdade(dataNasc) {
         if (!dataNasc) return null;
         const hoje = new Date();
@@ -191,19 +198,8 @@
         if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--;
         return idade;
     }
-    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
-    function validarTelefone(telefone) {
-        if (!telefone) return true;
-        const regex = /^\([0-9]{2}\) [0-9]{4,5}-[0-9]{4}$/;
-        return regex.test(telefone);
-    }
-    function validarEmail(email) {
-        if (!email) return true;
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return regex.test(email);
-    }
 
-    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
     async function carregarDadosEmpresa() {
         if (!currentEmpresa) return;
         const empresaId = currentEmpresa.id;
@@ -392,16 +388,16 @@
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('profissionaisTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<td><td colspan="7" style="text-align:center; padding:40px;">Nenhum profissional encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum profissional encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
         tbody.innerHTML = paginated.map(p => {
             const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
             const funcaoIcon = p.funcao === 'veterinario' ? '🩺' : (p.funcao === 'tosador' ? '✂️' : (p.funcao === 'recepcionista' ? '📞' : (p.funcao === 'banhista' ? '🛁' : '📌')));
             const funcaoDisplay = p.funcao === 'veterinario' ? 'Veterinário' : (p.funcao === 'tosador' ? 'Tosador' : (p.funcao === 'recepcionista' ? 'Recepcionista' : (p.funcao === 'banhista' ? 'Banhista' : p.funcao)));
             return `<tr>
                 <td><strong>${escapeHtml(p.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(p.email || '')}</span></td>
-                <td>${funcaoIcon} ${funcaoDisplay}</td>
-                <td>${escapeHtml(p.telefone || '-')}</td>
-                <td>${escapeHtml(p.email || '-')}</td>
+                <td>${funcaoIcon} ${funcaoDisplay}</span></td>
+                <td>${escapeHtml(p.telefone || '-')}</span></td>
+                <td>${escapeHtml(p.email || '-')}</span></td>
                 <td>${p.comissao || 0}%</span></td>
                 <td><span class="status-badge ${statusClass}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
                 <td class="action-buttons">
@@ -469,37 +465,58 @@
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
 
-    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    async function carregarEmpresaUsuario(user) {
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userDoc.exists()) { showToast('Perfil não encontrado!', 'error'); await auth.signOut(); return null; }
-        const userData = userDoc.data();
-        const empresaId = userData.empresaAtiva;
-        if (!empresaId) { showToast('Nenhuma empresa associada.', 'error'); return null; }
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) return null;
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
+    // ==================== MÁSCARA DE TELEFONE ====================
+    function configurarMascaraTelefoneLocal() {
+        const telInput = document.getElementById('prfTelefone');
+        if (telInput) {
+            telInput.addEventListener('input', (e) => {
+                e.target.value = aplicarMascaraTelefone(e.target.value);
+                // Validação em tempo real (opcional)
+                if (e.target.value && !validarTelefone(e.target.value)) {
+                    e.target.style.borderColor = '#e76f51';
+                } else {
+                    e.target.style.borderColor = '#e2edf2';
+                }
+            });
+        }
     }
 
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
             await carregarDadosEmpresa();
             renderProfissionais();
             updateStats();
-            // Máscara de telefone
-            const telInput = document.getElementById('prfTelefone');
-            telInput.addEventListener('input', (e) => {
-                let v = e.target.value.replace(/\D/g, '');
-                if (v.length <= 10) v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
-                else v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
-                e.target.value = v;
-            });
+            configurarMascaraTelefoneLocal();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {
@@ -521,8 +538,13 @@
     window.goToPage = goToPage;
     window.aplicarFiltroFuncao = aplicarFiltroFuncao;
     window.aplicarFiltroStatus = aplicarFiltroStatus;
-    window.solicitarLiberacao = () => {};
-    console.log('✅ Profissionais - Refatorado para Firebase/Firestore');
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    console.log('✅ Profissionais - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>

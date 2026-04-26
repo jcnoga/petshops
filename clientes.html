@@ -178,7 +178,7 @@
                     <button id="exportPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
                 </div>
             </div>
-            <div class="table-wrapper"><table id="clientesTable"><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ações</th><tr></thead><tbody id="clientesTableBody"></tbody>}</div>
+            <div class="table-wrapper"><table id="clientesTable"><thead><tr><th>Cliente</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ações</th></tr></thead><tbody id="clientesTableBody"></tbody>}</div>
             <div class="pagination" id="pagination"></div>
         </div>
     </div>
@@ -188,9 +188,15 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-user-circle"></i> Detalhes do Cliente</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, formatarData, 
+        validarEmail, validarTelefone, carregarEmpresaUsuario, verificarStatusEmpresa
+    } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
@@ -207,12 +213,7 @@
     let petsCache = [];
     let agendamentosCache = [];
 
-    // ==================== FUNÇÕES AUXILIARES ====================
-    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value); }
-    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
-
-    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
     async function carregarDadosEmpresa() {
         if (!currentEmpresa) return;
         const empresaId = currentEmpresa.id;
@@ -303,21 +304,7 @@
         }
     }
 
-    // ==================== VALIDAÇÕES ====================
-    function validarEmail(email) {
-        if (!email) return true;
-        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const valid = regex.test(email);
-        document.getElementById('emailError').style.display = valid ? 'none' : 'block';
-        return valid;
-    }
-    function validarTelefone(telefone) {
-        if (!telefone) return true;
-        const regex = /^\([0-9]{2}\) [0-9]{4,5}-[0-9]{4}$/;
-        const valid = regex.test(telefone);
-        document.getElementById('telError').style.display = valid ? 'none' : 'block';
-        return valid;
-    }
+    // ==================== VALIDAÇÕES ESPECÍFICAS (unicidade dentro da empresa) ====================
     function validarEmailUnico(email, idIgnorar = null) {
         if (!email) return true;
         const existe = clientesCache.some(c => c.cli_email === email && c.id !== idIgnorar && !c.deleted_at);
@@ -502,7 +489,7 @@
                     ${!isDeleted ? `<button class="action-btn delete" onclick="softDeleteCliente('${c.id}')"><i class="fas fa-trash-alt"></i></button>` : ''}
                     ${isDeleted ? `<button class="action-btn restore" onclick="restaurarCliente('${c.id}')"><i class="fas fa-trash-restore"></i></button>` : ''}
                     ${isDeleted ? `<button class="action-btn delete" onclick="permanentDeleteCliente('${c.id}')" style="background:#e76f51; color:white;"><i class="fas fa-skull-crossbones"></i></button>` : ''}
-                </td>
+                 </div>
             </tr>`;
         }).join('');
         
@@ -559,27 +546,32 @@
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
 
-    // ==================== MÁSCARAS ====================
+    // ==================== MÁSCARAS (específicas de telefone e documento) ====================
     function applyMasks() {
         const tel = document.getElementById('cliTelefone');
-        tel.addEventListener('input', (e) => { let v = e.target.value.replace(/\D/g, ''); if (v.length <= 10) v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2'); else v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2'); e.target.value = v; validarTelefone(v); });
-        const doc = document.getElementById('cliDocumento'); doc.addEventListener('input', (e) => { let v = e.target.value.replace(/\D/g, ''); if (v.length <= 11) v = v.replace(/^(\d{3})(\d)/, '$1.$2').replace(/\.(\d{3})(\d)/, '.$1.$2').replace(/\.(\d{3})(\d)/, '.$1-$2'); else v = v.replace(/^(\d{2})(\d)/, '$1.$2').replace(/\.(\d{3})(\d)/, '.$1.$2').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2'); e.target.value = v; });
-        const email = document.getElementById('cliEmail'); email.addEventListener('input', () => validarEmail(email.value));
+        tel.addEventListener('input', (e) => { 
+            let v = e.target.value.replace(/\D/g, ''); 
+            if (v.length <= 10) v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2'); 
+            else v = v.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2'); 
+            e.target.value = v; 
+            if (!validarTelefone(v)) document.getElementById('telError').style.display = 'block';
+            else document.getElementById('telError').style.display = 'none';
+        });
+        const doc = document.getElementById('cliDocumento'); 
+        doc.addEventListener('input', (e) => { 
+            let v = e.target.value.replace(/\D/g, ''); 
+            if (v.length <= 11) v = v.replace(/^(\d{3})(\d)/, '$1.$2').replace(/\.(\d{3})(\d)/, '.$1.$2').replace(/\.(\d{3})(\d)/, '.$1-$2'); 
+            else v = v.replace(/^(\d{2})(\d)/, '$1.$2').replace(/\.(\d{3})(\d)/, '.$1.$2').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2'); 
+            e.target.value = v; 
+        });
+        const email = document.getElementById('cliEmail'); 
+        email.addEventListener('input', () => {
+            if (!validarEmail(email.value)) document.getElementById('emailError').style.display = 'block';
+            else document.getElementById('emailError').style.display = 'none';
+        });
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    async function carregarEmpresaUsuario(user) {
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userDoc.exists()) { showToast('Perfil não encontrado!', 'error'); await auth.signOut(); return null; }
-        const userData = userDoc.data();
-        const empresaId = userData.empresaAtiva;
-        if (!empresaId) { showToast('Nenhuma empresa associada.', 'error'); return null; }
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) return null;
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
-    }
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -587,6 +579,31 @@
             if (!empresa) { window.location.href = 'login.html'; return; }
             currentEmpresa = empresa;
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${empresa.emp_razao_social || empresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
             await carregarDadosEmpresa();
             renderClientes();
             updateStats();
@@ -613,9 +630,14 @@
     window.restaurarCliente = restaurarCliente;
     window.permanentDeleteCliente = permanentDeleteCliente;
     window.goToPage = goToPage;
-    window.solicitarLiberacao = () => { /* manter compatibilidade, se necessário */ };
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
 
-    console.log('✅ Clientes - Refatorado para Firebase/Firestore');
+    console.log('✅ Clientes - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>

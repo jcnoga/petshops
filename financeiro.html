@@ -180,9 +180,15 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-chart-line"></i> Detalhes do Lançamento</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, parseCurrency, formatarData,
+        carregarEmpresaUsuario, configurarMascaraValor, verificarStatusEmpresa
+    } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
@@ -194,13 +200,7 @@
     let fluxoChart = null;
     let categoriaChart = null;
 
-    // ==================== FUNÇÕES AUXILIARES ====================
-    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value || 0); }
-    function parseCurrency(value) { if (!value) return 0; if (typeof value === 'number') return value; let num = value.toString().replace(/\./g, '').replace(',', '.'); return parseFloat(num) || 0; }
-    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
-
-    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
     async function carregarDados() {
         if (!currentEmpresa) return [];
         const q = query(collection(db, 'financeiro'), where('empresaId', '==', currentEmpresa.id));
@@ -409,7 +409,7 @@
                     <button class="action-btn view" onclick="viewFinanceiro('${f.id}')"><i class="fas fa-eye"></i></button>
                     <button class="action-btn edit" onclick="editFinanceiro('${f.id}')"><i class="fas fa-edit"></i></button>
                     <button class="action-btn delete" onclick="deleteFinanceiro('${f.id}')"><i class="fas fa-trash-alt"></i></button>
-                </div>
+                 </div>
             </tr>`;
         }).join('');
         let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
@@ -511,36 +511,45 @@
     }
 
     // ==================== MÁSCARA DE VALOR ====================
-    function applyMasks() {
-        const valorInput = document.getElementById('finValor');
-        valorInput.addEventListener('input', (e) => { let v = e.target.value.replace(/\D/g, ''); if (v === '') { e.target.value = ''; return; } e.target.value = formatCurrency(parseInt(v)/100); });
-        valorInput.addEventListener('blur', (e) => { if (e.target.value === '') return; let num = parseCurrency(e.target.value); if (!isNaN(num)) e.target.value = formatCurrency(num); });
-    }
+    // Utiliza configurarMascaraValor do util.js, chamado no init.
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    async function carregarEmpresaUsuario(user) {
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userDoc.exists()) { showToast('Perfil não encontrado!', 'error'); await auth.signOut(); return null; }
-        const userData = userDoc.data();
-        const empresaId = userData.empresaAtiva;
-        if (!empresaId) { showToast('Nenhuma empresa associada.', 'error'); return null; }
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) return null;
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
-    }
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
             await carregarDados();
             renderFinanceiro();
             updateStats();
             updateCharts();
-            applyMasks();
+            configurarMascaraValor('finValor');
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {
@@ -562,8 +571,13 @@
     document.getElementById('modalCloseBtn').onclick = fecharModal;
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
     window.goToPage = goToPage;
-    window.solicitarLiberacao = () => { /* manter compatibilidade */ };
-    console.log('✅ Financeiro - Refatorado para Firebase/Firestore');
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    console.log('✅ Financeiro - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>

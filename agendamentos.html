@@ -91,6 +91,15 @@
         .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 2; }
         .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .search-area input { width: 100%; } }
     </style>
 </head>
@@ -109,6 +118,8 @@
         </div>
     </div>
 
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+
     <div class="stats-grid">
         <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-week"></i></div></div><div class="stat-value" id="totalAgendamentos">0</div><div class="stat-label">Total</div></div>
         <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-clock"></i></div></div><div class="stat-value" id="totalHoje">0</div><div class="stat-label">Hoje</div></div>
@@ -121,9 +132,9 @@
         <div class="form-body">
             <div class="form-grid">
                 <div class="form-section"><i class="fas fa-user-friends"></i><h3>Dados do Cliente e Pet</h3></div>
-                <div class="input-group"><label class="required"><i class="fas fa-user"></i> Cliente</label><select id="ageClienteId"><option value="">Selecione</option></select><div id="clienteValidation" class="validation-message">⚠️ Selecione um cliente</div></div>
-                <div class="input-group"><label class="required"><i class="fas fa-paw"></i> Pet</label><select id="agePetId"><option value="">Selecione</option></select><div id="petValidation" class="validation-message">⚠️ Selecione um pet</div></div>
-                <div class="input-group"><label><i class="fas fa-user-md"></i> Profissional</label><select id="ageProfissionalId"><option value="">Selecione</option></select><div id="profissionalValidation" class="validation-message">⚠️ Selecione um profissional</div></div>
+                <div class="input-group"><label class="required"><i class="fas fa-user"></i> Cliente</label><select id="ageClienteId"><option value="">Selecione</option><div id="clienteValidation" class="validation-message">⚠️ Selecione um cliente</div></select></div>
+                <div class="input-group"><label class="required"><i class="fas fa-paw"></i> Pet</label><select id="agePetId"><option value="">Selecione</option><div id="petValidation" class="validation-message">⚠️ Selecione um pet</div></select></div>
+                <div class="input-group"><label><i class="fas fa-user-md"></i> Profissional</label><select id="ageProfissionalId"><option value="">Selecione</option><div id="profissionalValidation" class="validation-message">⚠️ Selecione um profissional</div></select></div>
                 <div class="input-group"><label class="required"><i class="fas fa-calendar"></i> Data/Hora</label><input type="datetime-local" id="ageData"><div id="dataValidation" class="validation-message">⚠️ Selecione data e horário</div></div>
                 <div class="input-group"><label><i class="fas fa-cut"></i> Serviço</label><input type="text" id="ageServico" placeholder="Ex: Banho e Tosa"></div>
                 <div class="input-group"><label><i class="fas fa-dollar-sign"></i> Valor (R$)</label><input type="text" id="ageValor" placeholder="0,00"></div>
@@ -154,9 +165,15 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-calendar-check"></i> Detalhes</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS (MESMA PASTA) ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa tudo do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, parseCurrency, formatarDataHora,
+        carregarEmpresaUsuario, verificarStatusEmpresa, configurarMascaraValor
+    } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
@@ -168,39 +185,6 @@
     let clientesCache = [];
     let petsCache = [];
     let profissionaisCache = [];
-    
-    // ==================== FUNÇÕES AUXILIARES ====================
-    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value); }
-    function parseCurrency(value) { if (!value) return 0; let num = value.toString().replace(/\./g, '').replace(',', '.'); return parseFloat(num) || 0; }
-    
-    function showToast(msg, type) {
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
-    
-    // ==================== CARREGAR DADOS DE APOIO ====================
-    async function carregarDadosApoio() {
-        if (!currentEmpresa) return;
-        try {
-            const clientesSnap = await getDocs(query(collection(db, 'clientes'), where('empresaId', '==', currentEmpresa.id)));
-            clientesCache = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', currentEmpresa.id)));
-            petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), where('empresaId', '==', currentEmpresa.id)));
-            profissionaisCache = profissionaisSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            atualizarSelects();
-        } catch (error) {
-            console.error('Erro ao carregar dados de apoio:', error);
-            showToast('Erro ao carregar dados. Recarregue a página.', 'error');
-        }
-    }
     
     // ==================== CRUD DE AGENDAMENTOS ====================
     async function loadAgendamentos() {
@@ -232,6 +216,7 @@
     }
     
     async function deleteAgendamento(id) {
+        if (!confirm('Excluir agendamento?')) return;
         await deleteDoc(doc(db, 'agendamentos', id));
         await renderAgendamentos();
         updateStats();
@@ -409,7 +394,7 @@
             <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</span></div>
             <div class="info-row"><span class="info-label">Profissional:</span><span class="info-value">${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</span></div>
             <div class="info-row"><span class="info-label">Serviço:</span><span class="info-value">${escapeHtml(a.servico || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${a.data ? new Date(a.data).toLocaleString() : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${formatarDataHora(a.data)}</span></div>
             <div class="info-row"><span class="info-label">Valor:</span><span class="info-value">R$ ${formatCurrency(a.valor || 0)}</span></div>
             <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${a.status}</span></span></div>
             ${a.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(a.obs)}</span></div>` : ''}
@@ -424,6 +409,34 @@
             updateStats();
         }
     };
+    
+    // ==================== CARREGAR DADOS DE APOIO ====================
+    async function carregarDadosApoio() {
+        if (!currentEmpresa) return;
+        try {
+            const clientesSnap = await getDocs(query(collection(db, 'clientes'), where('empresaId', '==', currentEmpresa.id)));
+            clientesCache = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', currentEmpresa.id)));
+            petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), where('empresaId', '==', currentEmpresa.id)));
+            profissionaisCache = profissionaisSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            atualizarSelects();
+        } catch (error) {
+            console.error('Erro ao carregar dados de apoio:', error);
+            showToast('Erro ao carregar dados. Recarregue a página.', 'error');
+        }
+    }
+    
+    function atualizarSelects() {
+        const clienteSelect = document.getElementById('ageClienteId');
+        clienteSelect.innerHTML = '<option value="">Selecione</option>' + clientesCache.map(c => `<option value="${c.id}">${escapeHtml(c.cli_nome || c.nome)}</option>`).join('');
+        clienteSelect.onchange = () => atualizarPetsPorCliente(clienteSelect.value);
+        const profSelect = document.getElementById('ageProfissionalId');
+        profSelect.innerHTML = '<option value="">Selecione</option>' + profissionaisCache.map(p => `<option value="${p.id}">${escapeHtml(p.prf_nome || p.nome)}</option>`).join('');
+    }
     
     // ==================== RENDER ====================
     async function renderAgendamentos() {
@@ -443,7 +456,7 @@
         const totalPages = Math.ceil(ags.length / itemsPerPage);
         const paginated = ags.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('agendamentosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8">Nenhum agendamento</td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8">Nenhum agendamento</td></tr>'; document.getElementById('pagination').innerHTML = ''; return; }
         
         tbody.innerHTML = paginated.map(a => {
             const cliente = clientesCache.find(c => c.id === a.clienteId);
@@ -463,7 +476,7 @@
                     <button class="action-btn edit" onclick="editAgendamento('${a.id}')"><i class="fas fa-edit"></i></button>
                     <button class="action-btn delete" onclick="deleteAgendamento('${a.id}')"><i class="fas fa-trash-alt"></i></button>
                 </td>
-            </tr>`;
+            一侧`;
         }).join('');
         let pagHtml = ''; for (let i = 1; i <= totalPages; i++) { pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`; } document.getElementById('pagination').innerHTML = pagHtml;
     }
@@ -484,22 +497,7 @@
     
     function clearFilters() { document.getElementById('searchInput').value = ''; document.getElementById('statusFilter').value = ''; currentPage = 1; renderAgendamentos(); }
     
-    function applyMasks() {
-        document.getElementById('ageValor').addEventListener('input', (e) => {
-            let v = e.target.value.replace(/\D/g, '');
-            if (v === '') { e.target.value = ''; return; }
-            e.target.value = formatCurrency(parseInt(v)/100);
-        });
-    }
-    
-    function atualizarSelects() {
-        const clienteSelect = document.getElementById('ageClienteId');
-        clienteSelect.innerHTML = '<option value="">Selecione</option>' + clientesCache.map(c => `<option value="${c.id}">${escapeHtml(c.cli_nome || c.nome)}</option>`).join('');
-        clienteSelect.onchange = () => atualizarPetsPorCliente(clienteSelect.value);
-        const profSelect = document.getElementById('ageProfissionalId');
-        profSelect.innerHTML = '<option value="">Selecione</option>' + profissionaisCache.map(p => `<option value="${p.id}">${escapeHtml(p.prf_nome || p.nome)}</option>`).join('');
-    }
-    
+    // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
         const agendamentos = await loadAgendamentos();
         if (agendamentos.length === 0) { showToast('Não há agendamentos para exportar!', 'error'); return; }
@@ -508,7 +506,7 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Agendamentos', 14, 20);
-            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.nome || 'Empresa'}`, 14, 30);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
             doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 38);
             doc.text(`Total: ${agendamentos.length} agendamentos`, 14, 46);
             const colunas = [{ label: 'Cliente', width: 40 }, { label: 'Pet', width: 35 }, { label: 'Serviço', width: 40 }, { label: 'Data', width: 40 }, { label: 'Status', width: 25 }];
@@ -538,29 +536,6 @@
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
     
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    async function carregarEmpresaUsuario(user) {
-        const userDoc = await getDocs(query(collection(db, 'usuarios'), where('uid', '==', user.uid)));
-        if (userDoc.empty) {
-            showToast('Perfil de usuário não encontrado!', 'error');
-            await auth.signOut();
-            return null;
-        }
-        const userData = userDoc.docs[0].data();
-        const empresaId = userData.empresaAtiva;
-        if (!empresaId) {
-            showToast('Nenhuma empresa associada a este usuário.', 'error');
-            return null;
-        }
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) {
-            showToast('Empresa não encontrada.', 'error');
-            return null;
-        }
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
-    }
-    
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -570,12 +545,37 @@
                 return;
             }
             currentEmpresa = empresa;
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${empresa.nome || empresa.emp_razao_social || 'Empresa'}`;
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${empresa.emp_razao_social || empresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
             await carregarDadosApoio();
             await renderAgendamentos();
             updateStats();
             setupConflitoListener();
-            applyMasks();
+            configurarMascaraValor('ageValor');  // máscara de valor do util.js
         } else {
             window.location.href = 'login.html';
         }
@@ -590,8 +590,14 @@
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
     
-    console.log('✅ Agendamentos - Usando firebase-config.js (mesma pasta)');
+    console.log('✅ Agendamentos - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>

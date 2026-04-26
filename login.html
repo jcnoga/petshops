@@ -66,8 +66,6 @@
         <div class="input-group"><label><i class="fas fa-user"></i> Nome Completo</label><input type="text" id="cadNome" placeholder="Digite seu nome completo"></div>
         <div class="input-group"><label><i class="fas fa-envelope"></i> E-mail</label><input type="email" id="cadEmail" placeholder="seu@email.com"></div>
         <div class="input-group"><label><i class="fas fa-phone"></i> Telefone</label><input type="text" id="cadTelefone" placeholder="(00) 00000-0000"></div>
-        <!-- O usuário comum não seleciona empresa no cadastro – será atribuído pelo administrador depois. 
-             Por simplicidade, omitimos o select de empresas; depois o admin pode associar -->
         <div class="input-group"><label><i class="fas fa-lock"></i> Senha</label><input type="password" id="cadSenha" placeholder="********"></div>
         <div class="input-group"><label><i class="fas fa-lock"></i> Confirmar Senha</label><input type="password" id="cadConfirmarSenha" placeholder="********"></div>
         <button class="btn btn-primary" onclick="fazerCadastro()" id="cadastroBtn"><i class="fas fa-user-plus"></i> Cadastrar</button>
@@ -76,12 +74,15 @@
 </div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa funções compartilhadas do util.js
+    import { aplicarMascaraTelefone } from './util.js';
 
-    // ==================== FUNÇÕES AUXILIARES ====================
+    // ==================== FUNÇÕES AUXILIARES (específicas) ====================
     function showMessage(elementId, message, isSuccess = false) {
         const element = document.getElementById(elementId);
         if (!element) return;
@@ -95,22 +96,6 @@
             element.style.color = '#e76f51';
         }
         setTimeout(() => { element.style.display = 'none'; }, 5000);
-    }
-
-    function aplicarMascaraTelefone() {
-        const telefone = document.getElementById('cadTelefone');
-        if (!telefone) return;
-        telefone.addEventListener('input', (e) => {
-            let v = e.target.value.replace(/\D/g, '');
-            if (v.length <= 10) {
-                v = v.replace(/^(\d{2})(\d)/, '($1) $2');
-                v = v.replace(/(\d{4})(\d)/, '$1-$2');
-            } else {
-                v = v.replace(/^(\d{2})(\d)/, '($1) $2');
-                v = v.replace(/(\d{5})(\d)/, '$1-$2');
-            }
-            e.target.value = v;
-        });
     }
 
     // ==================== LOGIN ====================
@@ -131,7 +116,6 @@
             const userCredential = await signInWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
 
-            // Buscar dados adicionais do usuário no Firestore
             const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
             if (!userDoc.exists()) {
                 showMessage('loginError', 'Usuário não possui perfil no sistema. Contate o administrador.');
@@ -150,7 +134,6 @@
                 return;
             }
 
-            // Armazenar a empresa ativa (se houver) – será usada pelo dashboard
             if (userData.empresaAtiva) {
                 const empresaDoc = await getDoc(doc(db, 'empresas', userData.empresaAtiva));
                 if (empresaDoc.exists()) {
@@ -204,14 +187,13 @@
             const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
 
-            // Criar documento do usuário no Firestore
             const usuarioData = {
                 nome: nome,
                 email: email,
                 telefone: telefone,
-                perfil: 'usuario',   // perfil padrão; administrador pode alterar depois
+                perfil: 'usuario',
                 ativo: true,
-                empresas: {},         // vazio – o administrador associará empresas posteriormente
+                empresas: {},
                 empresaAtiva: null,
                 criado_em: new Date().toISOString(),
                 uid: user.uid
@@ -263,19 +245,23 @@
     // Se já estiver logado, redirecionar para o dashboard
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // Verificar se o usuário tem perfil no Firestore
             const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
             if (userDoc.exists()) {
                 window.location.href = 'index.html';
             } else {
-                // Sem perfil – fazer logout
                 await auth.signOut();
             }
         }
     });
 
-    // Inicializar máscara de telefone
-    aplicarMascaraTelefone();
+    // ==================== MÁSCARA DE TELEFONE (usando util.js) ====================
+    // Aplica a máscara ao campo de telefone do cadastro
+    const campoTelefone = document.getElementById('cadTelefone');
+    if (campoTelefone) {
+        campoTelefone.addEventListener('input', (e) => {
+            e.target.value = aplicarMascaraTelefone(e.target.value);
+        });
+    }
 
     // Tecla Enter
     document.addEventListener('keypress', function(e) {

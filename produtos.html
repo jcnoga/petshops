@@ -104,6 +104,9 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loading-screen { text-align: center; padding: 60px; }
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 15px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } }
     </style>
 </head>
@@ -213,9 +216,15 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-box"></i> Detalhes</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, parseCurrency, formatarData,
+        carregarEmpresaUsuario, configurarMascaraValor, verificarStatusEmpresa
+    } from './util.js';
 
     // ==================== CONSTANTES ====================
     let currentUser = null;
@@ -227,13 +236,7 @@
     let categoriasCache = [];
     let movimentosCache = [];
 
-    // ==================== FUNÇÕES AUXILIARES ====================
-    function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-    function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value || 0); }
-    function parseCurrency(value) { if (!value) return 0; if (typeof value === 'number') return value; let num = value.toString().replace(/\./g, '').replace(',', '.'); return parseFloat(num) || 0; }
-    function showToast(msg, type) { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = msg; document.body.appendChild(toast); setTimeout(() => toast.remove(), 3000); }
-
-    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
     async function carregarDadosEmpresa() {
         if (!currentEmpresa) return;
         const empresaId = currentEmpresa.id;
@@ -323,7 +326,6 @@
         if (produtosNaCategoria.length > 0 && !confirm(`A categoria "${categoria?.nome}" possui ${produtosNaCategoria.length} produto(s). Excluir mesmo assim? Os produtos serão desvinculados.`)) return;
         await deleteDoc(doc(db, 'categorias_produtos', id));
         categoriasCache = categoriasCache.filter(c => c.id !== id);
-        // Desvincular produtos
         for (const p of produtosNaCategoria) {
             await updateDoc(doc(db, 'produtos', p.id), { categoriaId: null });
             const idx = produtosCache.findIndex(prod => prod.id === p.id);
@@ -336,7 +338,6 @@
 
     // ==================== CRUD MOVIMENTOS ====================
     async function addMovimento(data) {
-        // Atualizar estoque do produto
         const prodIdx = produtosCache.findIndex(p => p.id === data.produtoId);
         if (prodIdx === -1) throw new Error('Produto não encontrado');
         let novoEstoque = produtosCache[prodIdx].estoque || 0;
@@ -345,7 +346,6 @@
         else if (data.tipo === 'ajuste') novoEstoque = data.quantidade;
         await updateDoc(doc(db, 'produtos', data.produtoId), { estoque: novoEstoque });
         produtosCache[prodIdx].estoque = novoEstoque;
-        // Salvar movimento
         const newMov = {
             ...data,
             empresaId: currentEmpresa.id,
@@ -464,7 +464,7 @@
         if (currentProdutoPage > totalPages && totalPages > 0) currentProdutoPage = totalPages;
         const paginated = filtered.slice((currentProdutoPage-1)*itemsPerPage, currentProdutoPage*itemsPerPage);
         const tbody = document.getElementById('produtosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<td><td colspan="7" style="text-align:center; padding:40px;">Nenhum produto encontrado<\/td><\/tr>'; document.getElementById('produtosPagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum produto encontrado<\/td><\/tr>'; document.getElementById('produtosPagination').innerHTML = ''; return; }
         tbody.innerHTML = paginated.map(p => {
             const cat = categoriasCache.find(c => c.id === p.categoriaId);
             const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
@@ -480,7 +480,7 @@
                     <button class="action-btn view" onclick="viewProduto('${p.id}')"><i class="fas fa-eye"></i></button>
                     <button class="action-btn edit" onclick="editProduto('${p.id}')"><i class="fas fa-edit"></i></button>
                     <button class="action-btn delete" onclick="deleteProduto('${p.id}')"><i class="fas fa-trash-alt"></i></button>
-                </td>
+                 </div>
             </tr>`;
         }).join('');
         let pagHtml = '<button class="page-btn" onclick="goToProdutoPage(1)" ' + (currentProdutoPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
@@ -497,7 +497,7 @@
         const tbody = document.getElementById('categoriasTableBody');
         if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhuma categoria encontrada<\/td><\/tr>'; return; }
         tbody.innerHTML = filtered.map(c => `
-            <tr><td><strong>${escapeHtml(c.nome)}</strong></td><td>${escapeHtml(c.descricao || '')}</td><td>${produtosCache.filter(p => p.categoriaId === c.id).length} produtos</td>
+            <tr><td><strong>${escapeHtml(c.nome)}</strong></td><td>${escapeHtml(c.descricao || '')}</span></td><td>${produtosCache.filter(p => p.categoriaId === c.id).length} produtos</span></td>
             <td class="action-buttons"><button class="action-btn delete" onclick="deleteCategoria('${c.id}')"><i class="fas fa-trash-alt"></i></button></td></tr>
         `).join('');
     }
@@ -522,13 +522,13 @@
             const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
             const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
             return `<tr>
-                <td style="white-space:nowrap;">${new Date(m.data).toLocaleString()}</td>
+                <td style="white-space:nowrap;">${formatarData(m.data)}</span></td>
                 <td><strong>${escapeHtml(prod?.nome || '-')}</strong></td>
                 <td><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span></td>
-                <td>${m.quantidade}</td>
-                <td>${escapeHtml(m.responsavel || '-')}</td>
-                <td style="max-width:200px;">${escapeHtml(m.motivo || '-')}</td>
-                <td class="action-buttons"><button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button></td>
+                <td>${m.quantidade}</span></td>
+                <td>${escapeHtml(m.responsavel || '-')}</span></td>
+                <td style="max-width:200px;">${escapeHtml(m.motivo || '-')}</span></td>
+                <td class="action-buttons"><button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button></span>
             </tr>`;
         }).join('');
         let pagHtml = '<button class="page-btn" onclick="goToMovimentoPage(1)" ' + (currentMovimentoPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
@@ -588,7 +588,7 @@
             for (const m of movimentosCache) {
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; }); y += 10; x = 14; doc.setTextColor(0,0,0); }
                 const prod = produtosCache.find(p => p.id === m.produtoId);
-                const dataFormatada = new Date(m.data).toLocaleString().substring(0,16);
+                const dataFormatada = formatarData(m.data);
                 doc.text(dataFormatada, x+2, y+4); x += 35;
                 doc.text((prod?.nome || '-').substring(0,30), x+2, y+4); x += 50;
                 doc.text(m.tipo || '-', x+2, y+4); x += 25;
@@ -623,7 +623,7 @@
         select.innerHTML = '<option value="">Selecione</option>' + produtosCache.filter(p => p.ativo).map(p => `<option value="${p.id}">${escapeHtml(p.nome)} (Estoque: ${p.estoque || 0})</option>`).join('');
     }
 
-    // ==================== MÁSCARAS ====================
+    // ==================== MÁSCARAS (valor) ====================
     function applyMasks() {
         document.getElementById('prodPrecoVenda').addEventListener('input', (e) => {
             let v = e.target.value.replace(/\D/g, ''); if (v === '') { e.target.value = ''; calcularMargem(); return; }
@@ -640,26 +640,65 @@
     function clearProdutoFilters() { document.getElementById('searchProduto').value = ''; document.getElementById('statusProdutoFilter').value = ''; currentProdutoPage = 1; renderProdutos(); showToast('Filtros limpos!', 'success'); }
     function clearMovimentoFilters() { document.getElementById('searchMovimento').value = ''; document.getElementById('movTipoFilter').value = ''; currentMovimentoPage = 1; renderMovimentos(); showToast('Filtros limpos!', 'success'); }
 
-    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    async function carregarEmpresaUsuario(user) {
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userDoc.exists()) { showToast('Perfil não encontrado!', 'error'); await auth.signOut(); return null; }
-        const userData = userDoc.data();
-        const empresaId = userData.empresaAtiva;
-        if (!empresaId) { showToast('Nenhuma empresa associada.', 'error'); return null; }
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) return null;
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
-    }
+    // ==================== VIEW PRODUTO (global) ====================
+    window.viewProduto = function(id) {
+        const p = produtosCache.find(p => p.id === id);
+        if (!p) return;
+        const cat = categoriasCache.find(c => c.id === p.categoriaId);
+        const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
+        const estoqueClass = (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0 ? 'status-estoque-baixo' : 'status-ativo';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Produto:</span><span class="info-value">${escapeHtml(p.nome)}</span></div>
+            <div class="info-row"><span class="info-label">Código Barras:</span><span class="info-value">${escapeHtml(p.codigoBarras || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Categoria:</span><span class="info-value">${escapeHtml(cat?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Preço Venda:</span><span class="info-value">R$ ${formatCurrency(p.precoVenda || 0)}</span></div>
+            <div class="info-row"><span class="info-label">Preço Custo:</span><span class="info-value">R$ ${formatCurrency(p.precoCusto || 0)}</span></div>
+            <div class="info-row"><span class="info-label">Margem:</span><span class="info-value">${p.precoVenda && p.precoCusto && p.precoVenda > p.precoCusto ? ((p.precoVenda - p.precoCusto)/p.precoVenda*100).toFixed(2)+'%' : (p.precoVenda && p.precoCusto ? 'Prejuízo' : '-')}</span></div>
+            <div class="info-row"><span class="info-label">Estoque:</span><span class="info-value"><span class="status-badge ${estoqueClass}">${p.estoque || 0} un</span></span></div>
+            <div class="info-row"><span class="info-label">Estoque Mínimo:</span><span class="info-value">${p.estoqueMin || 0} un</span></div>
+            <div class="info-row"><span class="info-label">Localização:</span><span class="info-value">${escapeHtml(p.localizacao || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${p.ativo ? 'Ativo' : 'Inativo'}</span></span></div>
+            ${p.descricao ? `<div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(p.descricao)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.editProduto = function(id) { const p = produtosCache.find(p => p.id === id); if (p) { fillProdutoForm(p); editingProdutoId = id; document.getElementById('cancelProdutoBtn').style.display = 'inline-block'; document.getElementById('saveProdutoBtn').innerHTML = '<i class="fas fa-pen"></i> Atualizar'; document.getElementById('saveProdutoBtn').classList.remove('btn-primary'); document.getElementById('saveProdutoBtn').classList.add('btn-success'); window.scrollTo({ top: 0 }); } };
+    window.deleteProduto = deleteProduto;
+    window.deleteCategoria = deleteCategoria;
+    window.deleteMovimento = deleteMovimento;
 
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
             await carregarDadosEmpresa();
             renderProdutos();
             renderCategorias();
@@ -709,36 +748,16 @@
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
-    window.viewProduto = function(id) {
-        const p = produtosCache.find(p => p.id === id);
-        if (!p) return;
-        const cat = categoriasCache.find(c => c.id === p.categoriaId);
-        const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
-        const estoqueClass = (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0 ? 'status-estoque-baixo' : 'status-ativo';
-        document.getElementById('modalBody').innerHTML = `
-            <div class="info-row"><span class="info-label">Produto:</span><span class="info-value">${escapeHtml(p.nome)}</span></div>
-            <div class="info-row"><span class="info-label">Código Barras:</span><span class="info-value">${escapeHtml(p.codigoBarras || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Categoria:</span><span class="info-value">${escapeHtml(cat?.nome || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Preço Venda:</span><span class="info-value">R$ ${formatCurrency(p.precoVenda || 0)}</span></div>
-            <div class="info-row"><span class="info-label">Preço Custo:</span><span class="info-value">R$ ${formatCurrency(p.precoCusto || 0)}</span></div>
-            <div class="info-row"><span class="info-label">Margem:</span><span class="info-value">${p.precoVenda && p.precoCusto && p.precoVenda > p.precoCusto ? ((p.precoVenda - p.precoCusto)/p.precoVenda*100).toFixed(2)+'%' : (p.precoVenda && p.precoCusto ? 'Prejuízo' : '-')}</span></div>
-            <div class="info-row"><span class="info-label">Estoque:</span><span class="info-value"><span class="status-badge ${estoqueClass}">${p.estoque || 0} un</span></span></div>
-            <div class="info-row"><span class="info-label">Estoque Mínimo:</span><span class="info-value">${p.estoqueMin || 0} un</span></div>
-            <div class="info-row"><span class="info-label">Localização:</span><span class="info-value">${escapeHtml(p.localizacao || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${p.ativo ? 'Ativo' : 'Inativo'}</span></span></div>
-            ${p.descricao ? `<div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(p.descricao)}</span></div>` : ''}
-        `;
-        document.getElementById('viewModal').style.display = 'flex';
-    };
-    window.editProduto = function(id) { const p = produtosCache.find(p => p.id === id); if (p) { fillProdutoForm(p); editingProdutoId = id; document.getElementById('cancelProdutoBtn').style.display = 'inline-block'; document.getElementById('saveProdutoBtn').innerHTML = '<i class="fas fa-pen"></i> Atualizar'; document.getElementById('saveProdutoBtn').classList.remove('btn-primary'); document.getElementById('saveProdutoBtn').classList.add('btn-success'); window.scrollTo({ top: 0 }); } };
-    window.deleteProduto = deleteProduto;
-    window.deleteCategoria = deleteCategoria;
-    window.deleteMovimento = deleteMovimento;
     window.goToProdutoPage = goToProdutoPage;
     window.goToMovimentoPage = goToMovimentoPage;
     window.aplicarFiltroStatus = aplicarFiltroStatus;
-    window.solicitarLiberacao = () => {};
-    console.log('✅ Produtos - Refatorado para Firebase/Firestore');
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    console.log('✅ Produtos - Refatorado (uma empresa por usuário)');
 </script>
 </body>
 </html>
