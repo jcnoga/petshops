@@ -302,6 +302,7 @@
 </head>
 <body>
 <div class="app-container">
+    <!-- Sidebar (mesma do original) -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <div class="logo">
@@ -341,6 +342,7 @@
         <div class="nav-item" data-page="fotos-pet.html"><i class="fas fa-images"></i><span>Fotos dos Pets</span></div>
     </aside>
 
+    <!-- Main Content -->
     <main class="main-content">
         <div class="top-bar">
             <div class="page-title"><h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1><p>Visão geral do seu negócio</p></div>
@@ -465,8 +467,12 @@
         // Buscar empresas existentes
         const empresasSnap = await getDocs(collection(db, 'empresas'));
         let empresaId = null;
+        let empresasExistentes = [];
 
-        if (empresasSnap.empty) {
+        if (!empresasSnap.empty) {
+            empresasExistentes = empresasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            empresaId = empresasExistentes[0].id;
+        } else {
             // Nenhuma empresa cadastrada → criar uma padrão
             const novaEmpresa = {
                 emp_razao_social: 'PetShop Automático',
@@ -479,9 +485,6 @@
             };
             const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
             empresaId = docRef.id;
-        } else {
-            // Usar a primeira empresa encontrada
-            empresaId = empresasSnap.docs[0].id;
         }
 
         // Associar a empresa ao usuário
@@ -512,7 +515,6 @@
     async function carregarDadosEmpresa() {
         if (!currentEmpresa) return;
         const empresaId = currentEmpresa.id;
-        // Buscar todas as coleções em paralelo
         const [clientesSnap, petsSnap, agendamentosSnap, produtosSnap, profissionaisSnap, financeiroSnap] = await Promise.all([
             getDocs(query(collection(db, 'clientes'), where('empresaId', '==', empresaId))),
             getDocs(query(collection(db, 'pets'), where('empresaId', '==', empresaId))),
@@ -752,56 +754,71 @@
     }
 
     // ==================== INICIALIZAÇÃO ====================
-    async function init() {
-        console.log('🚀 Inicializando dashboard com Firebase...');
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                await carregarInfoUsuario();
-                // Carregar empresas disponíveis para o usuário
-                empresasDisponiveis = await carregarEmpresasDoUsuario();
-                if (empresasDisponiveis.length === 0) {
-                    showToast('Nenhuma empresa associada a este usuário. Contate o administrador.', 'error');
-                    return;
-                }
-                // Definir empresa atual (verificar sessionStorage ou a primeira)
-                let empresaIdSalva = sessionStorage.getItem('empresa_atual');
-                let empresaAtual = null;
-                if (empresaIdSalva) {
-                    try {
-                        empresaAtual = JSON.parse(empresaIdSalva);
-                        if (!empresasDisponiveis.some(e => e.id === empresaAtual.id)) empresaAtual = null;
-                    } catch(e) { empresaAtual = null; }
-                }
-                if (!empresaAtual) empresaAtual = empresasDisponiveis[0];
-                currentEmpresa = empresaAtual;
-                sessionStorage.setItem('empresa_atual', JSON.stringify(currentEmpresa));
-                popularSelectEmpresas(empresasDisponiveis);
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            await carregarInfoUsuario();
+            
+            // 🔥 GARANTIR que o usuário tenha uma empresa associada (cria automaticamente se necessário)
+            const empresaIdGarantida = await garantirEmpresaDoUsuario(user);
+            if (!empresaIdGarantida) {
+                showToast('Erro ao criar/associar empresa. Contate o suporte.', 'error');
+                await auth.signOut();
+                return;
+            }
+            
+            // Recarregar dados do usuário (caso tenham sido alterados pela função acima)
+            await carregarInfoUsuario();
+            
+            // Carregar empresas disponíveis para o usuário
+            empresasDisponiveis = await carregarEmpresasDoUsuario();
+            if (empresasDisponiveis.length === 0) {
+                showToast('Nenhuma empresa associada a este usuário. Contate o administrador.', 'error');
+                return;
+            }
+            
+            // Definir empresa atual (verificar sessionStorage ou a primeira)
+            let empresaIdSalva = sessionStorage.getItem('empresa_atual');
+            let empresaAtual = null;
+            if (empresaIdSalva) {
+                try {
+                    empresaAtual = JSON.parse(empresaIdSalva);
+                    if (!empresasDisponiveis.some(e => e.id === empresaAtual.id)) empresaAtual = null;
+                } catch(e) { empresaAtual = null; }
+            }
+            if (!empresaAtual) empresaAtual = empresasDisponiveis[0];
+            currentEmpresa = empresaAtual;
+            sessionStorage.setItem('empresa_atual', JSON.stringify(currentEmpresa));
+            
+            popularSelectEmpresas(empresasDisponiveis);
+            await carregarDadosEmpresa();
+            atualizarStats();
+            atualizarWelcomeMessage();
+            adicionarAlertaTrial();
+            setupNavegacao();
+            iniciarAtualizacaoPeriodica();
+            
+            // Eventos DOM
+            document.getElementById('refreshBtn').onclick = async () => {
                 await carregarDadosEmpresa();
                 atualizarStats();
-                atualizarWelcomeMessage();
-                adicionarAlertaTrial();
-                setupNavegacao();
-                iniciarAtualizacaoPeriodica();
-                // Eventos
-                document.getElementById('refreshBtn').onclick = async () => {
-                    await carregarDadosEmpresa();
-                    atualizarStats();
-                    showToast('Dados atualizados!', 'success');
-                };
-                document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
-                document.getElementById('modalCloseBtn')?.addEventListener('click', fecharModalLogout);
-                window.onclick = (e) => { if (e.target === document.getElementById('logoutModal')) fecharModalLogout(); };
-                document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharModalLogout(); });
-            } else {
-                window.location.href = 'login.html';
-            }
-        });
-    }
+                showToast('Dados atualizados!', 'success');
+            };
+            document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
+            document.getElementById('modalCloseBtn')?.addEventListener('click', fecharModalLogout);
+            window.onclick = (e) => { if (e.target === document.getElementById('logoutModal')) fecharModalLogout(); };
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharModalLogout(); });
+            
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+    
+    // Expor funções globais necessárias
     window.abrirModalLogout = abrirModalLogout;
     window.fecharModalLogout = fecharModalLogout;
     window.confirmarLogout = confirmarLogout;
-    init();
+    window.solicitarLiberacao = solicitarLiberacao;
 </script>
 </body>
 </html>
