@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Dashboard Administrativo | Firebase + Firestore</title>
+    <title>PerShop - Dashboard Administrativo | Firebase</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -228,7 +228,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0,0,0,0.6);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -283,6 +283,8 @@
         }
         .trial-alert-bar.warning { background: #fff3e0; border-left-color: #e9c46a; }
         .trial-alert-bar.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
         @media (max-width: 992px) {
             .sidebar { width: 80px; }
             .sidebar-header .logo-text, .nav-item span, .nav-section { display: none; }
@@ -411,12 +413,12 @@
 <script type="module">
     // ==================== IMPORTAÇÃO DO FIREBASE-CONFIG.JS ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // ==================== VARIÁVEIS GLOBAIS ====================
     let currentUser = null;
     let currentEmpresa = null;
-    let empresasDisponiveis = [];   // lista de empresas que o usuário pode acessar
+    let empresasDisponiveis = [];
     let dadosCache = {
         clientes: [],
         pets: [],
@@ -426,7 +428,7 @@
         financeiro: []
     };
 
-    // ==================== UTILITÁRIOS ====================
+    // ==================== FUNÇÕES AUXILIARES ====================
     function formatCurrency(value) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(value); }
     function showToast(msg, type) {
         const toast = document.createElement('div');
@@ -436,6 +438,75 @@
         setTimeout(() => toast.remove(), 2500);
     }
     function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+    // ==================== CRIAÇÃO AUTOMÁTICA DE EMPRESA E ASSOCIAÇÃO AO USUÁRIO ====================
+    async function garantirEmpresaDoUsuario(user) {
+        const userRef = doc(db, 'usuarios', user.uid);
+        const userSnap = await getDoc(userRef);
+
+        // Se o documento do usuário não existir, cria um básico
+        if (!userSnap.exists()) {
+            await setDoc(userRef, {
+                nome: user.email.split('@')[0],
+                email: user.email,
+                perfil: 'admin',  // primeiro usuário será admin
+                ativo: true,
+                empresas: {},
+                empresaAtiva: null,
+                criado_em: new Date().toISOString()
+            });
+        }
+
+        const userData = (await getDoc(userRef)).data();
+        
+        // Se já tem empresa ativa, retorna o ID
+        if (userData.empresaAtiva) return userData.empresaAtiva;
+
+        // Buscar empresas existentes
+        const empresasSnap = await getDocs(collection(db, 'empresas'));
+        let empresaId = null;
+
+        if (empresasSnap.empty) {
+            // Nenhuma empresa cadastrada → criar uma padrão
+            const novaEmpresa = {
+                emp_razao_social: 'PetShop Automático',
+                emp_nome_fantasia: 'Meu PetShop',
+                emp_cnpj: '00.000.000/0001-00',
+                emp_whatsapp: '(00) 00000-0000',
+                emp_status: 'ativo',
+                emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
+                emp_criado_em: new Date().toISOString()
+            };
+            const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+            empresaId = docRef.id;
+        } else {
+            // Usar a primeira empresa encontrada
+            empresaId = empresasSnap.docs[0].id;
+        }
+
+        // Associar a empresa ao usuário
+        await updateDoc(userRef, {
+            [`empresas.${empresaId}`]: 'admin',
+            empresaAtiva: empresaId
+        });
+
+        return empresaId;
+    }
+
+    // ==================== CARREGAR EMPRESA DO USUÁRIO ====================
+    async function carregarEmpresaUsuario(user) {
+        const empresaId = await garantirEmpresaDoUsuario(user);
+        if (!empresaId) {
+            showToast('Não foi possível criar/associar uma empresa.', 'error');
+            await auth.signOut();
+            return null;
+        }
+        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+        if (!empresaDoc.exists()) return null;
+        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
+        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
+        return empresa;
+    }
 
     // ==================== CARREGAR DADOS DO FIRESTORE ====================
     async function carregarDadosEmpresa() {
@@ -498,7 +569,6 @@
                            (userData.perfil === 'veterinario' ? '🩺 Veterinário' :
                            (userData.perfil === 'tosador' ? '✂️ Tosador' : '👤 Usuário')));
         document.getElementById('userPerfil').innerText = perfilLabel;
-        // Mostrar menus administrativos apenas para admin
         const isAdmin = userData.perfil === 'admin';
         document.getElementById('permissoesMenuItem').style.display = isAdmin ? 'flex' : 'none';
         document.getElementById('usuariosMenuItem').style.display = isAdmin ? 'flex' : 'none';
@@ -510,10 +580,9 @@
         const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
         if (!userDoc.exists()) return [];
         const userData = userDoc.data();
-        const empresasMap = userData.empresas || {};  // { empresaId: perfil }
+        const empresasMap = userData.empresas || {};
         const empresasIds = Object.keys(empresasMap);
         if (empresasIds.length === 0) return [];
-        // Buscar documentos das empresas
         const empresasPromises = empresasIds.map(id => getDoc(doc(db, 'empresas', id)));
         const empresasDocs = await Promise.all(empresasPromises);
         const empresas = empresasDocs.filter(d => d.exists()).map(d => ({ id: d.id, ...d.data() }));
@@ -584,7 +653,6 @@
     }
     function atualizarWelcomeMessage() {
         const welcomeDiv = document.getElementById('welcomeMessage');
-        const sessao = currentUser;
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
             welcomeDiv.innerHTML = `<h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa selecionada. Escolha uma empresa no seletor acima.</p>`;
@@ -661,7 +729,6 @@
                 if (page) window.location.href = page;
             });
         });
-        // Submenu comunicação
         const comunicacaoMenu = document.getElementById('comunicacaoMenu');
         const comunicacaoSubmenu = document.getElementById('comunicacaoSubmenu');
         if (comunicacaoMenu && comunicacaoSubmenu) {
@@ -734,7 +801,6 @@
     window.abrirModalLogout = abrirModalLogout;
     window.fecharModalLogout = fecharModalLogout;
     window.confirmarLogout = confirmarLogout;
-    window.solicitarLiberacao = window.solicitarLiberacao;
     init();
 </script>
 </body>
