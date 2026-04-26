@@ -527,6 +527,10 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
+
+        /* Fallback para conteúdo principal */
+        #conteudoPrincipal { display: block !important; }
+        .stats-grid, .recent-section { display: block; }
     </style>
 </head>
 <body>
@@ -677,7 +681,7 @@
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getDocs, doc, getDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { formatCurrency, showToast, carregarEmpresaUsuario, verificarStatusEmpresa } from './util.js';
 
     let currentUser = null;
@@ -743,7 +747,7 @@
         const welcomeDiv = document.getElementById('welcomeMessage');
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p><button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
             return;
         }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
@@ -777,6 +781,23 @@
         const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
         showToast('Abrindo cliente de e-mail...', 'info');
+    };
+
+    window.criarEmpresaUrgente = async function() {
+        if (!currentUser) return;
+        const novaEmpresa = {
+            emp_razao_social: `${currentUser.email.split('@')[0]} PetShop`,
+            emp_nome_fantasia: 'Meu PetShop',
+            emp_cnpj: '',
+            emp_whatsapp: '',
+            emp_status: 'ativo',
+            emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
+            emp_criado_em: new Date().toISOString()
+        };
+        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+        await updateDoc(doc(db, 'usuarios', currentUser.uid), { empresaId: docRef.id });
+        showToast('Empresa criada! Atualize a página.', 'success');
+        location.reload();
     };
 
     async function logout() {
@@ -813,8 +834,9 @@
             await carregarInfoUsuario();
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa) {
-                showToast('Erro ao carregar empresa. Contate o suporte.', 'error');
-                await auth.signOut();
+                console.warn('Nenhuma empresa associada. Exibindo botão de criação.');
+                atualizarWelcomeMessage(); // mostra botão criar empresa
+                document.getElementById('statsGrid').style.display = 'none';
                 return;
             }
             await carregarDadosEmpresa();
@@ -836,7 +858,6 @@
     window.abrirModalLogout = abrirModalLogout;
     window.fecharModalLogout = fecharModalLogout;
     window.confirmarLogout = confirmarLogout;
-    window.solicitarLiberacao = solicitarLiberacao;
 </script>
 </body>
 </html>
