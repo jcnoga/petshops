@@ -93,8 +93,6 @@
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
-        .acesso-bloqueado i { font-size: 4rem; color: #e76f51; margin-bottom: 20px; }
-        .acesso-bloqueado h2 { color: #e76f51; margin-bottom: 15px; }
         .hidden { display: none !important; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } }
     </style>
@@ -179,12 +177,13 @@
     import { 
         escapeHtml, showToast, validarEmail, validarTelefone, formatarData,
         carregarEmpresaUsuario, verificarAcessoAdmin, aplicarMascaraTelefone,
-        verificarStatusEmpresa
+        verificarStatusEmpresa, verificarSuperAdmin, SUPER_ADMIN_EMAIL
     } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
     let currentEmpresa = null;
+    let isSuperAdmin = false;
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
@@ -204,22 +203,37 @@
         return { texto: 'Forte', cor: '#2a9d8f' };
     }
 
-    // ==================== CARREGAR USUÁRIOS DA EMPRESA ATUAL ====================
+    // ==================== CARREGAR USUÁRIOS (com filtro de superusuário) ====================
     async function carregarUsuarios() {
         if (!currentEmpresa) return [];
-        // Filtra apenas os usuários que pertencem à empresa atual (campo empresaId)
-        const q = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id));
+        // Se for superadmin, busca todos os usuários (sem filtro de empresaId)
+        let q;
+        if (isSuperAdmin) {
+            q = collection(db, 'usuarios');
+        } else {
+            q = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id));
+        }
         const snapshot = await getDocs(q);
-        usuariosCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let usuarios = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Se o usuário logado NÃO for o superadmin, remove o superusuário da lista
+        if (!isSuperAdmin) {
+            usuarios = usuarios.filter(u => u.email !== SUPER_ADMIN_EMAIL);
+        }
+        
+        usuariosCache = usuarios;
         return usuariosCache;
     }
 
     // ==================== CRUD ====================
     async function addUsuario(data, senha) {
-        // Criar usuário no Firebase Auth
+        // Impedir que alguém crie outro superusuário (caso tente)
+        if (data.email === SUPER_ADMIN_EMAIL) {
+            showToast('Não é possível criar outro superusuário.', 'error');
+            return false;
+        }
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, senha);
         const uid = userCredential.user.uid;
-        // Criar documento no Firestore com empresaId
         const newDoc = {
             uid: uid,
             nome: data.nome,
@@ -227,7 +241,7 @@
             telefone: data.telefone,
             perfil: data.perfil,
             ativo: data.ativo,
-            empresaId: currentEmpresa.id,   // associa à empresa atual
+            empresaId: currentEmpresa.id,
             criado_em: new Date().toISOString(),
             criado_por: currentUser.uid
         };
@@ -239,8 +253,14 @@
         showToast('Usuário criado com sucesso!', 'success');
         return true;
     }
+    
     async function updateUsuario(id, updates) {
-        // Não permitir alterar empresaId (mantém a mesma)
+        // Impedir que editem o superusuário (a menos que seja o próprio)
+        const usuario = usuariosCache.find(u => u.id === id);
+        if (usuario && usuario.email === SUPER_ADMIN_EMAIL && !isSuperAdmin) {
+            showToast('Você não pode editar o superusuário.', 'error');
+            return false;
+        }
         const updateData = { ...updates };
         delete updateData.empresaId;
         await updateDoc(doc(db, 'usuarios', id), updateData);
@@ -249,17 +269,28 @@
         renderUsuarios();
         updateStats();
         showToast('Usuário atualizado!', 'success');
+        return true;
     }
+    
     async function deleteUsuario(id, email) {
+        // Impedir exclusão do superusuário por outros
+        if (email === SUPER_ADMIN_EMAIL && !isSuperAdmin) {
+            showToast('Você não pode excluir o superusuário.', 'error');
+            return;
+        }
         if (!confirm(`⚠️ Excluir usuário "${email}"? Esta ação remove o perfil do sistema. A conta de acesso permanece mas sem vínculo com a empresa.`)) return;
-        // Remover apenas o documento do Firestore (não podemos excluir usuário do Auth facilmente)
         await deleteDoc(doc(db, 'usuarios', id));
         usuariosCache = usuariosCache.filter(u => u.id !== id);
         renderUsuarios();
         updateStats();
         showToast('Usuário removido do sistema.', 'warning');
     }
+    
     async function resetSenha(email) {
+        if (email === SUPER_ADMIN_EMAIL && !isSuperAdmin) {
+            showToast('Você não pode redefinir a senha do superusuário.', 'error');
+            return;
+        }
         await sendPasswordResetEmail(auth, email);
         showToast(`E‑mail de redefinição enviado para ${email}.`, 'success');
     }
@@ -279,18 +310,22 @@
         if (!nome) { showToast('Nome é obrigatório!', 'error'); return false; }
         const email = document.getElementById('usuEmail').value.trim();
         if (!email || !validarEmail(email)) { showToast('E-mail inválido!', 'error'); return false; }
+        if (email === SUPER_ADMIN_EMAIL && !isSuperAdmin) {
+            showToast('Este e-mail pertence ao superusuário e não pode ser usado.', 'error');
+            return false;
+        }
         const telefone = document.getElementById('usuTelefone').value;
-        if (telefone && !validarTelefone(telefone)) { showToast('Telefone inválido! Use (00) 00000-0000', 'error'); return false; }
+        if (telefone && !validarTelefone(telefone)) { showToast('Telefone inválido!', 'error'); return false; }
         const perfil = document.getElementById('usuPerfil').value;
         if (!perfil) { showToast('Selecione um perfil!', 'error'); return false; }
         const senha = document.getElementById('usuSenha').value;
         const confirmar = document.getElementById('usuConfirmarSenha').value;
-        if (senhaObrigatoria && !senha) { showToast('Senha é obrigatória para novo usuário!', 'error'); return false; }
+        if (senhaObrigatoria && !senha) { showToast('Senha é obrigatória!', 'error'); return false; }
         if (senha && senha !== confirmar) { showToast('Senhas não conferem!', 'error'); return false; }
         if (senha && senha.length < 6) { showToast('Senha deve ter no mínimo 6 caracteres!', 'error'); return false; }
-        // Verificar e-mail único (apenas dentro da mesma empresa)
+        // Verificar e-mail único (dentro da empresa ou globalmente para superadmin)
         const emailExiste = usuariosCache.some(u => u.email === email && u.id !== editingId);
-        if (emailExiste) { document.getElementById('emailError').style.display = 'block'; showToast('E-mail já cadastrado nesta empresa!', 'error'); return false; }
+        if (emailExiste) { document.getElementById('emailError').style.display = 'block'; showToast('E-mail já cadastrado!', 'error'); return false; }
         document.getElementById('emailError').style.display = 'none';
         return true;
     }
@@ -391,6 +426,11 @@
             const statusClass = u.ativo ? 'status-ativo' : 'status-inativo';
             const statusText = u.ativo ? 'Ativo' : 'Inativo';
             const ultimoLogin = u.ultimo_login ? new Date(u.ultimo_login).toLocaleDateString() : 'Nunca';
+            // Bloquear ações sobre o superusuário para não-admins
+            const isSuperUser = u.email === SUPER_ADMIN_EMAIL;
+            const canEdit = (!isSuperUser) || isSuperAdmin;
+            const canDelete = (!isSuperUser) || isSuperAdmin;
+            const canReset = (!isSuperUser) || isSuperAdmin;
             return `<tr>
                 <td><strong>${escapeHtml(u.nome)}</strong></td>
                 <td>${escapeHtml(u.email)}</span></td>
@@ -399,9 +439,9 @@
                 <td>${ultimoLogin}</td>
                 <td class="action-buttons">
                     <button class="action-btn view" onclick="viewUsuario('${u.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn reset" onclick="abrirResetModal('${escapeHtml(u.email)}')"><i class="fas fa-key"></i></button>
-                    <button class="action-btn delete" onclick="deleteUsuario('${u.id}', '${escapeHtml(u.email)}')"><i class="fas fa-trash-alt"></i></button>
+                    ${canEdit ? `<button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>` : ''}
+                    ${canReset ? `<button class="action-btn reset" onclick="abrirResetModal('${escapeHtml(u.email)}')"><i class="fas fa-key"></i></button>` : ''}
+                    ${canDelete ? `<button class="action-btn delete" onclick="deleteUsuario('${u.id}', '${escapeHtml(u.email)}')"><i class="fas fa-trash-alt"></i></button>` : ''}
                  </div>
             </tr>`;
         }).join('');
@@ -448,6 +488,7 @@
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
+            isSuperAdmin = await verificarSuperAdmin(user);
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa) { 
                 showToast('Nenhuma empresa associada a este usuário.', 'error');
@@ -457,7 +498,7 @@
             document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
             const isAdmin = await verificarAcessoAdmin(user);
-            if (!isAdmin) {
+            if (!isAdmin && !isSuperAdmin) {
                 document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('blockedContent').classList.remove('hidden');
                 document.getElementById('conteudoPrincipal').style.display = 'none';
@@ -522,7 +563,7 @@
     };
     window.logout = () => auth.signOut();
     
-    console.log('✅ Usuários - Refatorado (uma empresa por usuário)');
+    console.log('✅ Usuários - Refatorado (superusuário oculto para não admins)');
 </script>
 </body>
 </html>
