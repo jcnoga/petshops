@@ -1,11 +1,13 @@
 // ==================== util.js ====================
-// Funções utilitárias compartilhadas entre todos os módulos do PerShop
+// Funções utilitárias compartilhadas – agora com suporte a SUPERADMIN
 
 import { auth, db } from './firebase-config.js';
-import { doc, getDoc, updateDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 export const DIAS_TESTE = 15;
+export const SUPER_ADMIN_EMAIL = 'jcnvap@gmail.com';  // único superusuário global
 
+// ---------- Formatação e segurança ----------
 export function escapeHtml(texto) {
     if (!texto) return '';
     const div = document.createElement('div');
@@ -104,56 +106,69 @@ export function verificarStatusEmpresa(empresa) {
     return { status: 'trial', statusText: 'Em teste', diasRestantes: dias };
 }
 
+// ---------- Superadmin ----------
+export async function verificarSuperAdmin(user) {
+    if (!user) return false;
+    if (user.email === SUPER_ADMIN_EMAIL) return true;
+    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+    return userDoc.exists() && userDoc.data().globalAdmin === true;
+}
+
+// Carregar empresa do usuário – para superadmin retorna objeto especial
 export async function carregarEmpresaUsuario(user) {
     if (!user) return null;
-    try {
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        if (!userDoc.exists()) {
-            console.error('Perfil de usuário não encontrado no Firestore.');
-            showToast('Perfil não encontrado!', 'error');
-            await auth.signOut();
-            return null;
-        }
-        const userData = userDoc.data();
-        let empresaId = userData.empresaId;
+    const isSuper = await verificarSuperAdmin(user);
+    if (isSuper) {
+        // Superadmin não tem empresa fixa – retorna indicador
+        return { id: 'SUPER_ADMIN', globalAdmin: true, nome: 'Super Administrador' };
+    }
 
-        if (!empresaId && userData.empresaAtiva) {
-            empresaId = userData.empresaAtiva;
-            await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
-            console.log('Migrado empresaId de empresaAtiva para', empresaId);
-        }
-
-        if (!empresaId) {
-            console.log('Usuário sem empresa associada. Criando empresa padrão...');
-            const novaEmpresa = {
-                emp_razao_social: `${userData.nome || user.email.split('@')[0]} PetShop`,
-                emp_nome_fantasia: userData.nome || 'Meu PetShop',
-                emp_cnpj: '',
-                emp_whatsapp: '',
-                emp_status: 'ativo',
-                emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
-                emp_criado_em: new Date().toISOString()
-            };
-            const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
-            empresaId = docRef.id;
-            await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
-            console.log('Empresa criada com ID:', empresaId);
-        }
-
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) {
-            console.error('Empresa não encontrada no Firestore para o ID:', empresaId);
-            showToast('Empresa não encontrada!', 'error');
-            return null;
-        }
-        const empresa = { id: empresaDoc.id, ...empresaDoc.data() };
-        sessionStorage.setItem('empresa_atual', JSON.stringify(empresa));
-        return empresa;
-    } catch (error) {
-        console.error('Erro em carregarEmpresaUsuario:', error);
-        showToast('Erro ao carregar dados da empresa.', 'error');
+    // Usuário normal: buscar empresaId do perfil
+    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+    if (!userDoc.exists()) {
+        showToast('Perfil não encontrado!', 'error');
+        await auth.signOut();
         return null;
     }
+    const userData = userDoc.data();
+    let empresaId = userData.empresaId;
+
+    if (!empresaId && userData.empresaAtiva) {
+        empresaId = userData.empresaAtiva;
+        await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
+    }
+
+    if (!empresaId) {
+        // Criar empresa padrão
+        const novaEmpresa = {
+            emp_razao_social: `${userData.nome || user.email.split('@')[0]} PetShop`,
+            emp_nome_fantasia: userData.nome || 'Meu PetShop',
+            emp_cnpj: '',
+            emp_whatsapp: '',
+            emp_status: 'ativo',
+            emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
+            emp_criado_em: new Date().toISOString()
+        };
+        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+        empresaId = docRef.id;
+        await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
+    }
+
+    const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+    if (!empresaDoc.exists()) return null;
+    return { id: empresaDoc.id, ...empresaDoc.data() };
+}
+
+// Função auxiliar para montar query respeitando superadmin
+export function getQueryComEmpresa(collectionName, currentEmpresa, ...extraConstraints) {
+    let baseRef = collection(db, collectionName);
+    if (!currentEmpresa.globalAdmin) {
+        baseRef = query(baseRef, where('empresaId', '==', currentEmpresa.id));
+    }
+    if (extraConstraints.length) {
+        baseRef = query(baseRef, ...extraConstraints);
+    }
+    return baseRef;
 }
 
 export async function verificarAcessoAdmin(user) {
