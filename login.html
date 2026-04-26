@@ -35,6 +35,7 @@
 </head>
 <body>
 <div class="auth-container">
+    <!-- TELA DE LOGIN -->
     <div id="loginContainer" class="auth-card">
         <div class="auth-logo">
             <div class="auth-logo-icon"><i class="fas fa-paw"></i></div>
@@ -49,6 +50,7 @@
         <div class="auth-footer">Não tem conta? <a href="#" onclick="mostrarCadastro()">Cadastre-se</a></div>
     </div>
 
+    <!-- TELA DE CADASTRO -->
     <div id="cadastroContainer" class="auth-card" style="display: none;">
         <div class="auth-logo">
             <div class="auth-logo-icon"><i class="fas fa-paw"></i></div>
@@ -89,6 +91,7 @@
         setTimeout(() => { element.style.display = 'none'; }, 5000);
     }
 
+    // ==================== LOGIN ====================
     window.fazerLogin = async function() {
         const email = document.getElementById('loginEmail').value.trim();
         const senha = document.getElementById('loginSenha').value;
@@ -105,20 +108,28 @@
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
+
             const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
             if (!userDoc.exists()) {
                 showMessage('loginError', 'Usuário não possui perfil no sistema. Contate o administrador.');
                 await auth.signOut();
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+                loginBtn.disabled = false;
                 return;
             }
+
             const userData = userDoc.data();
             if (!userData.ativo && userData.ativo !== undefined) {
                 showMessage('loginError', 'Usuário desativado. Contate o administrador.');
                 await auth.signOut();
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+                loginBtn.disabled = false;
                 return;
             }
+
             showMessage('loginError', 'Login realizado com sucesso! Redirecionando...', true);
             setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+
         } catch (error) {
             let msg = 'Erro ao fazer login.';
             if (error.code === 'auth/user-not-found') msg = 'E-mail não cadastrado.';
@@ -133,6 +144,7 @@
         }
     };
 
+    // ==================== CADASTRO ====================
     window.fazerCadastro = async function() {
         const nome = document.getElementById('cadNome').value.trim();
         const email = document.getElementById('cadEmail').value.trim();
@@ -174,11 +186,12 @@
             const empresaRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
             const empresaId = empresaRef.id;
 
+            // Criar usuário no Firestore com perfil ADMIN (primeiro usuário)
             const usuarioData = {
                 nome: nome,
                 email: email,
                 telefone: telefone,
-                perfil: 'usuario',
+                perfil: 'admin',      // <-- ADMINISTRADOR para ter acesso total
                 ativo: true,
                 empresaId: empresaId,
                 criado_em: new Date().toISOString(),
@@ -192,6 +205,7 @@
                 document.getElementById('loginEmail').value = email;
                 document.getElementById('loginSenha').value = '';
             }, 2000);
+
         } catch (error) {
             let msg = 'Erro ao cadastrar.';
             if (error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está em uso.';
@@ -208,14 +222,27 @@
     function mostrarLogin() {
         document.getElementById('loginContainer').style.display = 'block';
         document.getElementById('cadastroContainer').style.display = 'none';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginSenha').value = '';
     }
+    window.mostrarLogin = mostrarLogin;
+
     function mostrarCadastro() {
         document.getElementById('loginContainer').style.display = 'none';
         document.getElementById('cadastroContainer').style.display = 'block';
+        document.getElementById('cadastroError').style.display = 'none';
+        document.getElementById('cadastroSuccess').style.display = 'none';
+        document.getElementById('cadNome').value = '';
+        document.getElementById('cadEmail').value = '';
+        document.getElementById('cadTelefone').value = '';
+        document.getElementById('cadSenha').value = '';
+        document.getElementById('cadConfirmarSenha').value = '';
     }
-    window.mostrarLogin = mostrarLogin;
     window.mostrarCadastro = mostrarCadastro;
 
+    // Se já estiver logado, redirecionar para o dashboard
+    import { onAuthStateChanged } from './firebase-config.js';
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
@@ -227,6 +254,7 @@
         }
     });
 
+    // Máscara de telefone
     const campoTelefone = document.getElementById('cadTelefone');
     if (campoTelefone) {
         campoTelefone.addEventListener('input', (e) => {
@@ -234,6 +262,7 @@
         });
     }
 
+    // Tecla Enter
     document.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             if (document.getElementById('loginContainer').style.display !== 'none') {
