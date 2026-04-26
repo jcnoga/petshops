@@ -4,105 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>PerShop - Dashboard</title>
-    <!-- Bibliotecas externas -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- CSS do Dashboard -->
     <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
 <div class="container">
-    <!-- Cabeçalho -->
     <div class="header">
-        <div class="logo">
-            <div class="logo-icon"><i class="fas fa-store"></i></div>
-            <h1>PerShop <span>Dashboard</span></h1>
-        </div>
-        <div class="empresa-info" id="empresaInfo">
-            <i class="fas fa-building"></i> Carregando empresa...
-        </div>
-        <div class="config-bar">
-            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
-            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
-        </div>
+        <div class="logo"><div class="logo-icon"><i class="fas fa-store"></i></div><h1>PerShop <span>Dashboard</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando...</div>
+        <div class="config-bar"><span class="badge"><i class="fas fa-fire"></i> Firebase Online</span><button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button></div>
     </div>
-
-    <!-- Alerta de trial -->
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
 
-    <!-- Cards de estatísticas -->
     <div class="stats-grid">
-        <div class="stat-card" data-module="clientes.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div>
-            <div class="stat-value" id="totalClientes">0</div>
-            <div class="stat-label">Clientes</div>
-        </div>
-        <div class="stat-card" data-module="pets.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div>
-            <div class="stat-value" id="totalPets">0</div>
-            <div class="stat-label">Pets</div>
-        </div>
-        <div class="stat-card" data-module="financeiro.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div>
-            <div class="stat-value" id="faturamentoMes">R$ 0</div>
-            <div class="stat-label">Faturamento (mês)</div>
-        </div>
-        <div class="stat-card" data-module="agendamentos.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div></div>
-            <div class="stat-value" id="agendamentosHoje">0</div>
-            <div class="stat-label">Agendamentos Hoje</div>
-        </div>
-        <div class="stat-card" data-module="servicos.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-cut"></i></div></div>
-            <div class="stat-value" id="servicosAtivos">0</div>
-            <div class="stat-label">Serviços Ativos</div>
-        </div>
-        <div class="stat-card" data-module="produtos.html">
-            <div class="stat-header"><div class="stat-icon"><i class="fas fa-box"></i></div></div>
-            <div class="stat-value" id="produtosEstoqueBaixo">0</div>
-            <div class="stat-label">Produtos c/ Estoque Baixo</div>
-        </div>
+        <div class="stat-card" data-module="clientes.html"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-value" id="totalClientes">0</div><div class="stat-label">Clientes</div></div>
+        <div class="stat-card" data-module="pets.html"><div class="stat-icon"><i class="fas fa-paw"></i></div><div class="stat-value" id="totalPets">0</div><div class="stat-label">Pets</div></div>
+        <div class="stat-card" data-module="financeiro.html"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value" id="faturamentoMes">R$ 0</div><div class="stat-label">Faturamento (mês)</div></div>
+        <div class="stat-card" data-module="agendamentos.html"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div class="stat-value" id="agendamentosHoje">0</div><div class="stat-label">Agendamentos Hoje</div></div>
     </div>
 
-    <!-- Gráficos -->
-    <div class="chart-row">
-        <div class="chart-card">
-            <div class="chart-title"><i class="fas fa-chart-line"></i> Faturamento Mensal (últimos 6 meses)</div>
-            <div class="chart-container"><canvas id="faturamentoChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-            <div class="chart-title"><i class="fas fa-chart-pie"></i> Distribuição de Serviços</div>
-            <div class="chart-container"><canvas id="servicosChart"></canvas></div>
-        </div>
+    <div class="modules-grid">
+        <a href="clientes.html" class="module-card"><i class="fas fa-user-friends"></i><span>Clientes</span></a>
+        <a href="pets.html" class="module-card"><i class="fas fa-paw"></i><span>Pets</span></a>
+        <a href="servicos.html" class="module-card"><i class="fas fa-cut"></i><span>Serviços</span></a>
+        <a href="profissionais.html" class="module-card"><i class="fas fa-user-md"></i><span>Profissionais</span></a>
+        <a href="produtos.html" class="module-card"><i class="fas fa-box"></i><span>Produtos</span></a>
+        <a href="agendamentos.html" class="module-card"><i class="fas fa-calendar-check"></i><span>Agendamentos</span></a>
+        <a href="vacinas.html" class="module-card"><i class="fas fa-syringe"></i><span>Vacinas</span></a>
+        <a href="financeiro.html" class="module-card"><i class="fas fa-chart-line"></i><span>Financeiro</span></a>
+        <a href="fornecedores.html" class="module-card"><i class="fas fa-truck"></i><span>Fornecedores</span></a>
+        <a href="compras.html" class="module-card"><i class="fas fa-shopping-cart"></i><span>Compras</span></a>
+        <a href="relatorios.html" class="module-card"><i class="fas fa-chart-pie"></i><span>Relatórios</span></a>
+        <a href="configuracoes.html" class="module-card"><i class="fas fa-cog"></i><span>Configurações</span></a>
     </div>
-
-    <!-- Acessos rápidos aos módulos -->
-    <div class="quick-access">
-        <h3><i class="fas fa-th-large"></i> Módulos do Sistema</h3>
-        <div class="modules-grid">
-            <a href="clientes.html" class="module-card"><i class="fas fa-user-friends"></i><span>Clientes</span></a>
-            <a href="pets.html" class="module-card"><i class="fas fa-paw"></i><span>Pets</span></a>
-            <a href="financeiro.html" class="module-card"><i class="fas fa-chart-line"></i><span>Financeiro</span></a>
-            <a href="agendamentos.html" class="module-card"><i class="fas fa-calendar-check"></i><span>Agendamentos</span></a>
-            <a href="servicos.html" class="module-card"><i class="fas fa-cut"></i><span>Serviços</span></a>
-            <a href="produtos.html" class="module-card"><i class="fas fa-box"></i><span>Produtos</span></a>
-            <a href="profissionais.html" class="module-card"><i class="fas fa-user-md"></i><span>Profissionais</span></a>
-            <a href="vacinas.html" class="module-card"><i class="fas fa-syringe"></i><span>Vacinas</span></a>
-        </div>
-    </div>
-
-    <div class="footer">PerShop Enterprise - Dashboard Gerencial | Dados em tempo real com Firebase</div>
+    <div class="footer">PerShop Enterprise - Versão completa | Dados em tempo real</div>
 </div>
-
-<!-- Modal informativo (opcional) -->
-<div id="infoModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header"><h3><i class="fas fa-info-circle"></i> Informação</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div>
-        <div class="modal-body" id="modalBody"></div>
-    </div>
-</div>
-
 <script type="module" src="dashboard.js"></script>
 </body>
 </html>

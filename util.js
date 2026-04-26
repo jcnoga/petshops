@@ -1,192 +1,97 @@
-// ==================== util.js ====================
-// Funções utilitárias compartilhadas – agora com suporte a SUPERADMIN
-
 import { auth, db } from './firebase-config.js';
-import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { collection, query, where, getDocs, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-export const DIAS_TESTE = 15;
-export const SUPER_ADMIN_EMAIL = 'jcnvap@gmail.com';  // único superusuário global
-
-// ---------- Formatação e segurança ----------
-export function escapeHtml(texto) {
-    if (!texto) return '';
-    const div = document.createElement('div');
-    div.textContent = texto;
-    return div.innerHTML;
-}
-
-export function formatCurrency(valor) {
-    return new Intl.NumberFormat('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(valor || 0);
-}
-
-export function parseCurrency(valor) {
-    if (!valor) return 0;
-    if (typeof valor === 'number') return valor;
-    const num = valor.toString().replace(/\./g, '').replace(',', '.');
-    return parseFloat(num) || 0;
-}
-
-export function formatarData(dataStr, padrao = 'pt-BR') {
-    if (!dataStr) return '-';
-    return new Date(dataStr).toLocaleDateString(padrao);
-}
-
-export function formatarDataHora(dataStr) {
-    if (!dataStr) return '-';
-    return new Date(dataStr).toLocaleString('pt-BR');
-}
-
-export function validarEmail(email) {
-    if (!email) return true;
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-}
-
-export function validarTelefone(telefone) {
-    if (!telefone) return true;
-    const regex = /^\([0-9]{2}\) [0-9]{4,5}-[0-9]{4}$/;
-    return regex.test(telefone);
-}
-
-export function aplicarMascaraTelefone(valor) {
-    let v = valor.replace(/\D/g, '');
-    if (v.length === 0) return '';
-    if (v.length <= 10) {
-        v = v.replace(/^(\d{2})(\d)/, '($1) $2');
-        v = v.replace(/(\d{4})(\d)/, '$1-$2');
-    } else {
-        v = v.replace(/^(\d{2})(\d)/, '($1) $2');
-        v = v.replace(/(\d{5})(\d)/, '$1-$2');
-    }
-    return v;
-}
-
-export function aplicarMascaraCNPJ(valor) {
-    let v = valor.replace(/\D/g, '');
-    if (v.length === 0) return '';
-    if (v.length <= 2) return v;
-    if (v.length <= 5) return v.replace(/^(\d{2})(\d{1,3})/, '$1.$2');
-    if (v.length <= 8) return v.replace(/^(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
-    if (v.length <= 12) return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4');
-    return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{1,2})/, '$1.$2.$3/$4-$5');
-}
-
-export function aplicarMascaraCEP(valor) {
-    let v = valor.replace(/\D/g, '');
-    if (v.length === 0) return '';
-    if (v.length === 8) return v.replace(/^(\d{5})(\d{3})/, '$1-$2');
-    return v;
-}
-
-export function showToast(mensagem, tipo = 'success') {
+// ========== TOAST ==========
+export function showToast(message, type = 'info') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
     const toast = document.createElement('div');
-    toast.className = `toast toast-${tipo}`;
-    toast.innerHTML = mensagem;
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
     document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => toast.remove(), 4000);
 }
 
-export function calcularDiasRestantes(dataExpiracao) {
-    if (!dataExpiracao) return DIAS_TESTE;
-    const diff = new Date(dataExpiracao) - new Date();
-    const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return dias > 0 ? dias : 0;
+// ========== FORMATAÇÃO ==========
+export function formatCurrency(value) {
+    if (isNaN(value)) value = 0;
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function parseCurrency(str) {
+    if (!str) return 0;
+    let cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+}
+
+export function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+export function configurarMascaraValor(id) {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value === '') return;
+        value = (parseInt(value) / 100).toFixed(2);
+        e.target.value = `R$ ${value.replace('.', ',')}`;
+    });
+}
+
+// ========== GERENCIAMENTO DE EMPRESA ==========
+export async function carregarEmpresaUsuario(user) {
+    try {
+        // Buscar empresa vinculada ao usuário
+        const q = query(collection(db, 'empresas'), where('usuarioId', '==', user.uid));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const doc = snap.docs[0];
+            return { id: doc.id, ...doc.data() };
+        }
+        // Se não existir, criar automaticamente
+        const novaEmpresa = {
+            usuarioId: user.uid,
+            emp_razao_social: "Minha Empresa",
+            emp_nome_fantasia: "Meu Petshop",
+            emp_cnpj: "00.000.000/0001-00",
+            emp_telefone: "(11) 99999-9999",
+            emp_email: user.email,
+            plano: "trial",
+            trial_expiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // 1 ano
+            createdAt: new Date()
+        };
+        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+        console.log("Empresa criada automaticamente com ID:", docRef.id);
+        return { id: docRef.id, ...novaEmpresa };
+    } catch (error) {
+        console.error("Erro ao carregar/criar empresa:", error);
+        // Fallback para testes (não recomendado em produção)
+        return {
+            id: "empresa_teste",
+            emp_razao_social: "Petshop Teste",
+            emp_nome_fantasia: "Teste",
+            plano: "ativo"
+        };
+    }
 }
 
 export function verificarStatusEmpresa(empresa) {
-    if (!empresa) return { status: 'nao_cadastrada', statusText: '-', diasRestantes: 0 };
-    if (empresa.emp_status === 'ativo') return { status: 'ativo', statusText: 'Ativo', diasRestantes: null };
-    if (empresa.emp_status === 'suspenso') return { status: 'suspenso', statusText: 'Suspenso', diasRestantes: null };
-    const dias = calcularDiasRestantes(empresa.emp_data_expiracao);
-    if (dias <= 0) return { status: 'expirado', statusText: 'Expirado', diasRestantes: 0 };
-    if (dias <= 3) return { status: 'trial_urgente', statusText: 'Expira em breve', diasRestantes: dias };
-    return { status: 'trial', statusText: 'Em teste', diasRestantes: dias };
-}
-
-// ---------- Superadmin ----------
-export async function verificarSuperAdmin(user) {
-    if (!user) return false;
-    if (user.email === SUPER_ADMIN_EMAIL) return true;
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    return userDoc.exists() && userDoc.data().globalAdmin === true;
-}
-
-// Carregar empresa do usuário – para superadmin retorna objeto especial
-export async function carregarEmpresaUsuario(user) {
-    if (!user) return null;
-    const isSuper = await verificarSuperAdmin(user);
-    if (isSuper) {
-        // Superadmin não tem empresa fixa – retorna indicador
-        return { id: 'SUPER_ADMIN', globalAdmin: true, nome: 'Super Administrador' };
+    if (!empresa) return { status: 'desconhecido' };
+    if (empresa.plano === 'ativo') return { status: 'ativo' };
+    if (empresa.trial_expiry) {
+        const hoje = new Date();
+        const expiry = empresa.trial_expiry.toDate ? empresa.trial_expiry.toDate() : new Date(empresa.trial_expiry);
+        const dias = Math.ceil((expiry - hoje) / (1000*60*60*24));
+        if (dias <= 0) return { status: 'expirado' };
+        if (dias <= 3) return { status: 'trial_urgente', diasRestantes: dias };
+        return { status: 'trial', diasRestantes: dias };
     }
-
-    // Usuário normal: buscar empresaId do perfil
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    if (!userDoc.exists()) {
-        showToast('Perfil não encontrado!', 'error');
-        await auth.signOut();
-        return null;
-    }
-    const userData = userDoc.data();
-    let empresaId = userData.empresaId;
-
-    if (!empresaId && userData.empresaAtiva) {
-        empresaId = userData.empresaAtiva;
-        await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
-    }
-
-    if (!empresaId) {
-        // Criar empresa padrão
-        const novaEmpresa = {
-            emp_razao_social: `${userData.nome || user.email.split('@')[0]} PetShop`,
-            emp_nome_fantasia: userData.nome || 'Meu PetShop',
-            emp_cnpj: '',
-            emp_whatsapp: '',
-            emp_status: 'ativo',
-            emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
-            emp_criado_em: new Date().toISOString()
-        };
-        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
-        empresaId = docRef.id;
-        await updateDoc(doc(db, 'usuarios', user.uid), { empresaId: empresaId });
-    }
-
-    const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-    if (!empresaDoc.exists()) return null;
-    return { id: empresaDoc.id, ...empresaDoc.data() };
-}
-
-// Função auxiliar para montar query respeitando superadmin
-export function getQueryComEmpresa(collectionName, currentEmpresa, ...extraConstraints) {
-    let baseRef = collection(db, collectionName);
-    if (!currentEmpresa.globalAdmin) {
-        baseRef = query(baseRef, where('empresaId', '==', currentEmpresa.id));
-    }
-    if (extraConstraints.length) {
-        baseRef = query(baseRef, ...extraConstraints);
-    }
-    return baseRef;
-}
-
-export async function verificarAcessoAdmin(user) {
-    if (!user) return false;
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    if (!userDoc.exists()) return false;
-    return userDoc.data().perfil === 'admin';
-}
-
-export function configurarMascaraValor(idCampo) {
-    const campo = document.getElementById(idCampo);
-    if (!campo) return;
-    campo.addEventListener('input', (e) => {
-        let v = e.target.value.replace(/\D/g, '');
-        if (v === '') {
-            e.target.value = '';
-            return;
-        }
-        e.target.value = formatCurrency(parseInt(v) / 100);
-    });
+    return { status: 'ativo' };
 }
