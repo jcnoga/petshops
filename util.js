@@ -1,78 +1,117 @@
 import { db } from './firebase-config.js';
 import { collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// ========== TOAST ==========
 export function showToast(message, type = 'info') {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${message}`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
 }
 
+// ========== FORMATAÇÃO ==========
 export function formatCurrency(value) {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    if (isNaN(value)) value = 0;
+    return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function parseCurrency(str) {
-  if (!str) return 0;
-  return parseFloat(str.replace(/\./g, '').replace(',', '.')) || 0;
+    if (!str) return 0;
+    let cleaned = str.replace(/[^\d,.-]/g, '').replace(',', '.');
+    return parseFloat(cleaned) || 0;
+}
+
+export function formatarData(dataString) {
+    if (!dataString) return '';
+    const data = new Date(dataString);
+    return data.toLocaleDateString('pt-BR');
 }
 
 export function escapeHtml(text) {
-  if (!text) return '';
-  return text.replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] || m));
+    if (!text) return '';
+    return text.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+// ========== VALIDAÇÕES ==========
+export function validarEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+}
+
+export function validarTelefone(telefone) {
+    const re = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+    return re.test(telefone);
+}
+
+export function aplicarMascaraTelefone(valor) {
+    valor = valor.replace(/\D/g, '');
+    if (valor.length === 11) return valor.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    if (valor.length === 10) return valor.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    return valor;
 }
 
 export function configurarMascaraValor(id) {
-  const input = document.getElementById(id);
-  if (!input) return;
-  input.addEventListener('input', (e) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value === '') return;
-    value = (parseInt(value) / 100).toFixed(2);
-    e.target.value = `R$ ${value.replace('.', ',')}`;
-  });
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value === '') return;
+        value = (parseInt(value) / 100).toFixed(2);
+        e.target.value = `R$ ${value.replace('.', ',')}`;
+    });
 }
 
+// ========== EMPRESA ==========
 export async function carregarEmpresaUsuario(user) {
-  try {
-    const q = query(collection(db, 'empresas'), where('usuarioId', '==', user.uid));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const doc = snap.docs[0];
-      return { id: doc.id, ...doc.data() };
+    try {
+        const q = query(collection(db, 'empresas'), where('usuarioId', '==', user.uid));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const doc = snap.docs[0];
+            return { id: doc.id, ...doc.data() };
+        }
+        const novaEmpresa = {
+            usuarioId: user.uid,
+            emp_razao_social: "Minha Empresa",
+            emp_nome_fantasia: "Meu Petshop",
+            emp_cnpj: "00.000.000/0001-00",
+            emp_telefone: "(11) 99999-9999",
+            emp_email: user.email,
+            plano: "trial",
+            trial_expiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+            createdAt: new Date()
+        };
+        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+        console.log("Empresa criada com ID:", docRef.id);
+        return { id: docRef.id, ...novaEmpresa };
+    } catch (error) {
+        console.error("Erro ao carregar/criar empresa:", error);
+        return {
+            id: "empresa_teste",
+            emp_razao_social: "Petshop Teste",
+            plano: "ativo"
+        };
     }
-    const novaEmpresa = {
-      usuarioId: user.uid,
-      emp_razao_social: "Minha Empresa",
-      emp_nome_fantasia: "Meu Petshop",
-      emp_cnpj: "00.000.000/0001-00",
-      emp_telefone: "(11) 99999-9999",
-      emp_email: user.email,
-      plano: "trial",
-      trial_expiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-      createdAt: new Date()
-    };
-    const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
-    return { id: docRef.id, ...novaEmpresa };
-  } catch (error) {
-    console.error(error);
-    return { id: 'empresa_teste', emp_razao_social: 'Petshop Teste', plano: 'ativo' };
-  }
 }
 
 export function verificarStatusEmpresa(empresa) {
-  if (!empresa) return { status: 'desconhecido' };
-  if (empresa.plano === 'ativo') return { status: 'ativo' };
-  if (empresa.trial_expiry) {
-    const hoje = new Date();
-    const expiry = empresa.trial_expiry.toDate ? empresa.trial_expiry.toDate() : new Date(empresa.trial_expiry);
-    const dias = Math.ceil((expiry - hoje) / (1000 * 60 * 60 * 24));
-    if (dias <= 0) return { status: 'expirado' };
-    if (dias <= 3) return { status: 'trial_urgente', diasRestantes: dias };
-    return { status: 'trial', diasRestantes: dias };
-  }
-  return { status: 'ativo' };
+    if (!empresa) return { status: 'desconhecido' };
+    if (empresa.plano === 'ativo') return { status: 'ativo' };
+    if (empresa.trial_expiry) {
+        const hoje = new Date();
+        const expiry = empresa.trial_expiry.toDate ? empresa.trial_expiry.toDate() : new Date(empresa.trial_expiry);
+        const dias = Math.ceil((expiry - hoje) / (1000*60*60*24));
+        if (dias <= 0) return { status: 'expirado' };
+        if (dias <= 3) return { status: 'trial_urgente', diasRestantes: dias };
+        return { status: 'trial', diasRestantes: dias };
+    }
+    return { status: 'ativo' };
 }
