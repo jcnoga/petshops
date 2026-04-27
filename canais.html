@@ -192,7 +192,7 @@
         }, (error) => console.error('Erro snapshot regras:', error));
 
         // Histórico – requer índice composto (empresaId + criado_em)
-        const historicoQuery = query(collection(db, 'historico_envios'), ...constraints, orderBy('criado_em', 'desc'));
+       // aqui const historicoQuery = query(collection(db, 'historico_envios'), ...constraints, orderBy('criado_em', 'desc'));
         unsubscribeHistorico = onSnapshot(historicoQuery, (snapshot) => {
             historicoCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             renderHistorico();
