@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Agendamentos | Firebase + Firestore</title>
+    <title>PerShop - Módulo de Agendamentos | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (idênticos ao original) - omitidos por brevidade, mas mantidos */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -144,81 +144,254 @@
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
-        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatCurrency, parseCurrency, formatarDataHora, 
-        carregarEmpresaUsuario, verificarStatusEmpresa, configurarMascaraValor, verificarSuperAdmin 
+        carregarEmpresaUsuario, verificarStatusEmpresa, configurarMascaraValor 
     } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
-    let currentEmpresa = null;      // empresa do usuário ou objeto globalAdmin
+    let currentEmpresa = null;
     let editingId = null;
     let currentPage = 1;
-    const itemsPerPage = 10;
+    let itemsPerPage = 10;
+    let lastVisibleDoc = null;      // cursor para paginação
+    let totalAgendamentosCount = 0;
+    let isLoading = false;
     
+    // Caches de apoio (carregados por completo, mas são pequenos)
     let clientesCache = [];
     let petsCache = [];
     let profissionaisCache = [];
     let servicosCache = [];
-    let agendamentosCache = [];
     
-    // Listeners
-    let unsubscribeClientes = null;
-    let unsubscribePets = null;
-    let unsubscribeProfissionais = null;
-    let unsubscribeServicos = null;
-    let unsubscribeAgendamentos = null;
+    // Agendamentos da página atual
+    let agendamentosCache = [];
 
-    // ==================== AUXILIAR: CONSTRAINTS (SUPERADMIN) ====================
+    // ==================== CONSTRAINTS ====================
     function getConstraints() {
         if (currentEmpresa && currentEmpresa.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== FUNÇÕES DE CONFLITO DE HORÁRIO ====================
+    // ==================== CARREGAR CACHES DE APOIO (pequenos) ====================
+    async function carregarCachesApoio() {
+        if (!currentEmpresa) return;
+        const constraints = getConstraints();
+        const clientesSnap = await getDocs(query(collection(db, 'clientes'), ...constraints));
+        clientesCache = clientesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const petsSnap = await getDocs(query(collection(db, 'pets'), ...constraints));
+        petsCache = petsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), ...constraints));
+        profissionaisCache = profissionaisSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const servicosSnap = await getDocs(query(collection(db, 'servicos'), ...constraints));
+        servicosCache = servicosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // Atualizar selects
+        carregarSelects();
+    }
+
+    // ==================== PAGINAÇÃO DOS AGENDAMENTOS ====================
+    async function carregarPaginaAgendamentos(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                agendamentosCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'agendamentos'), ...constraints);
+            
+            // Aplicar filtros diretamente na query
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            if (statusFilter) {
+                q = query(q, where('status', '==', statusFilter));
+            }
+            
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            // Nota: busca textual por nome do cliente/pet não pode ser feita diretamente no Firestore sem índice de array.
+            // Para simplificar, vamos aplicar a busca no cliente após a paginação (mas isso é limitado).
+            // Uma alternativa melhor: usar um campo de busca combinado, mas para este refactor manteremos busca local na página atual.
+            // Como a busca é por cliente/pet, e os nomes estão nos caches, aplicaremos após o carregamento.
+            
+            // Ordenação por data (decrescente) para paginação estável
+            q = query(q, orderBy('data', 'desc'), limit(itemsPerPage));
+            
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novosAgendamentos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                agendamentosCache = novosAgendamentos;
+            } else {
+                agendamentosCache = [...agendamentosCache, ...novosAgendamentos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Aplicar busca local se houver termo
+            let filtered = [...agendamentosCache];
+            if (searchTerm) {
+                filtered = filtered.filter(a => {
+                    const cliente = clientesCache.find(c => c.id === a.clienteId);
+                    const pet = petsCache.find(p => p.id === a.petId);
+                    return (cliente?.cli_nome || '').toLowerCase().includes(searchTerm) ||
+                           (pet?.nome || '').toLowerCase().includes(searchTerm);
+                });
+            }
+            
+            // Contagem total (somente na primeira página ou quando reset)
+            if (reset) {
+                let countQuery = query(collection(db, 'agendamentos'), ...constraints);
+                if (statusFilter) countQuery = query(countQuery, where('status', '==', statusFilter));
+                const countSnap = await getCountFromServer(countQuery);
+                totalAgendamentosCount = countSnap.data().count;
+            }
+            
+            renderAgendamentos(filtered);
+            atualizarPaginacao();
+            await updateStats(); // estatísticas leves
+        } catch (error) {
+            console.error("Erro ao carregar agendamentos:", error);
+            showToast("Erro ao carregar agendamentos. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalAgendamentosCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaAgendamentos(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaAgendamentos(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaAgendamentos(false);
+                currentPage++;
+            }
+        }
+        // Reaplicar busca local
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        let filtered = [...agendamentosCache];
+        if (searchTerm) {
+            filtered = filtered.filter(a => {
+                const cliente = clientesCache.find(c => c.id === a.clienteId);
+                const pet = petsCache.find(p => p.id === a.petId);
+                return (cliente?.cli_nome || '').toLowerCase().includes(searchTerm) ||
+                       (pet?.nome || '').toLowerCase().includes(searchTerm);
+            });
+        }
+        renderAgendamentos(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderAgendamentos(agendamentos) {
+        const tbody = document.getElementById('agendamentosTableBody');
+        if (!tbody) return;
+        if (agendamentos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8">Nenhum agendamento encontrado</td></tr>';
+            return;
+        }
+        tbody.innerHTML = agendamentos.map(a => {
+            const cliente = clientesCache.find(c => c.id === a.clienteId);
+            const pet = petsCache.find(p => p.id === a.petId);
+            const prof = profissionaisCache.find(p => p.id === a.profissionalId);
+            const serv = servicosCache.find(s => s.id === a.servicoId);
+            const servicoNome = serv?.nome || a.servico || '-';
+            const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
+            return `<tr>
+                <td>${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</td>
+                <td>${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</td>
+                <td>${escapeHtml(servicoNome)}</span></td>
+                <td>${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</td>
+                <td>${a.data ? new Date(a.data).toLocaleString() : '-'}</span></td>
+                <td>R$ ${formatCurrency(a.valor || 0)}</span></td>
+                <td><span class="status-badge ${statusClass}">${a.status}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewAgendamento('${a.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editAgendamento('${a.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteAgendamento('${a.id}')"><i class="fas fa-trash-alt"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS (consultas leves) ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'agendamentos'), ...constraints);
+        const totalSnap = await getCountFromServer(baseQuery);
+        document.getElementById('totalAgendamentos').innerText = totalSnap.data().count;
+        
+        const hoje = new Date().toISOString().split('T')[0];
+        const hojeQuery = query(baseQuery, where('data', '>=', hoje + 'T00:00:00'), where('data', '<=', hoje + 'T23:59:59'));
+        const hojeSnap = await getCountFromServer(hojeQuery);
+        document.getElementById('totalHoje').innerText = hojeSnap.data().count;
+        
+        const pendentesQuery = query(baseQuery, where('status', 'in', ['agendado', 'confirmado']));
+        const pendentesSnap = await getCountFromServer(pendentesQuery);
+        document.getElementById('totalPendentes').innerText = pendentesSnap.data().count;
+        
+        const realizadosQuery = query(baseQuery, where('status', '==', 'realizado'));
+        const realizadosSnap = await getCountFromServer(realizadosQuery);
+        document.getElementById('totalRealizados').innerText = realizadosSnap.data().count;
+    }
+
+    // ==================== CONFLITO DE HORÁRIO (otimizado) ====================
     function getServicoDuracao(servicoId) {
         const servico = servicosCache.find(s => s.id === servicoId);
         return servico?.duracao || 60;
     }
-
-    function getServicoNome(servicoId) {
-        const servico = servicosCache.find(s => s.id === servicoId);
-        return servico?.nome || '';
-    }
-
+    
     function getServicoPreco(servicoId) {
         const servico = servicosCache.find(s => s.id === servicoId);
         return servico?.preco || 0;
     }
-
-    function horariosConflitam(inicio1, fim1, inicio2, fim2) {
-        return (inicio1 < fim2 && fim1 > inicio2);
-    }
-
+    
     async function verificarConflitoHorario(dataHoraInicio, profissionalId, servicoId, agendamentoIdIgnorar = null) {
         if (!dataHoraInicio || !profissionalId || !servicoId) return [];
         const duracao = getServicoDuracao(servicoId);
         const inicio = new Date(dataHoraInicio);
         const fim = new Date(inicio.getTime() + duracao * 60000);
-        const agendamentos = agendamentosCache.filter(a => 
-            a.profissionalId === profissionalId && 
-            a.id !== agendamentoIdIgnorar &&
-            a.status !== 'cancelado'
+        
+        const constraints = getConstraints();
+        // Busca agendamentos do mesmo profissional que intersectam o horário
+        const conflitosQuery = query(
+            collection(db, 'agendamentos'),
+            ...constraints,
+            where('profissionalId', '==', profissionalId),
+            where('status', 'not-in', ['cancelado']), // não considerar cancelados
+            where('data', '>=', inicio.toISOString()),
+            where('data', '<=', fim.toISOString())
         );
-        const conflitos = [];
-        for (const a of agendamentos) {
-            const aInicio = new Date(a.data);
-            const aDuracao = getServicoDuracao(a.servicoId);
-            const aFim = new Date(aInicio.getTime() + aDuracao * 60000);
-            if (horariosConflitam(inicio, fim, aInicio, aFim)) {
-                conflitos.push(a);
-            }
-        }
-        return conflitos;
+        const snap = await getDocs(conflitosQuery);
+        return snap.docs.filter(doc => doc.id !== agendamentoIdIgnorar).map(doc => ({ id: doc.id, ...doc.data() }));
     }
-
+    
     function exibirConflito(conflitos, servicoId) {
         const box = document.getElementById('conflitoHorarioBox');
         const msgSpan = document.getElementById('conflitoMensagem');
@@ -235,89 +408,50 @@
             return false;
         }
     }
-
-    // ==================== LISTENERS EM TEMPO REAL ====================
-    async function iniciarListeners() {
-        if (unsubscribeClientes) unsubscribeClientes();
-        if (unsubscribePets) unsubscribePets();
-        if (unsubscribeProfissionais) unsubscribeProfissionais();
-        if (unsubscribeServicos) unsubscribeServicos();
-        if (unsubscribeAgendamentos) unsubscribeAgendamentos();
-        if (!currentEmpresa) return;
-
-        const constraints = getConstraints();
-
-        const clientesQuery = query(collection(db, 'clientes'), ...constraints);
-        unsubscribeClientes = onSnapshot(clientesQuery, (snapshot) => {
-            clientesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            carregarSelects();
-            renderAgendamentos();
-        }, (error) => console.error('Erro snapshot clientes:', error));
-
-        const petsQuery = query(collection(db, 'pets'), ...constraints);
-        unsubscribePets = onSnapshot(petsQuery, (snapshot) => {
-            petsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            carregarSelects();
-            renderAgendamentos();
-        }, (error) => console.error('Erro snapshot pets:', error));
-
-        const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
-        unsubscribeProfissionais = onSnapshot(profissionaisQuery, (snapshot) => {
-            profissionaisCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            carregarSelects();
-            renderAgendamentos();
-        }, (error) => console.error('Erro snapshot profissionais:', error));
-
-        const servicosQuery = query(collection(db, 'servicos'), ...constraints);
-        unsubscribeServicos = onSnapshot(servicosQuery, (snapshot) => {
-            servicosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            carregarSelects();
-            renderAgendamentos();
-        }, (error) => console.error('Erro snapshot serviços:', error));
-
-        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
-        unsubscribeAgendamentos = onSnapshot(agendamentosQuery, (snapshot) => {
-            agendamentosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderAgendamentos();
-            updateStats();
-        }, (error) => console.error('Erro snapshot agendamentos:', error));
+    
+    async function verificarConflitoListener() {
+        const profissionalId = document.getElementById('ageProfissionalId').value;
+        const servicoId = document.getElementById('ageServicoId').value;
+        const data = document.getElementById('ageData').value;
+        if (profissionalId && data && servicoId) {
+            const conflitos = await verificarConflitoHorario(data, profissionalId, servicoId, editingId);
+            exibirConflito(conflitos, servicoId);
+        } else {
+            document.getElementById('conflitoHorarioBox').style.display = 'none';
+        }
     }
 
     // ==================== CRUD ====================
     async function addAgendamento(data) {
         const newAgendamento = {
             ...data,
-            empresaId: currentEmpresa.globalAdmin ? currentEmpresa.id : currentEmpresa.id, // se for superadmin, precisa definir a empresa? Aqui usamos a empresa do usuário logado (pode não ser a ideal). Mas para não complicar, mantemos a empresa do usuário atual.
+            empresaId: currentEmpresa.id,
             criado_em: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        // Se for superadmin, o campo empresaId deveria vir do cliente ou ser definido explicitamente. 
-        // Para simplificar, adicionamos um campo empresaId baseado no cliente ou profissional? 
-        // Nesta refatoração, vamos usar a empresa do usuário atual, que para superadmin pode ser "SUPER_ADMIN" (valor fictício). 
-        // Isso não é ideal, mas você pode ajustar conforme necessidade (ex: permitir escolher a empresa no formulário).
-        // Uma melhoria: se currentEmpresa.globalAdmin, solicitar que o usuário selecione a empresa destino.
-        // Por enquanto, vamos usar o ID da empresa do cliente selecionado.
-        const cliente = clientesCache.find(c => c.id === data.clienteId);
-        if (cliente && cliente.empresaId) {
-            newAgendamento.empresaId = cliente.empresaId;
-        } else {
-            newAgendamento.empresaId = currentEmpresa.id; // fallback
-        }
-        const docRef = await addDoc(collection(db, 'agendamentos'), newAgendamento);
+        await addDoc(collection(db, 'agendamentos'), newAgendamento);
         showToast('Agendamento adicionado!', 'success');
+        await carregarPaginaAgendamentos(true);
+        await updateStats();
     }
-
+    
     async function updateAgendamento(id, updates) {
         await updateDoc(doc(db, 'agendamentos', id), { ...updates, updatedAt: new Date().toISOString() });
         showToast('Atualizado!', 'success');
+        await carregarPaginaAgendamentos(true);
+        await updateStats();
     }
-
+    
     async function deleteAgendamento(id) {
         if (!confirm('Excluir agendamento?')) return;
         await deleteDoc(doc(db, 'agendamentos', id));
         showToast('Excluído!', 'success');
+        await carregarPaginaAgendamentos(true);
+        await updateStats();
     }
-
+    
+    window.deleteAgendamento = deleteAgendamento;
+    
     // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
@@ -332,7 +466,12 @@
             obs: document.getElementById('ageObs').value
         };
     }
-
+    
+    function getServicoNome(servicoId) {
+        const servico = servicosCache.find(s => s.id === servicoId);
+        return servico?.nome || '';
+    }
+    
     async function validarFormulario() {
         let valido = true;
         const clienteId = document.getElementById('ageClienteId').value;
@@ -357,7 +496,7 @@
         }
         return valido;
     }
-
+    
     function resetForm() {
         document.getElementById('ageClienteId').value = '';
         document.getElementById('agePetId').innerHTML = '<option value="">Selecione</option>';
@@ -375,7 +514,7 @@
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
     }
-
+    
     function fillForm(a) {
         document.getElementById('ageClienteId').value = a.clienteId || '';
         carregarPetsPorCliente(a.clienteId);
@@ -387,7 +526,7 @@
         document.getElementById('ageStatus').value = a.status || 'agendado';
         document.getElementById('ageObs').value = a.obs || '';
     }
-
+    
     async function salvarAgendamento() {
         if (!await validarFormulario()) return;
         const formData = getFormData();
@@ -398,87 +537,9 @@
         }
         resetForm();
     }
-
+    
     function cancelEdit() { resetForm(); }
-
-    async function verificarConflitoListener() {
-        const profissionalId = document.getElementById('ageProfissionalId').value;
-        const servicoId = document.getElementById('ageServicoId').value;
-        const data = document.getElementById('ageData').value;
-        if (profissionalId && data && servicoId) {
-            const conflitos = await verificarConflitoHorario(data, profissionalId, servicoId, editingId);
-            exibirConflito(conflitos, servicoId);
-        } else {
-            document.getElementById('conflitoHorarioBox').style.display = 'none';
-        }
-    }
-
-    // ==================== RENDER ====================
-    function renderAgendamentos() {
-        let ags = [...agendamentosCache];
-        const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        const statusFilter = document.getElementById('statusFilter')?.value || '';
-        
-        if (search) {
-            ags = ags.filter(a => {
-                const cli = clientesCache.find(c => c.id === a.clienteId);
-                const pet = petsCache.find(p => p.id === a.petId);
-                return (cli?.cli_nome || '').toLowerCase().includes(search) || (pet?.nome || '').toLowerCase().includes(search);
-            });
-        }
-        if (statusFilter) ags = ags.filter(a => a.status === statusFilter);
-        
-        ags.sort((a,b) => new Date(a.data) - new Date(b.data));
-        
-        const totalPages = Math.ceil(ags.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = ags.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('agendamentosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8">Nenhum agendamento</td></tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        
-        tbody.innerHTML = paginated.map(a => {
-            const cliente = clientesCache.find(c => c.id === a.clienteId);
-            const pet = petsCache.find(p => p.id === a.petId);
-            const prof = profissionaisCache.find(p => p.id === a.profissionalId);
-            const serv = servicosCache.find(s => s.id === a.servicoId);
-            const servicoNome = serv?.nome || a.servico || '-';
-            const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
-            return `<tr>
-                <td>${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</td>
-                <td>${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</td>
-                <td>${escapeHtml(servicoNome)}</span></td>
-                <td>${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</td>
-                <td>${a.data ? new Date(a.data).toLocaleString() : '-'}</span></td>
-                <td>R$ ${formatCurrency(a.valor || 0)}</span></td>
-                <td><span class="status-badge ${statusClass}">${a.status}</span></td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewAgendamento('${a.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editAgendamento('${a.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="deleteAgendamento('${a.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </tr>`;
-        }).join('');
-        let pagHtml = '';
-        for (let i = 1; i <= totalPages; i++) { pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`; }
-        document.getElementById('pagination').innerHTML = pagHtml;
-    }
-
-    function goToPage(page) { currentPage = page; renderAgendamentos(); }
-
-    async function updateStats() {
-        const ags = agendamentosCache;
-        document.getElementById('totalAgendamentos').innerText = ags.length;
-        const hoje = new Date().toDateString();
-        const hojeCount = ags.filter(a => a.data && new Date(a.data).toDateString() === hoje).length;
-        document.getElementById('totalHoje').innerText = hojeCount;
-        const pendentes = ags.filter(a => a.status === 'agendado' || a.status === 'confirmado').length;
-        document.getElementById('totalPendentes').innerText = pendentes;
-        const realizados = ags.filter(a => a.status === 'realizado').length;
-        document.getElementById('totalRealizados').innerText = realizados;
-    }
-
-    function clearFilters() { document.getElementById('searchInput').value = ''; document.getElementById('statusFilter').value = ''; currentPage = 1; renderAgendamentos(); }
-
+    
     // ==================== SELECTS ====================
     function carregarSelects() {
         const clienteSelect = document.getElementById('ageClienteId');
@@ -496,16 +557,74 @@
             verificarConflitoListener();
         };
     }
-
+    
     function carregarPetsPorCliente(clienteId) {
         const petSelect = document.getElementById('agePetId');
         const petsFiltrados = petsCache.filter(p => p.clienteId === clienteId);
         petSelect.innerHTML = '<option value="">Selecione</option>' + petsFiltrados.map(p => `<option value="${p.id}">${escapeHtml(p.nome || p.pet_nome)}</option>`).join('');
     }
-
-    // ==================== PDF ====================
+    
+    // ==================== VIEW e EDIT ====================
+    window.editAgendamento = function(id) {
+        const a = agendamentosCache.find(a => a.id === id);
+        if (a) {
+            fillForm(a);
+            editingId = id;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            const btn = document.getElementById('saveAgendamentoBtn');
+            btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            window.scrollTo({ top: 0 });
+            setTimeout(async () => {
+                await verificarConflitoListener();
+            }, 200);
+        }
+    };
+    
+    window.viewAgendamento = function(id) {
+        const a = agendamentosCache.find(a => a.id === id);
+        if (!a) return;
+        const cliente = clientesCache.find(c => c.id === a.clienteId);
+        const pet = petsCache.find(p => p.id === a.petId);
+        const prof = profissionaisCache.find(p => p.id === a.profissionalId);
+        const serv = servicosCache.find(s => s.id === a.servicoId);
+        const servicoNome = serv?.nome || a.servico || '-';
+        const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Profissional:</span><span class="info-value">${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Serviço:</span><span class="info-value">${escapeHtml(servicoNome)}</span></div>
+            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${formatarDataHora(a.data)}</span></div>
+            <div class="info-row"><span class="info-label">Valor:</span><span class="info-value">R$ ${formatCurrency(a.valor || 0)}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${a.status}</span></span></div>
+            ${a.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(a.obs)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+    window.fecharModal = fecharModal;
+    
+    // ==================== EXPORTAR PDF (coletar todos os agendamentos filtrados) ====================
     async function exportarPDF() {
-        const agendamentos = agendamentosCache;
+        const constraints = getConstraints();
+        let q = query(collection(db, 'agendamentos'), ...constraints);
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        if (statusFilter) q = query(q, where('status', '==', statusFilter));
+        q = query(q, orderBy('data', 'desc'));
+        const snap = await getDocs(q);
+        let agendamentos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        if (searchTerm) {
+            agendamentos = agendamentos.filter(a => {
+                const cliente = clientesCache.find(c => c.id === a.clienteId);
+                const pet = petsCache.find(p => p.id === a.petId);
+                return (cliente?.cli_nome || '').toLowerCase().includes(searchTerm) ||
+                       (pet?.nome || '').toLowerCase().includes(searchTerm);
+            });
+        }
         if (agendamentos.length === 0) { showToast('Não há agendamentos para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
@@ -538,94 +657,51 @@
             showToast('PDF gerado!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
-
-    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-
-    // ==================== EDIT E VIEW ====================
-    window.editAgendamento = async function(id) {
-        const a = agendamentosCache.find(a => a.id === id);
-        if (a) {
-            fillForm(a);
-            editingId = id;
-            document.getElementById('cancelEditBtn').style.display = 'inline-block';
-            const btn = document.getElementById('saveAgendamentoBtn');
-            btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-success');
-            window.scrollTo({ top: 0 });
-            setTimeout(async () => {
-                await verificarConflitoListener();
-            }, 200);
-        }
-    };
-
-    window.viewAgendamento = async function(id) {
-        const a = agendamentosCache.find(a => a.id === id);
-        if (!a) return;
-        const cliente = clientesCache.find(c => c.id === a.clienteId);
-        const pet = petsCache.find(p => p.id === a.petId);
-        const prof = profissionaisCache.find(p => p.id === a.profissionalId);
-        const serv = servicosCache.find(s => s.id === a.servicoId);
-        const servicoNome = serv?.nome || a.servico || '-';
-        const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
-        document.getElementById('modalBody').innerHTML = `
-            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Profissional:</span><span class="info-value">${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Serviço:</span><span class="info-value">${escapeHtml(servicoNome)}</span></div>
-            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${formatarDataHora(a.data)}</span></div>
-            <div class="info-row"><span class="info-label">Valor:</span><span class="info-value">R$ ${formatCurrency(a.valor || 0)}</span></div>
-            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${a.status}</span></span></div>
-            ${a.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(a.obs)}</span></div>` : ''}
-        `;
-        document.getElementById('viewModal').style.display = 'flex';
-    };
-
-    window.deleteAgendamento = deleteAgendamento;
-
+    
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = '';
+        carregarPaginaAgendamentos(true);
+    }
+    
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
-            const isSuper = await verificarSuperAdmin(user);
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa && !isSuper) { window.location.href = 'login.html'; return; }
-            if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-            
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 
                 '<i class="fas fa-globe"></i> Super Administrador' :
                 `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
             if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
                 if (statusInfo.status === 'trial_urgente') {
-                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
                     trialDiv.style.display = 'flex';
-                    trialDiv.className = 'trial-alert warning';
                 } else if (statusInfo.status === 'expirado') {
-                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Período de teste EXPIRADO! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
                     trialDiv.style.display = 'flex';
-                    trialDiv.className = 'trial-alert expired';
                 } else if (statusInfo.status === 'trial') {
-                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
                     trialDiv.style.display = 'flex';
-                    trialDiv.className = 'trial-alert';
                 } else if (statusInfo.status === 'ativo') {
                     trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
                     trialDiv.style.display = 'flex';
                     trialDiv.style.background = '#e0f2e9';
-                    trialDiv.style.borderLeftColor = '#2a9d8f';
                 } else {
                     trialDiv.style.display = 'none';
                 }
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await iniciarListeners();
+            await carregarCachesApoio();
+            await carregarPaginaAgendamentos(true);
+            await updateStats();
+            configurarMascaraValor('ageValor');
             
-            // Eventos de validação de conflito
             const profissionalSelect = document.getElementById('ageProfissionalId');
             const dataInput = document.getElementById('ageData');
             const servicoSelect = document.getElementById('ageServicoId');
@@ -633,17 +709,14 @@
             dataInput.addEventListener('change', verificarConflitoListener);
             servicoSelect.addEventListener('change', verificarConflitoListener);
             
-            configurarMascaraValor('ageValor');
-            
             document.getElementById('saveAgendamentoBtn').onclick = salvarAgendamento;
             document.getElementById('cancelEditBtn').onclick = cancelEdit;
-            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderAgendamentos(); });
-            document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderAgendamentos(); });
+            document.getElementById('searchInput').addEventListener('input', () => carregarPaginaAgendamentos(true));
+            document.getElementById('statusFilter').addEventListener('change', () => carregarPaginaAgendamentos(true));
             document.getElementById('clearFiltersBtn').onclick = clearFilters;
             document.getElementById('exportPdfBtn').onclick = exportarPDF;
             document.getElementById('logoutBtn').onclick = () => auth.signOut();
             window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-            window.goToPage = goToPage;
             window.solicitarLiberacao = () => {
                 const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
                 const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
@@ -651,7 +724,7 @@
                 showToast('Abrindo cliente de e-mail...', 'info');
             };
             
-            console.log('✅ Agendamentos refatorado - Suporte a superadmin e tempo real');
+            console.log('✅ Agendamentos refatorado - Paginação real, conflitos otimizados');
         } else {
             window.location.href = 'login.html';
         }

@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Serviços | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF e Chart.js -->
+    <title>PerShop - Módulo de Serviços | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mesmos do original) - mantidos */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -112,10 +111,7 @@
     </style>
 </head>
 <body>
-<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
-    <a href="index.html">Dashboard</a> > 
-    <span>Serviços</span>
-</div>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Serviços</span></div>
 <div class="container">
     <div class="header">
         <div class="logo"><div class="logo-icon"><i class="fas fa-cut"></i></div><h1>PerShop <span>Serviços</span></h1></div>
@@ -187,41 +183,260 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-cut"></i> Detalhes do Serviço</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    
-    // Importa funções compartilhadas do util.js
+    import { 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatCurrency, parseCurrency, formatarData,
         carregarEmpresaUsuario, verificarStatusEmpresa
     } from './util.js';
 
-    // ==================== CONSTANTES ====================
+    // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
     let currentEmpresa = null;
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
-    let servicosCache = [];
-    let agendamentosCache = [];
+    let lastVisibleDoc = null;
+    let totalServicosCount = 0;
+    let isLoading = false;
+    
+    let servicosCache = [];      // página atual
     let categoriaChart = null;
     let precoChart = null;
 
-    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
-    async function carregarDadosEmpresa() {
-        if (!currentEmpresa) return;
-        const empresaId = currentEmpresa.id;
-        const servicosSnap = await getDocs(query(collection(db, 'servicos'), where('empresaId', '==', empresaId)));
-        servicosCache = servicosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const agendamentosSnap = await getDocs(query(collection(db, 'agendamentos'), where('empresaId', '==', empresaId)));
-        agendamentosCache = agendamentosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // ==================== CONSTRAINTS ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
     }
 
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaServicos(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                servicosCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'servicos'), ...constraints);
+            
+            // Aplicar filtros diretamente na query
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            if (statusFilter) {
+                q = query(q, where('ativo', '==', (statusFilter === 'true')));
+            }
+            const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
+            if (categoriaFilter) {
+                q = query(q, where('categoria', '==', categoriaFilter));
+            }
+            
+            // Ordenação por nome (ascendente) para paginação estável
+            q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                servicosCache = novos;
+            } else {
+                servicosCache = [...servicosCache, ...novos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Busca textual local (nome, tags)
+            const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
+            const mainSearchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            const term = (searchTerm || mainSearchTerm).toLowerCase();
+            let filtered = [...servicosCache];
+            if (term) {
+                filtered = filtered.filter(s => 
+                    (s.nome || '').toLowerCase().includes(term) || 
+                    (s.tags || '').toLowerCase().includes(term)
+                );
+            }
+            
+            // Contagem total (com filtros de status e categoria, sem busca textual)
+            if (reset) {
+                let countQuery = query(collection(db, 'servicos'), ...constraints);
+                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
+                if (categoriaFilter) countQuery = query(countQuery, where('categoria', '==', categoriaFilter));
+                const countSnap = await getCountFromServer(countQuery);
+                totalServicosCount = countSnap.data().count;
+            }
+            
+            renderServicos(filtered);
+            atualizarPaginacao();
+            await updateStats();      // atualiza cards
+            await updateCharts();     // gráficos com consultas agregadas
+        } catch (error) {
+            console.error("Erro ao carregar serviços:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalServicosCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaServicos(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaServicos(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaServicos(false);
+                currentPage++;
+            }
+        }
+        const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
+        const mainSearchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const term = (searchTerm || mainSearchTerm).toLowerCase();
+        let filtered = [...servicosCache];
+        if (term) {
+            filtered = filtered.filter(s => 
+                (s.nome || '').toLowerCase().includes(term) || 
+                (s.tags || '').toLowerCase().includes(term)
+            );
+        }
+        renderServicos(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderServicos(lista) {
+        const tbody = document.getElementById('servicosTableBody');
+        if (!tbody) return;
+        if (lista.length === 0) {
+            tbody.innerHTML = '<td><td colspan="7" style="text-align:center; padding:40px;">Nenhum serviço encontrado<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(s => {
+            const statusClass = s.ativo ? 'status-ativo' : 'status-inativo';
+            const categoriaIcon = s.categoria === 'banho' ? '🛁' : (s.categoria === 'tosa' ? '✂️' : (s.categoria === 'veterinario' ? '🩺' : (s.categoria === 'estetica' ? '💅' : (s.categoria === 'hospedagem' ? '🏠' : '📌'))));
+            const categoriaDisplay = s.categoria === 'banho' ? 'Banho' : (s.categoria === 'tosa' ? 'Tosa' : (s.categoria === 'veterinario' ? 'Veterinário' : (s.categoria === 'estetica' ? 'Estética' : (s.categoria === 'hospedagem' ? 'Hospedagem' : s.categoria))));
+            return `<tr>
+                <td><strong>${escapeHtml(s.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(s.tags || '')}</span></td>
+                <td><strong style="color:#2a9d8f;">R$ ${formatCurrency(s.preco || 0)}</strong></span></td>
+                <td>⏱️ ${s.duracao || 0} min</span></td>
+                <td>${categoriaIcon} ${categoriaDisplay}</span></td>
+                <td>${s.comissao || 0}%</span></td>
+                <td><span class="status-badge ${statusClass}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewServico('${s.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editServico('${s.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteServico('${s.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'servicos'), ...constraints);
+        const totalSnap = await getCountFromServer(baseQuery);
+        document.getElementById('totalServicos').innerText = totalSnap.data().count;
+        
+        const ativosSnap = await getCountFromServer(query(baseQuery, where('ativo', '==', true)));
+        document.getElementById('totalAtivos').innerText = ativosSnap.data().count;
+        
+        // Preço médio e duração média (buscar todos os serviços ativos)
+        const ativosDocs = await getDocs(query(baseQuery, where('ativo', '==', true)));
+        if (ativosDocs.empty) {
+            document.getElementById('precoMedio').innerHTML = 'R$ 0';
+            document.getElementById('duracaoMedia').innerHTML = '0 min';
+        } else {
+            let somaPreco = 0, somaDuracao = 0;
+            ativosDocs.forEach(doc => {
+                const data = doc.data();
+                somaPreco += (data.preco || 0);
+                somaDuracao += (data.duracao || 0);
+            });
+            const precoMedio = somaPreco / ativosDocs.size;
+            const duracaoMedia = Math.round(somaDuracao / ativosDocs.size);
+            document.getElementById('precoMedio').innerHTML = `R$ ${formatCurrency(precoMedio)}`;
+            document.getElementById('duracaoMedia').innerHTML = `${duracaoMedia} min`;
+        }
+    }
+    
+    // ==================== GRÁFICOS ====================
+    async function updateCharts() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'servicos'), ...constraints);
+        
+        // Gráfico de quantidade por categoria (apenas ativos)
+        const ativosQuery = query(baseQuery, where('ativo', '==', true));
+        const ativosSnap = await getDocs(ativosQuery);
+        const categorias = {};
+        ativosSnap.forEach(doc => {
+            const cat = doc.data().categoria;
+            if (cat) categorias[cat] = (categorias[cat] || 0) + 1;
+        });
+        const categoriaLabels = Object.keys(categorias).map(c => {
+            const nomes = { banho: 'Banho', tosa: 'Tosa', veterinario: 'Veterinário', estetica: 'Estética', hospedagem: 'Hospedagem', outro: 'Outro' };
+            return nomes[c] || c;
+        });
+        if (categoriaChart) categoriaChart.destroy();
+        const ctx1 = document.getElementById('categoriaChart').getContext('2d');
+        categoriaChart = new Chart(ctx1, {
+            type: 'bar', data: { labels: categoriaLabels, datasets: [{ label: 'Quantidade de Serviços', data: Object.values(categorias), backgroundColor: '#2c7da0', borderRadius: 8 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
+        });
+        
+        // Gráfico de preço médio por categoria (apenas ativos)
+        const totalPrecoPorCategoria = {};
+        const countPorCategoria = {};
+        ativosSnap.forEach(doc => {
+            const data = doc.data();
+            const cat = data.categoria;
+            if (cat && data.preco) {
+                totalPrecoPorCategoria[cat] = (totalPrecoPorCategoria[cat] || 0) + data.preco;
+                countPorCategoria[cat] = (countPorCategoria[cat] || 0) + 1;
+            }
+        });
+        const precosMedios = {};
+        Object.keys(totalPrecoPorCategoria).forEach(c => precosMedios[c] = totalPrecoPorCategoria[c] / countPorCategoria[c]);
+        if (precoChart) precoChart.destroy();
+        const ctx2 = document.getElementById('precoChart').getContext('2d');
+        precoChart = new Chart(ctx2, {
+            type: 'line', data: { labels: Object.keys(precosMedios).map(c => ({ banho:'Banho', tosa:'Tosa', veterinario:'Veterinário', estetica:'Estética', hospedagem:'Hospedagem', outro:'Outro' }[c] || c)), datasets: [{ label: 'Preço Médio (R$)', data: Object.values(precosMedios), borderColor: '#2a9d8f', backgroundColor: 'rgba(42,157,143,0.1)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `R$ ${formatCurrency(ctx.raw)}` } } } }
+        });
+    }
+    
     // ==================== CRUD ====================
     async function addServico(data) {
-        if (servicosCache.some(s => s.nome.toLowerCase() === data.nome.toLowerCase())) {
-            showToast('Já existe um serviço com este nome!', 'error'); return false;
+        // Verificar unicidade de nome (consulta rápida)
+        const constraints = getConstraints();
+        const nomeExistenteQuery = query(collection(db, 'servicos'), ...constraints, where('nome', '==', data.nome));
+        const existenteSnap = await getDocs(nomeExistenteQuery);
+        if (!existenteSnap.empty) {
+            showToast('Já existe um serviço com este nome!', 'error');
+            return false;
         }
         const newDoc = {
             ...data,
@@ -230,45 +445,52 @@
             atualizado_em: new Date().toISOString(),
             criado_por: currentUser.uid
         };
-        const docRef = await addDoc(collection(db, 'servicos'), newDoc);
-        newDoc.id = docRef.id;
-        servicosCache.unshift(newDoc);
-        renderServicos();
-        updateStats();
-        updateCharts();
-        showToast('Serviço cadastrado com sucesso!', 'success');
+        await addDoc(collection(db, 'servicos'), newDoc);
+        showToast('Serviço cadastrado!', 'success');
+        await carregarPaginaServicos(true);
+        await updateStats();
+        await updateCharts();
         return true;
     }
+    
     async function updateServico(id, updates) {
-        const oldServico = servicosCache.find(s => s.id === id);
-        if (updates.nome && updates.nome.toLowerCase() !== oldServico?.nome.toLowerCase() && servicosCache.some(s => s.nome.toLowerCase() === updates.nome.toLowerCase() && s.id !== id)) {
-            showToast('Já existe um serviço com este nome!', 'error'); return false;
+        const oldDocSnap = await getDocs(query(collection(db, 'servicos'), where('__name__', '==', id)));
+        const oldData = oldDocSnap.docs[0]?.data();
+        if (updates.nome && updates.nome !== oldData?.nome) {
+            const constraints = getConstraints();
+            const nomeExistenteQuery = query(collection(db, 'servicos'), ...constraints, where('nome', '==', updates.nome));
+            const existenteSnap = await getDocs(nomeExistenteQuery);
+            if (!existenteSnap.empty && existenteSnap.docs[0].id !== id) {
+                showToast('Já existe um serviço com este nome!', 'error');
+                return false;
+            }
         }
         await updateDoc(doc(db, 'servicos', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = servicosCache.findIndex(s => s.id === id);
-        if (idx !== -1) servicosCache[idx] = { ...servicosCache[idx], ...updates };
-        renderServicos();
-        updateStats();
-        updateCharts();
         showToast('Serviço atualizado!', 'success');
+        await carregarPaginaServicos(true);
+        await updateStats();
+        await updateCharts();
         return true;
     }
+    
     async function deleteServico(id) {
-        const servico = servicosCache.find(s => s.id === id);
-        if (!servico) { showToast('Serviço não encontrado!', 'error'); return; }
-        const agendamentosVinculados = agendamentosCache.filter(a => a.servicoId === id || a.servico === servico.nome);
-        let msg = `⚠️ Excluir "${servico.nome}"?`;
-        if (agendamentosVinculados.length > 0) msg += `\n\n📌 Este serviço possui ${agendamentosVinculados.length} agendamento(s) vinculado(s).`;
+        // Verificar se existem agendamentos vinculados (consulta leve)
+        const constraints = getConstraints();
+        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints, where('servicoId', '==', id), limit(1));
+        const agSnap = await getDocs(agendamentosQuery);
+        const temAgendamentos = !agSnap.empty;
+        let msg = `⚠️ Excluir serviço?`;
+        if (temAgendamentos) msg += `\n\n📌 Este serviço possui agendamentos vinculados.`;
         if (confirm(msg)) {
             await deleteDoc(doc(db, 'servicos', id));
-            servicosCache = servicosCache.filter(s => s.id !== id);
-            renderServicos();
-            updateStats();
-            updateCharts();
             showToast('Serviço excluído!', 'success');
+            await carregarPaginaServicos(true);
+            await updateStats();
+            await updateCharts();
         }
     }
-
+    window.deleteServico = deleteServico;
+    
     // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
@@ -282,6 +504,7 @@
             descricao: document.getElementById('serDescricao').value
         };
     }
+    
     function validarFormulario() {
         const nome = document.getElementById('serNome').value.trim();
         if (!nome) { showToast('Nome do serviço é obrigatório!', 'error'); return false; }
@@ -293,6 +516,7 @@
         if (comissao < 0 || comissao > 100) { showToast('Comissão deve estar entre 0% e 100%!', 'error'); return false; }
         return true;
     }
+    
     function resetForm() {
         document.getElementById('serNome').value = '';
         document.getElementById('serPreco').value = '';
@@ -309,6 +533,7 @@
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
     }
+    
     function fillForm(s) {
         document.getElementById('serNome').value = s.nome || '';
         document.getElementById('serPreco').value = formatCurrency(s.preco || 0);
@@ -319,6 +544,7 @@
         document.getElementById('serTags').value = s.tags || '';
         document.getElementById('serDescricao').value = s.descricao || '';
     }
+    
     async function salvarServico() {
         if (!validarFormulario()) return;
         const data = getFormData();
@@ -327,12 +553,8 @@
         resetForm();
     }
     function cancelEdit() { resetForm(); }
-
-    // ==================== EDIT, VIEW, DELETE ====================
-    window.editServico = function(id) {
-        const s = servicosCache.find(s => s.id === id);
-        if (s) { fillForm(s); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveServicoBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
-    };
+    
+    // ==================== VIEW e EDIT ====================
     window.viewServico = function(id) {
         const s = servicosCache.find(s => s.id === id);
         if (!s) return;
@@ -352,119 +574,72 @@
         `;
         document.getElementById('viewModal').style.display = 'flex';
     };
-    window.deleteServico = deleteServico;
+    
+    window.editServico = function(id) {
+        const s = servicosCache.find(s => s.id === id);
+        if (s) { fillForm(s); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveServicoBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+    };
+    
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-
-    // ==================== GRÁFICOS ====================
-    function updateCharts() {
-        const ativos = servicosCache.filter(s => s.ativo);
-        const categorias = {};
-        ativos.forEach(s => { if (s.categoria) categorias[s.categoria] = (categorias[s.categoria] || 0) + 1; });
-        const categoriaLabels = Object.keys(categorias).map(c => {
-            const nomes = { banho: 'Banho', tosa: 'Tosa', veterinario: 'Veterinário', estetica: 'Estética', hospedagem: 'Hospedagem', outro: 'Outro' };
-            return nomes[c] || c;
-        });
-        if (categoriaChart) categoriaChart.destroy();
-        const ctx1 = document.getElementById('categoriaChart').getContext('2d');
-        categoriaChart = new Chart(ctx1, {
-            type: 'bar', data: { labels: categoriaLabels, datasets: [{ label: 'Quantidade de Serviços', data: Object.values(categorias), backgroundColor: '#2c7da0', borderRadius: 8 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'top' } } }
-        });
-        const totalPrecoPorCategoria = {};
-        const countPorCategoria = {};
-        ativos.forEach(s => {
-            if (s.categoria && s.preco) {
-                totalPrecoPorCategoria[s.categoria] = (totalPrecoPorCategoria[s.categoria] || 0) + s.preco;
-                countPorCategoria[s.categoria] = (countPorCategoria[s.categoria] || 0) + 1;
-            }
-        });
-        const precosMedios = {};
-        Object.keys(totalPrecoPorCategoria).forEach(c => precosMedios[c] = totalPrecoPorCategoria[c] / countPorCategoria[c]);
-        if (precoChart) precoChart.destroy();
-        const ctx2 = document.getElementById('precoChart').getContext('2d');
-        precoChart = new Chart(ctx2, {
-            type: 'line', data: { labels: Object.keys(precosMedios).map(c => ({ banho:'Banho', tosa:'Tosa', veterinario:'Veterinário', estetica:'Estética', hospedagem:'Hospedagem', outro:'Outro' }[c] || c)), datasets: [{ label: 'Preço Médio (R$)', data: Object.values(precosMedios), borderColor: '#2a9d8f', backgroundColor: 'rgba(42,157,143,0.1)', fill: true, tension: 0.4 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `R$ ${formatCurrency(ctx.raw)}` } } } }
-        });
+    
+    // ==================== FILTROS ====================
+    function aplicarFiltros() {
+        carregarPaginaServicos(true);
     }
-
-    // ==================== RENDER ====================
-    function renderServicos() {
-        let filtered = servicosCache.filter(s => {
-            const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
-            const searchFilter = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const term = (searchTerm || searchFilter).toLowerCase();
-            const statusFilter = document.getElementById('statusFilter')?.value || '';
-            const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
-            return (!term || s.nome.toLowerCase().includes(term) || (s.tags || '').toLowerCase().includes(term)) &&
-                   (!statusFilter || (s.ativo ? 'true' : 'false') === statusFilter) &&
-                   (!categoriaFilter || s.categoria === categoriaFilter);
-        });
-        filtered.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('servicosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum serviço encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(s => {
-            const statusClass = s.ativo ? 'status-ativo' : 'status-inativo';
-            const categoriaIcon = s.categoria === 'banho' ? '🛁' : (s.categoria === 'tosa' ? '✂️' : (s.categoria === 'veterinario' ? '🩺' : (s.categoria === 'estetica' ? '💅' : (s.categoria === 'hospedagem' ? '🏠' : '📌'))));
-            const categoriaDisplay = s.categoria === 'banho' ? 'Banho' : (s.categoria === 'tosa' ? 'Tosa' : (s.categoria === 'veterinario' ? 'Veterinário' : (s.categoria === 'estetica' ? 'Estética' : (s.categoria === 'hospedagem' ? 'Hospedagem' : s.categoria))));
-            return `<tr>
-                <td><strong>${escapeHtml(s.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(s.tags || '')}</span></td>
-                <td><strong style="color:#2a9d8f;">R$ ${formatCurrency(s.preco || 0)}</strong></span></td>
-                <td>⏱️ ${s.duracao || 0} min</span></td>
-                <td>${categoriaIcon} ${categoriaDisplay}</span></td>
-                <td>${s.comissao || 0}%</span></td>
-                <td><span class="status-badge ${statusClass}">${s.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewServico('${s.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editServico('${s.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="deleteServico('${s.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </table>`;
-        }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
-    }
-    function goToPage(page) { currentPage = page; renderServicos(); }
-
-    function updateStats() {
-        document.getElementById('totalServicos').innerText = servicosCache.length;
-        document.getElementById('totalAtivos').innerText = servicosCache.filter(s => s.ativo).length;
-        const ativos = servicosCache.filter(s => s.ativo);
-        const precoMedio = ativos.length ? ativos.reduce((s, p) => s + (p.preco || 0), 0) / ativos.length : 0;
-        document.getElementById('precoMedio').innerHTML = `R$ ${formatCurrency(precoMedio)}`;
-        const duracaoMedia = ativos.length ? Math.round(ativos.reduce((s, p) => s + (p.duracao || 0), 0) / ativos.length) : 0;
-        document.getElementById('duracaoMedia').innerHTML = `${duracaoMedia} min`;
-    }
-
-    function aplicarFiltroStatus(status) { document.getElementById('statusFilter').value = status; currentPage = 1; renderServicos(); updateCharts(); }
-    function aplicarFiltroCategoria(categoria) { document.getElementById('categoriaFilter').value = categoria; currentPage = 1; renderServicos(); updateCharts(); }
     function clearFilters() {
         document.getElementById('searchInput').value = '';
         document.getElementById('tableSearch').value = '';
         document.getElementById('statusFilter').value = '';
         document.getElementById('categoriaFilter').value = '';
-        currentPage = 1;
-        renderServicos();
-        updateCharts();
+        carregarPaginaServicos(true);
         showToast('Filtros limpos!', 'success');
     }
-    function clearTableFilters() { document.getElementById('tableSearch').value = ''; renderServicos(); showToast('Filtros limpos!', 'success'); }
-
+    function clearTableFilters() {
+        document.getElementById('tableSearch').value = '';
+        carregarPaginaServicos(true);
+        showToast('Filtros limpos!', 'success');
+    }
+    function aplicarFiltroStatus(status) {
+        document.getElementById('statusFilter').value = status;
+        carregarPaginaServicos(true);
+    }
+    function aplicarFiltroCategoria(categoria) {
+        document.getElementById('categoriaFilter').value = categoria;
+        carregarPaginaServicos(true);
+    }
+    
+    // ==================== MÁSCARA DE PREÇO ====================
+    function applyMasks() {
+        const precoInput = document.getElementById('serPreco');
+        if (precoInput) {
+            precoInput.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v === '') { e.target.value = ''; return; }
+                e.target.value = formatCurrency(parseInt(v)/100);
+            });
+        }
+    }
+    
     // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
-        let servicos = servicosCache.filter(s => {
-            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const statusFilter = document.getElementById('statusFilter')?.value || '';
-            const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
-            return (!searchTerm || s.nome.toLowerCase().includes(searchTerm) || (s.tags || '').toLowerCase().includes(searchTerm)) &&
-                   (!statusFilter || (s.ativo ? 'true' : 'false') === statusFilter) &&
-                   (!categoriaFilter || s.categoria === categoriaFilter);
-        });
+        const constraints = getConstraints();
+        let q = query(collection(db, 'servicos'), ...constraints);
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const categoriaFilter = document.getElementById('categoriaFilter')?.value || '';
+        if (statusFilter) q = query(q, where('ativo', '==', (statusFilter === 'true')));
+        if (categoriaFilter) q = query(q, where('categoria', '==', categoriaFilter));
+        q = query(q, orderBy('nome', 'asc'));
+        const snap = await getDocs(q);
+        let servicos = snap.docs.map(d => d.data());
+        const searchTerm = document.getElementById('tableSearch')?.value.toLowerCase() || '';
+        const mainSearchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const term = (searchTerm || mainSearchTerm).toLowerCase();
+        if (term) {
+            servicos = servicos.filter(s => 
+                (s.nome || '').toLowerCase().includes(term) || 
+                (s.tags || '').toLowerCase().includes(term)
+            );
+        }
         if (servicos.length === 0) { showToast('Não há serviços para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
@@ -500,55 +675,39 @@
             showToast('PDF gerado com sucesso!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
-
-    // ==================== MÁSCARAS (específicas) ====================
-    function applyMasks() {
-        const precoInput = document.getElementById('serPreco');
-        if (precoInput) {
-            precoInput.addEventListener('input', (e) => {
-                let v = e.target.value.replace(/\D/g, '');
-                if (v === '') { e.target.value = ''; return; }
-                e.target.value = formatCurrency(parseInt(v)/100);
-            });
-        }
-    }
-
+    
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
-            // Exibir alerta de trial
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'expirado') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await carregarDadosEmpresa();
-            renderServicos();
-            updateStats();
-            updateCharts();
+            await carregarPaginaServicos(true);
             applyMasks();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -556,28 +715,29 @@
             window.location.href = 'login.html';
         }
     });
-
+    
     // ==================== EVENTOS DOM ====================
     document.getElementById('saveServicoBtn').onclick = salvarServico;
     document.getElementById('cancelEditBtn').onclick = cancelEdit;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderServicos(); updateCharts(); });
-    document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderServicos(); updateCharts(); });
-    document.getElementById('categoriaFilter').addEventListener('change', () => { currentPage = 1; renderServicos(); updateCharts(); });
-    document.getElementById('tableSearch').addEventListener('input', () => { currentPage = 1; renderServicos(); });
+    document.getElementById('searchInput').addEventListener('input', () => carregarPaginaServicos(true));
+    document.getElementById('statusFilter').addEventListener('change', () => carregarPaginaServicos(true));
+    document.getElementById('categoriaFilter').addEventListener('change', () => carregarPaginaServicos(true));
+    document.getElementById('tableSearch').addEventListener('input', () => carregarPaginaServicos(true));
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('clearTableFilters').onclick = clearTableFilters;
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = fecharModal;
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-    window.goToPage = goToPage;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
+        showToast('Abrindo e-mail...', 'info');
     };
-    console.log('✅ Serviços - Refatorado (uma empresa por usuário)');
+    window.aplicarFiltroStatus = aplicarFiltroStatus;
+    window.aplicarFiltroCategoria = aplicarFiltroCategoria;
+    console.log('✅ Serviços refatorado - paginação real, gráficos otimizados');
 </script>
 </body>
 </html>

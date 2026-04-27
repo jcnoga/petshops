@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo Financeiro | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF e Chart.js -->
+    <title>PerShop - Módulo Financeiro | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mantidos do original) ========== */
+        /* ========== ESTILOS (mesmos do original) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -180,11 +179,11 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-chart-line"></i> Detalhes do Lançamento</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    
-    // Importa funções compartilhadas do util.js
+    import { 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatCurrency, parseCurrency, formatarData,
         carregarEmpresaUsuario, configurarMascaraValor, verificarStatusEmpresa
@@ -196,19 +195,237 @@
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
+    let lastVisibleDoc = null;
+    let totalFinanceiroCount = 0;
+    let isLoading = false;
+    
+    // Cache da página atual
     let financeiroCache = [];
     let fluxoChart = null;
     let categoriaChart = null;
 
-    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
-    async function carregarDados() {
-        if (!currentEmpresa) return [];
-        const q = query(collection(db, 'financeiro'), where('empresaId', '==', currentEmpresa.id));
-        const snapshot = await getDocs(q);
-        financeiroCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        return financeiroCache;
+    // ==================== CONSTRAINTS ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
     }
 
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaFinanceiro(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                financeiroCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'financeiro'), ...constraints);
+            
+            // Aplicar filtros diretamente na query
+            const inicio = document.getElementById('dataInicio').value;
+            const fim = document.getElementById('dataFim').value;
+            if (inicio && fim) {
+                q = query(q, where('dataPagamento', '>=', inicio), where('dataPagamento', '<=', fim));
+            }
+            const tipoFilter = document.getElementById('tipoFilter').value;
+            if (tipoFilter) {
+                q = query(q, where('tipo', '==', tipoFilter));
+            }
+            const statusFilter = document.getElementById('statusFilter').value;
+            if (statusFilter) {
+                q = query(q, where('status', '==', statusFilter));
+            }
+            
+            // Ordenação padrão por data de criação (decrescente)
+            q = query(q, orderBy('criado_em', 'desc'), limit(itemsPerPage));
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                financeiroCache = novos;
+            } else {
+                financeiroCache = [...financeiroCache, ...novos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Aplicar busca textual local (após carregamento)
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = [...financeiroCache];
+            if (searchTerm) {
+                filtered = filtered.filter(f => 
+                    (f.categoria || '').toLowerCase().includes(searchTerm) ||
+                    (f.obs || '').toLowerCase().includes(searchTerm) ||
+                    (f.clienteFornecedor || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Contagem total (com os mesmos filtros)
+            if (reset) {
+                let countQuery = query(collection(db, 'financeiro'), ...constraints);
+                if (inicio && fim) countQuery = query(countQuery, where('dataPagamento', '>=', inicio), where('dataPagamento', '<=', fim));
+                if (tipoFilter) countQuery = query(countQuery, where('tipo', '==', tipoFilter));
+                if (statusFilter) countQuery = query(countQuery, where('status', '==', statusFilter));
+                const countSnap = await getCountFromServer(countQuery);
+                totalFinanceiroCount = countSnap.data().count;
+            }
+            
+            renderFinanceiro(filtered);
+            atualizarPaginacao();
+            await updateStats();      // estatísticas com consultas leves
+            await updateCharts();     // gráficos com consultas agregadas
+        } catch (error) {
+            console.error("Erro ao carregar financeiro:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalFinanceiroCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaFinanceiro(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaFinanceiro(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaFinanceiro(false);
+                currentPage++;
+            }
+        }
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = [...financeiroCache];
+        if (searchTerm) {
+            filtered = filtered.filter(f => 
+                (f.categoria || '').toLowerCase().includes(searchTerm) ||
+                (f.obs || '').toLowerCase().includes(searchTerm) ||
+                (f.clienteFornecedor || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        renderFinanceiro(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderFinanceiro(lista) {
+        const tbody = document.getElementById('financeiroTableBody');
+        if (!tbody) return;
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum lançamento encontrado<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(f => {
+            const statusClass = f.status === 'pago' ? 'status-pago' : (f.status === 'pendente' ? 'status-pendente' : 'status-atrasado');
+            const dataExibicao = f.dataPagamento || f.dataVencimento || '-';
+            const dataFormatada = dataExibicao !== '-' ? new Date(dataExibicao).toLocaleDateString('pt-BR') : '-';
+            return `<tr>
+                <td style="white-space:nowrap;">${dataFormatada}</td>
+                <td>${f.tipo === 'entrada' ? '💰 Entrada' : '💸 Saída'}</td>
+                <td>${escapeHtml(f.categoria || '-')}</td>
+                <td><strong style="color:${f.tipo === 'entrada' ? '#2a9d8f' : '#e76f51'}">R$ ${formatCurrency(f.valor || 0)}</strong></td>
+                <td>${escapeHtml(f.formPagto || '-')}</td>
+                <td><span class="status-badge ${statusClass}">${f.status === 'pago' ? '✅ Pago' : (f.status === 'pendente' ? '⏳ Pendente' : '⚠️ Atrasado')}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewFinanceiro('${f.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editFinanceiro('${f.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteFinanceiro('${f.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'financeiro'), ...constraints);
+        
+        const inicio = document.getElementById('dataInicio').value;
+        const fim = document.getElementById('dataFim').value;
+        const tipoFilter = document.getElementById('tipoFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        
+        let q = baseQuery;
+        if (inicio && fim) q = query(q, where('dataPagamento', '>=', inicio), where('dataPagamento', '<=', fim));
+        if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
+        if (statusFilter) q = query(q, where('status', '==', statusFilter));
+        
+        const snap = await getDocs(q);
+        const items = snap.docs.map(d => d.data());
+        const entradas = items.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+        const saidas = items.filter(f => f.tipo === 'saida' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+        const pendentes = items.filter(f => f.status === 'pendente' || f.status === 'atrasado');
+        const valorPendente = pendentes.reduce((s, f) => s + (f.valor || 0), 0);
+        
+        document.getElementById('totalEntradas').innerHTML = `R$ ${formatCurrency(entradas)}`;
+        document.getElementById('totalSaidas').innerHTML = `R$ ${formatCurrency(saidas)}`;
+        document.getElementById('saldoTotal').innerHTML = `R$ ${formatCurrency(entradas - saidas)}`;
+        document.getElementById('totalPendentes').innerText = pendentes.length;
+        document.getElementById('valorPendente').innerHTML = `R$ ${formatCurrency(valorPendente)}`;
+    }
+    
+    // ==================== GRÁFICOS (consultas agregadas) ====================
+    async function updateCharts() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'financeiro'), ...constraints);
+        const inicio = document.getElementById('dataInicio').value;
+        const fim = document.getElementById('dataFim').value;
+        
+        let q = baseQuery;
+        if (inicio && fim) q = query(q, where('dataPagamento', '>=', inicio), where('dataPagamento', '<=', fim));
+        const snap = await getDocs(q);
+        const filtered = snap.docs.map(d => d.data()).filter(f => f.status === 'pago');
+        
+        const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const entradasMensais = new Array(12).fill(0);
+        const saidasMensais = new Array(12).fill(0);
+        filtered.forEach(f => {
+            const dataRef = f.dataPagamento || f.dataVencimento;
+            if (dataRef) {
+                const mes = new Date(dataRef).getMonth();
+                if (f.tipo === 'entrada') entradasMensais[mes] += f.valor;
+                else saidasMensais[mes] += f.valor;
+            }
+        });
+        if (fluxoChart) fluxoChart.destroy();
+        const ctx1 = document.getElementById('fluxoChart').getContext('2d');
+        fluxoChart = new Chart(ctx1, {
+            type: 'line', data: { labels: meses, datasets: [
+                { label: 'Entradas', data: entradasMensais, borderColor: '#2a9d8f', backgroundColor: 'rgba(42,157,143,0.1)', fill: true, tension: 0.4 },
+                { label: 'Saídas', data: saidasMensais, borderColor: '#e76f51', backgroundColor: 'rgba(231,111,81,0.1)', fill: true, tension: 0.4 }
+            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: R$ ${formatCurrency(ctx.raw)}` } } } }
+        });
+        const cats = {};
+        filtered.forEach(f => { if (f.categoria) cats[f.categoria] = (cats[f.categoria] || 0) + f.valor; });
+        const nomes = { servicos: 'Serviços', produtos: 'Produtos', salario: 'Salários', aluguel: 'Aluguel', contas: 'Contas', impostos: 'Impostos', outros: 'Outros' };
+        if (categoriaChart) categoriaChart.destroy();
+        const ctx2 = document.getElementById('categoriaChart').getContext('2d');
+        categoriaChart = new Chart(ctx2, {
+            type: 'doughnut', data: { labels: Object.keys(cats).map(k => nomes[k] || k), datasets: [{ data: Object.values(cats), backgroundColor: ['#2c7da0', '#2a9d8f', '#e9c46a', '#e76f51', '#61a5c2', '#f4a261', '#264653'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: R$ ${formatCurrency(ctx.raw)} (${((ctx.raw / Object.values(cats).reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
+        });
+    }
+    
     // ==================== CRUD ====================
     async function addFinanceiro(data) {
         const newDoc = {
@@ -217,34 +434,24 @@
             criado_em: new Date().toISOString(),
             criado_por: currentUser.uid
         };
-        const docRef = await addDoc(collection(db, 'financeiro'), newDoc);
-        newDoc.id = docRef.id;
-        financeiroCache.unshift(newDoc);
-        renderFinanceiro();
-        updateStats();
-        updateCharts();
+        await addDoc(collection(db, 'financeiro'), newDoc);
         showToast('Lançamento adicionado!', 'success');
+        await carregarPaginaFinanceiro(true);
     }
     async function updateFinanceiro(id, updates) {
         await updateDoc(doc(db, 'financeiro', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = financeiroCache.findIndex(f => f.id === id);
-        if (idx !== -1) financeiroCache[idx] = { ...financeiroCache[idx], ...updates };
-        renderFinanceiro();
-        updateStats();
-        updateCharts();
         showToast('Lançamento atualizado!', 'success');
+        await carregarPaginaFinanceiro(true);
     }
     async function deleteFinanceiro(id) {
-        if (confirm('Excluir lançamento? Esta ação não pode ser desfeita.')) {
+        if (confirm('Excluir lançamento?')) {
             await deleteDoc(doc(db, 'financeiro', id));
-            financeiroCache = financeiroCache.filter(f => f.id !== id);
-            renderFinanceiro();
-            updateStats();
-            updateCharts();
-            showToast('Lançamento excluído!', 'success');
+            showToast('Excluído!', 'success');
+            await carregarPaginaFinanceiro(true);
         }
     }
-
+    window.deleteFinanceiro = deleteFinanceiro;
+    
     // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
@@ -305,7 +512,7 @@
         resetForm();
     }
     function cancelEdit() { resetForm(); }
-
+    
     // ==================== EDIT, VIEW ====================
     window.editFinanceiro = function(id) {
         const f = financeiroCache.find(f => f.id === id);
@@ -325,44 +532,15 @@
             <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${f.status === 'pago' ? '✅ Pago' : (f.status === 'pendente' ? '⏳ Pendente' : '⚠️ Atrasado')}</span></span></div>
             ${f.clienteFornecedor ? `<div class="info-row"><span class="info-label">Cliente/Fornecedor:</span><span class="info-value">${escapeHtml(f.clienteFornecedor)}</span></div>` : ''}
             ${f.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(f.obs)}</span></div>` : ''}
-            <div class="info-row"><span class="info-label">Cadastrado em:</span><span class="info-value">${f.criado_em ? new Date(f.criado_em).toLocaleDateString('pt-BR') : '-'}</span></div>
         `;
         document.getElementById('viewModal').style.display = 'flex';
     };
-    window.deleteFinanceiro = deleteFinanceiro;
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-
+    
     // ==================== FILTROS ====================
-    function getFiltros() {
-        return {
-            search: document.getElementById('searchInput')?.value.toLowerCase() || '',
-            tipoFilter: document.getElementById('tipoFilter')?.value || '',
-            statusFilter: document.getElementById('statusFilter')?.value || '',
-            inicio: document.getElementById('dataInicio').value,
-            fim: document.getElementById('dataFim').value
-        };
+    function aplicarFiltros() {
+        carregarPaginaFinanceiro(true);
     }
-    function aplicarFiltros(data) {
-        let filtered = [...data];
-        const { search, tipoFilter, statusFilter, inicio, fim } = getFiltros();
-        if (inicio && fim) {
-            filtered = filtered.filter(f => {
-                const dataComp = f.dataPagamento || f.dataVencimento;
-                return dataComp && dataComp >= inicio && dataComp <= fim;
-            });
-        }
-        if (search) {
-            filtered = filtered.filter(f =>
-                (f.categoria || '').toLowerCase().includes(search) ||
-                (f.obs || '').toLowerCase().includes(search) ||
-                (f.clienteFornecedor || '').toLowerCase().includes(search)
-            );
-        }
-        if (tipoFilter) filtered = filtered.filter(f => f.tipo === tipoFilter);
-        if (statusFilter) filtered = filtered.filter(f => f.status === statusFilter);
-        return filtered;
-    }
-    function aplicarFiltrosEAtualizar() { currentPage = 1; renderFinanceiro(); updateStats(); updateCharts(); }
     function clearFilters() {
         document.getElementById('searchInput').value = '';
         document.getElementById('tipoFilter').value = '';
@@ -370,7 +548,7 @@
         document.getElementById('dataInicio').value = '';
         document.getElementById('dataFim').value = '';
         document.getElementById('periodoRapido').value = '';
-        aplicarFiltrosEAtualizar();
+        carregarPaginaFinanceiro(true);
         showToast('Filtros limpos!', 'success');
     }
     function applyPeriodo() {
@@ -383,93 +561,32 @@
         else if (periodo === 'trimestre') { inicio = new Date(hoje.getFullYear(), hoje.getMonth() - 3, 1); fim = new Date(); }
         if (inicio) document.getElementById('dataInicio').value = inicio.toISOString().split('T')[0];
         if (fim) document.getElementById('dataFim').value = fim.toISOString().split('T')[0];
-        aplicarFiltrosEAtualizar();
+        carregarPaginaFinanceiro(true);
     }
-
-    // ==================== RENDER ====================
-    function renderFinanceiro() {
-        const filtered = aplicarFiltros(financeiroCache);
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('financeiroTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum lançamento encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(f => {
-            const statusClass = f.status === 'pago' ? 'status-pago' : (f.status === 'pendente' ? 'status-pendente' : 'status-atrasado');
-            const dataExibicao = f.dataPagamento || f.dataVencimento || '-';
-            const dataFormatada = dataExibicao !== '-' ? new Date(dataExibicao).toLocaleDateString('pt-BR') : '-';
-            return `<tr>
-                <td style="white-space:nowrap;">${dataFormatada}</td>
-                <td>${f.tipo === 'entrada' ? '💰 Entrada' : '💸 Saída'}</td>
-                <td>${escapeHtml(f.categoria || '-')}</td>
-                <td><strong style="color:${f.tipo === 'entrada' ? '#2a9d8f' : '#e76f51'}">R$ ${formatCurrency(f.valor || 0)}</strong></td>
-                <td>${escapeHtml(f.formPagto || '-')}</td>
-                <td><span class="status-badge ${statusClass}">${f.status === 'pago' ? '✅ Pago' : (f.status === 'pendente' ? '⏳ Pendente' : '⚠️ Atrasado')}</span></td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewFinanceiro('${f.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editFinanceiro('${f.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="deleteFinanceiro('${f.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </tr>`;
-        }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) { pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`; }
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
-    }
-    function goToPage(page) { currentPage = page; renderFinanceiro(); }
-
-    function updateStats() {
-        const filtered = aplicarFiltros(financeiroCache);
-        const entradas = filtered.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
-        const saidas = filtered.filter(f => f.tipo === 'saida' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
-        const pendentes = filtered.filter(f => f.status === 'pendente' || f.status === 'atrasado');
-        const valorPendente = pendentes.reduce((s, f) => s + (f.valor || 0), 0);
-        document.getElementById('totalEntradas').innerHTML = `R$ ${formatCurrency(entradas)}`;
-        document.getElementById('totalSaidas').innerHTML = `R$ ${formatCurrency(saidas)}`;
-        document.getElementById('saldoTotal').innerHTML = `R$ ${formatCurrency(entradas - saidas)}`;
-        document.getElementById('totalPendentes').innerText = pendentes.length;
-        document.getElementById('valorPendente').innerHTML = `R$ ${formatCurrency(valorPendente)}`;
-    }
-
-    function updateCharts() {
-        const filtered = aplicarFiltros(financeiroCache);
-        const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-        const entradasMensais = new Array(12).fill(0);
-        const saidasMensais = new Array(12).fill(0);
-        filtered.forEach(f => {
-            if (f.status === 'pago') {
-                const dataRef = f.dataPagamento || f.dataVencimento;
-                if (dataRef) {
-                    const mes = new Date(dataRef).getMonth();
-                    if (f.tipo === 'entrada') entradasMensais[mes] += f.valor;
-                    else saidasMensais[mes] += f.valor;
-                }
-            }
-        });
-        if (fluxoChart) fluxoChart.destroy();
-        const ctx1 = document.getElementById('fluxoChart').getContext('2d');
-        fluxoChart = new Chart(ctx1, {
-            type: 'line', data: { labels: meses, datasets: [
-                { label: 'Entradas', data: entradasMensais, borderColor: '#2a9d8f', backgroundColor: 'rgba(42,157,143,0.1)', fill: true, tension: 0.4 },
-                { label: 'Saídas', data: saidasMensais, borderColor: '#e76f51', backgroundColor: 'rgba(231,111,81,0.1)', fill: true, tension: 0.4 }
-            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: R$ ${formatCurrency(ctx.raw)}` } } } }
-        });
-        const cats = {};
-        filtered.forEach(f => { if (f.status === 'pago' && f.categoria) cats[f.categoria] = (cats[f.categoria] || 0) + f.valor; });
-        const nomes = { servicos: 'Serviços', produtos: 'Produtos', salario: 'Salários', aluguel: 'Aluguel', contas: 'Contas', impostos: 'Impostos', outros: 'Outros' };
-        if (categoriaChart) categoriaChart.destroy();
-        const ctx2 = document.getElementById('categoriaChart').getContext('2d');
-        categoriaChart = new Chart(ctx2, {
-            type: 'doughnut', data: { labels: Object.keys(cats).map(k => nomes[k] || k), datasets: [{ data: Object.values(cats), backgroundColor: ['#2c7da0', '#2a9d8f', '#e9c46a', '#e76f51', '#61a5c2', '#f4a261', '#264653'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: R$ ${formatCurrency(ctx.raw)} (${((ctx.raw / Object.values(cats).reduce((a,b)=>a+b,0))*100).toFixed(1)}%)` } } } }
-        });
-    }
-
+    
     // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
-        const filtered = aplicarFiltros(financeiroCache);
-        if (filtered.length === 0) { showToast('Não há dados para exportar!', 'error'); return; }
+        const constraints = getConstraints();
+        let q = query(collection(db, 'financeiro'), ...constraints);
+        const inicio = document.getElementById('dataInicio').value;
+        const fim = document.getElementById('dataFim').value;
+        const tipoFilter = document.getElementById('tipoFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        if (inicio && fim) q = query(q, where('dataPagamento', '>=', inicio), where('dataPagamento', '<=', fim));
+        if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
+        if (statusFilter) q = query(q, where('status', '==', statusFilter));
+        q = query(q, orderBy('criado_em', 'desc'));
+        const snap = await getDocs(q);
+        let items = snap.docs.map(d => d.data());
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        if (searchTerm) {
+            items = items.filter(f => 
+                (f.categoria || '').toLowerCase().includes(searchTerm) ||
+                (f.obs || '').toLowerCase().includes(searchTerm) ||
+                (f.clienteFornecedor || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        if (items.length === 0) { showToast('Não há dados para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -477,9 +594,9 @@
             doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório Financeiro', 14, 20);
             doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
             doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
-            const entradas = filtered.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
-            const saidas = filtered.filter(f => f.tipo === 'saida' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
-            const pendentes = filtered.filter(f => f.status === 'pendente' || f.status === 'atrasado');
+            const entradas = items.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+            const saidas = items.filter(f => f.tipo === 'saida' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+            const pendentes = items.filter(f => f.status === 'pendente' || f.status === 'atrasado');
             const valorPendente = pendentes.reduce((s, f) => s + (f.valor || 0), 0);
             doc.setFontSize(9); doc.text(`Total Entradas: R$ ${formatCurrency(entradas)}`, 14, 46);
             doc.text(`Total Saídas: R$ ${formatCurrency(saidas)}`, 14, 54);
@@ -492,7 +609,7 @@
             colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; });
             doc.setTextColor(0,0,0);
             y += 10;
-            for (const f of filtered) {
+            for (const f of items) {
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; }); y += 10; x = 14; doc.setTextColor(0,0,0); }
                 const dataExibicao = f.dataPagamento || f.dataVencimento || '-';
                 const dataFormatada = dataExibicao !== '-' ? new Date(dataExibicao).toLocaleDateString('pt-BR') : '-';
@@ -509,46 +626,39 @@
             showToast('PDF gerado com sucesso!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
-
-    // ==================== MÁSCARA DE VALOR ====================
-    // Utiliza configurarMascaraValor do util.js, chamado no init.
-
+    
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
-            // Exibir alerta de trial
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'expirado') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await carregarDados();
-            renderFinanceiro();
-            updateStats();
-            updateCharts();
+            await carregarPaginaFinanceiro(true);
             configurarMascaraValor('finValor');
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -556,28 +666,27 @@
             window.location.href = 'login.html';
         }
     });
-
+    
     // ==================== EVENTOS DOM ====================
     document.getElementById('saveFinanceiroBtn').onclick = salvarFinanceiro;
     document.getElementById('cancelEditBtn').onclick = cancelEdit;
-    document.getElementById('searchInput').addEventListener('input', aplicarFiltrosEAtualizar);
-    document.getElementById('tipoFilter').addEventListener('change', aplicarFiltrosEAtualizar);
-    document.getElementById('statusFilter').addEventListener('change', aplicarFiltrosEAtualizar);
-    document.getElementById('aplicarFiltrosBtn').onclick = aplicarFiltrosEAtualizar;
+    document.getElementById('searchInput').addEventListener('input', () => carregarPaginaFinanceiro(true));
+    document.getElementById('tipoFilter').addEventListener('change', () => carregarPaginaFinanceiro(true));
+    document.getElementById('statusFilter').addEventListener('change', () => carregarPaginaFinanceiro(true));
+    document.getElementById('aplicarFiltrosBtn').onclick = aplicarFiltros;
     document.getElementById('periodoRapido').addEventListener('change', applyPeriodo);
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = fecharModal;
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-    window.goToPage = goToPage;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
+        showToast('Abrindo e-mail...', 'info');
     };
-    console.log('✅ Financeiro - Refatorado (uma empresa por usuário)');
+    console.log('✅ Financeiro refatorado - paginação real, gráficos otimizados');
 </script>
 </body>
 </html>

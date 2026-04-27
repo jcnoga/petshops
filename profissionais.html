@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Profissionais | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF -->
+    <title>PerShop - Módulo de Profissionais | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mesmos do original) - mantidos */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -103,10 +102,7 @@
     </style>
 </head>
 <body>
-<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
-    <a href="index.html">Dashboard</a> > 
-    <span>Profissionais</span>
-</div>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Profissionais</span></div>
 <div class="container">
     <div class="header">
         <div class="logo"><div class="logo-icon"><i class="fas fa-user-md"></i></div><h1>PerShop <span>Profissionais</span></h1></div>
@@ -169,54 +165,222 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-user-md"></i> Detalhes do Profissional</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    
-    // Importa funções compartilhadas do util.js
+    import { 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatarData, validarEmail, validarTelefone,
         aplicarMascaraTelefone, carregarEmpresaUsuario, verificarStatusEmpresa
     } from './util.js';
 
-    // ==================== CONSTANTES ====================
+    // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
     let currentEmpresa = null;
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
+    let lastVisibleDoc = null;
+    let totalProfissionaisCount = 0;
+    let isLoading = false;
+    
+    // Cache da página atual
     let profissionaisCache = [];
-    let agendamentosCache = [];
+    let agendamentosCache = [];  // para verificar vínculos (mas carregaremos apenas quando necessário)
 
-    // ==================== FUNÇÕES AUXILIARES ESPECÍFICAS ====================
-    function calcularIdade(dataNasc) {
-        if (!dataNasc) return null;
-        const hoje = new Date();
-        const nasc = new Date(dataNasc);
-        let idade = hoje.getFullYear() - nasc.getFullYear();
-        const mes = hoje.getMonth() - nasc.getMonth();
-        if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--;
-        return idade;
+    // ==================== CONSTRAINTS ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
-    async function carregarDadosEmpresa() {
-        if (!currentEmpresa) return;
-        const empresaId = currentEmpresa.id;
-        const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), where('empresaId', '==', empresaId)));
-        profissionaisCache = profissionaisSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const agendamentosSnap = await getDocs(query(collection(db, 'agendamentos'), where('empresaId', '==', empresaId)));
-        agendamentosCache = agendamentosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaProfissionais(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                profissionaisCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'profissionais'), ...constraints);
+            
+            // Aplicar filtros diretamente na query
+            const funcaoFilter = document.getElementById('funcaoFilter')?.value || '';
+            if (funcaoFilter) {
+                q = query(q, where('funcao', '==', funcaoFilter));
+            }
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            if (statusFilter) {
+                q = query(q, where('ativo', '==', (statusFilter === 'true')));
+            }
+            
+            // Ordenação por nome (ascendente) para paginação estável
+            q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                profissionaisCache = novos;
+            } else {
+                profissionaisCache = [...profissionaisCache, ...novos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Aplicar busca textual local (após paginação)
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = [...profissionaisCache];
+            if (searchTerm) {
+                filtered = filtered.filter(p => 
+                    (p.nome || '').toLowerCase().includes(searchTerm) ||
+                    (p.email || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Contagem total (com os mesmos filtros, sem a busca textual que é feita no cliente)
+            if (reset) {
+                let countQuery = query(collection(db, 'profissionais'), ...constraints);
+                if (funcaoFilter) countQuery = query(countQuery, where('funcao', '==', funcaoFilter));
+                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
+                const countSnap = await getCountFromServer(countQuery);
+                totalProfissionaisCount = countSnap.data().count;
+            }
+            
+            renderProfissionais(filtered);
+            atualizarPaginacao();
+            await updateStats();      // atualiza os cards com contagens leves
+        } catch (error) {
+            console.error("Erro ao carregar profissionais:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
     }
-
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalProfissionaisCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaProfissionais(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaProfissionais(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaProfissionais(false);
+                currentPage++;
+            }
+        }
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = [...profissionaisCache];
+        if (searchTerm) {
+            filtered = filtered.filter(p => 
+                (p.nome || '').toLowerCase().includes(searchTerm) ||
+                (p.email || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        renderProfissionais(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderProfissionais(lista) {
+        const tbody = document.getElementById('profissionaisTableBody');
+        if (!tbody) return;
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum profissional encontrado<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(p => {
+            const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
+            const funcaoIcon = p.funcao === 'veterinario' ? '🩺' : (p.funcao === 'tosador' ? '✂️' : (p.funcao === 'recepcionista' ? '📞' : (p.funcao === 'banhista' ? '🛁' : '📌')));
+            const funcaoDisplay = p.funcao === 'veterinario' ? 'Veterinário' : (p.funcao === 'tosador' ? 'Tosador' : (p.funcao === 'recepcionista' ? 'Recepcionista' : (p.funcao === 'banhista' ? 'Banhista' : p.funcao)));
+            return `<tr>
+                <td><strong>${escapeHtml(p.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(p.email || '')}</span></td>
+                <td>${funcaoIcon} ${funcaoDisplay}</span></td>
+                <td>${escapeHtml(p.telefone || '-')}</span></td>
+                <td>${escapeHtml(p.email || '-')}</span></td>
+                <td>${p.comissao || 0}%</span></td>
+                <td><span class="status-badge ${statusClass}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewProfissional('${p.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editProfissional('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteProfissional('${p.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'profissionais'), ...constraints);
+        
+        // Total geral
+        const totalSnap = await getCountFromServer(baseQuery);
+        document.getElementById('totalProfissionais').innerText = totalSnap.data().count;
+        
+        // Veterinários
+        const vetQuery = query(baseQuery, where('funcao', '==', 'veterinario'));
+        const vetSnap = await getCountFromServer(vetQuery);
+        document.getElementById('totalVeterinarios').innerText = vetSnap.data().count;
+        
+        // Tosadores
+        const tosQuery = query(baseQuery, where('funcao', '==', 'tosador'));
+        const tosSnap = await getCountFromServer(tosQuery);
+        document.getElementById('totalTosadores').innerText = tosSnap.data().count;
+        
+        // Ativos
+        const ativoQuery = query(baseQuery, where('ativo', '==', true));
+        const ativoSnap = await getCountFromServer(ativoQuery);
+        document.getElementById('totalAtivos').innerText = ativoSnap.data().count;
+    }
+    
     // ==================== CRUD ====================
+    async function verificarUnicidadeDocumento(documento, idIgnorar = null) {
+        if (!documento) return true;
+        const constraints = getConstraints();
+        const q = query(collection(db, 'profissionais'), ...constraints, where('documento', '==', documento));
+        const snap = await getDocs(q);
+        const existe = snap.docs.some(doc => doc.id !== idIgnorar);
+        return !existe;
+    }
+    
+    async function verificarUnicidadeEmail(email, idIgnorar = null) {
+        if (!email) return true;
+        const constraints = getConstraints();
+        const q = query(collection(db, 'profissionais'), ...constraints, where('email', '==', email));
+        const snap = await getDocs(q);
+        const existe = snap.docs.some(doc => doc.id !== idIgnorar);
+        return !existe;
+    }
+    
     async function addProfissional(data) {
-        if (data.documento && profissionaisCache.some(p => p.documento === data.documento)) {
-            showToast('CPF/Registro já cadastrado!', 'error'); return false;
-        }
-        if (data.email && profissionaisCache.some(p => p.email === data.email)) {
-            showToast('E-mail já cadastrado!', 'error'); return false;
-        }
+        const docOk = await verificarUnicidadeDocumento(data.documento);
+        if (!docOk) { showToast('CPF/Registro já cadastrado!', 'error'); return false; }
+        const emailOk = await verificarUnicidadeEmail(data.email);
+        if (!emailOk) { showToast('E-mail já cadastrado!', 'error'); return false; }
+        
         const newDoc = {
             ...data,
             empresaId: currentEmpresa.id,
@@ -224,45 +388,51 @@
             atualizado_em: new Date().toISOString(),
             criado_por: currentUser.uid
         };
-        const docRef = await addDoc(collection(db, 'profissionais'), newDoc);
-        newDoc.id = docRef.id;
-        profissionaisCache.unshift(newDoc);
-        renderProfissionais();
-        updateStats();
-        showToast('Profissional cadastrado com sucesso!', 'success');
+        await addDoc(collection(db, 'profissionais'), newDoc);
+        showToast('Profissional cadastrado!', 'success');
+        await carregarPaginaProfissionais(true);
+        await updateStats();
         return true;
     }
+    
     async function updateProfissional(id, updates) {
-        const oldProf = profissionaisCache.find(p => p.id === id);
-        if (updates.documento && updates.documento !== oldProf?.documento && profissionaisCache.some(p => p.documento === updates.documento && p.id !== id)) {
-            showToast('CPF/Registro já cadastrado para outro profissional!', 'error'); return false;
+        const oldDocSnap = await getDocs(query(collection(db, 'profissionais'), where('__name__', '==', id)));
+        const oldDoc = oldDocSnap.docs[0]?.data();
+        if (!oldDoc) throw new Error('Profissional não encontrado');
+        
+        if (updates.documento && updates.documento !== oldDoc.documento) {
+            const docOk = await verificarUnicidadeDocumento(updates.documento, id);
+            if (!docOk) { showToast('CPF/Registro já cadastrado!', 'error'); return false; }
         }
-        if (updates.email && updates.email !== oldProf?.email && profissionaisCache.some(p => p.email === updates.email && p.id !== id)) {
-            showToast('E-mail já cadastrado para outro profissional!', 'error'); return false;
+        if (updates.email && updates.email !== oldDoc.email) {
+            const emailOk = await verificarUnicidadeEmail(updates.email, id);
+            if (!emailOk) { showToast('E-mail já cadastrado!', 'error'); return false; }
         }
+        
         await updateDoc(doc(db, 'profissionais', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = profissionaisCache.findIndex(p => p.id === id);
-        if (idx !== -1) profissionaisCache[idx] = { ...profissionaisCache[idx], ...updates };
-        renderProfissionais();
-        updateStats();
         showToast('Profissional atualizado!', 'success');
+        await carregarPaginaProfissionais(true);
+        await updateStats();
         return true;
     }
+    
     async function deleteProfissional(id) {
-        const profissional = profissionaisCache.find(p => p.id === id);
-        if (!profissional) { showToast('Profissional não encontrado!', 'error'); return; }
-        const agendamentosVinculados = agendamentosCache.filter(a => a.profissionalId === id);
-        let msg = `⚠️ Excluir "${profissional.nome}"?`;
-        if (agendamentosVinculados.length > 0) msg += `\n\n📌 Este profissional possui ${agendamentosVinculados.length} agendamento(s) vinculado(s).`;
+        // Carregar agendamentos vinculados apenas se necessário (consulta leve)
+        const constraints = getConstraints();
+        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints, where('profissionalId', '==', id), limit(1));
+        const agSnap = await getDocs(agendamentosQuery);
+        const temAgendamentos = !agSnap.empty;
+        let msg = `⚠️ Excluir profissional?`;
+        if (temAgendamentos) msg += `\n\n📌 Este profissional possui agendamentos vinculados.`;
         if (confirm(msg)) {
             await deleteDoc(doc(db, 'profissionais', id));
-            profissionaisCache = profissionaisCache.filter(p => p.id !== id);
-            renderProfissionais();
-            updateStats();
             showToast('Profissional excluído!', 'success');
+            await carregarPaginaProfissionais(true);
+            await updateStats();
         }
     }
-
+    window.deleteProfissional = deleteProfissional;
+    
     // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
@@ -279,6 +449,7 @@
             obs: document.getElementById('prfObs').value
         };
     }
+    
     function validarFormulario() {
         const nome = document.getElementById('prfNome').value.trim();
         if (!nome) { showToast('Nome é obrigatório!', 'error'); return false; }
@@ -288,18 +459,11 @@
         if (telefone && !validarTelefone(telefone)) { showToast('Telefone inválido! Use (00) 00000-0000', 'error'); return false; }
         const email = document.getElementById('prfEmail').value;
         if (email && !validarEmail(email)) { showToast('E-mail inválido!', 'error'); return false; }
-        const dataNasc = document.getElementById('prfDataNasc').value;
-        if (dataNasc) {
-            const hoje = new Date();
-            const dataNascDate = new Date(dataNasc);
-            if (dataNascDate > hoje) { showToast('Data de nascimento não pode ser futura!', 'error'); return false; }
-            const idade = calcularIdade(dataNasc);
-            if (idade > 100 && !confirm(`Idade calculada: ${idade} anos. Confirmar?`)) return false;
-        }
         const comissao = parseFloat(document.getElementById('prfComissao').value) || 0;
         if (comissao < 0 || comissao > 100) { showToast('Comissão deve estar entre 0% e 100%!', 'error'); return false; }
         return true;
     }
+    
     function resetForm() {
         document.getElementById('prfNome').value = '';
         document.getElementById('prfFuncao').value = '';
@@ -319,6 +483,7 @@
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
     }
+    
     function fillForm(p) {
         document.getElementById('prfNome').value = p.nome || '';
         document.getElementById('prfFuncao').value = p.funcao || '';
@@ -332,6 +497,7 @@
         document.getElementById('prfCidade').value = p.cidade || '';
         document.getElementById('prfObs').value = p.obs || '';
     }
+    
     async function salvarProfissional() {
         if (!validarFormulario()) return;
         const data = getFormData();
@@ -340,18 +506,13 @@
         resetForm();
     }
     function cancelEdit() { resetForm(); }
-
-    // ==================== EDIT, VIEW, DELETE (globais) ====================
-    window.editProfissional = function(id) {
-        const p = profissionaisCache.find(p => p.id === id);
-        if (p) { fillForm(p); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveProfissionalBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
-        else showToast('Profissional não encontrado!', 'error');
-    };
+    
+    // ==================== VIEW e EDIT ====================
     window.viewProfissional = function(id) {
         const p = profissionaisCache.find(p => p.id === id);
         if (!p) return;
         const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
-        const idade = calcularIdade(p.dataNasc);
+        const idade = p.dataNasc ? calcularIdade(p.dataNasc) : null;
         const idadeText = idade !== null ? `${idade} ${idade === 1 ? 'ano' : 'anos'}` : 'Não informada';
         const funcaoIcon = p.funcao === 'veterinario' ? '🩺' : (p.funcao === 'tosador' ? '✂️' : (p.funcao === 'recepcionista' ? '📞' : (p.funcao === 'banhista' ? '🛁' : '📌')));
         document.getElementById('modalBody').innerHTML = `
@@ -370,70 +531,73 @@
         `;
         document.getElementById('viewModal').style.display = 'flex';
     };
-    window.deleteProfissional = deleteProfissional;
-    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-
-    // ==================== RENDER ====================
-    function renderProfissionais() {
-        let filtered = profissionaisCache.filter(p => {
-            const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const funcaoFilter = document.getElementById('funcaoFilter')?.value || '';
-            const statusFilter = document.getElementById('statusFilter')?.value || '';
-            return (!search || p.nome.toLowerCase().includes(search) || (p.email || '').toLowerCase().includes(search)) &&
-                   (!funcaoFilter || p.funcao === funcaoFilter) &&
-                   (!statusFilter || (p.ativo ? 'true' : 'false') === statusFilter);
-        });
-        filtered.sort((a,b) => (a.nome || '').localeCompare(b.nome || ''));
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('profissionaisTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum profissional encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(p => {
-            const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
-            const funcaoIcon = p.funcao === 'veterinario' ? '🩺' : (p.funcao === 'tosador' ? '✂️' : (p.funcao === 'recepcionista' ? '📞' : (p.funcao === 'banhista' ? '🛁' : '📌')));
-            const funcaoDisplay = p.funcao === 'veterinario' ? 'Veterinário' : (p.funcao === 'tosador' ? 'Tosador' : (p.funcao === 'recepcionista' ? 'Recepcionista' : (p.funcao === 'banhista' ? 'Banhista' : p.funcao)));
-            return `<tr>
-                <td><strong>${escapeHtml(p.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(p.email || '')}</span></td>
-                <td>${funcaoIcon} ${funcaoDisplay}</span></td>
-                <td>${escapeHtml(p.telefone || '-')}</span></td>
-                <td>${escapeHtml(p.email || '-')}</span></td>
-                <td>${p.comissao || 0}%</span></td>
-                <td><span class="status-badge ${statusClass}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewProfissional('${p.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editProfissional('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="deleteProfissional('${p.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </tr>`;
-        }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
+    
+    window.editProfissional = function(id) {
+        const p = profissionaisCache.find(p => p.id === id);
+        if (p) { fillForm(p); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveProfissionalBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+        else showToast('Profissional não encontrado!', 'error');
+    };
+    
+    function calcularIdade(dataNasc) {
+        if (!dataNasc) return null;
+        const hoje = new Date();
+        const nasc = new Date(dataNasc);
+        let idade = hoje.getFullYear() - nasc.getFullYear();
+        const mes = hoje.getMonth() - nasc.getMonth();
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--;
+        return idade;
     }
-    function goToPage(page) { currentPage = page; renderProfissionais(); }
-
-    function updateStats() {
-        document.getElementById('totalProfissionais').innerText = profissionaisCache.length;
-        document.getElementById('totalVeterinarios').innerText = profissionaisCache.filter(p => p.funcao === 'veterinario').length;
-        document.getElementById('totalTosadores').innerText = profissionaisCache.filter(p => p.funcao === 'tosador').length;
-        document.getElementById('totalAtivos').innerText = profissionaisCache.filter(p => p.ativo).length;
+    
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+    
+    // ==================== FILTROS ====================
+    function aplicarFiltros() {
+        carregarPaginaProfissionais(true);
     }
     function clearFilters() {
         document.getElementById('searchInput').value = '';
         document.getElementById('funcaoFilter').value = '';
         document.getElementById('statusFilter').value = '';
-        currentPage = 1;
-        renderProfissionais();
+        carregarPaginaProfissionais(true);
         showToast('Filtros limpos!', 'success');
     }
-    function aplicarFiltroFuncao(funcao) { document.getElementById('funcaoFilter').value = funcao; currentPage = 1; renderProfissionais(); }
-    function aplicarFiltroStatus(status) { document.getElementById('statusFilter').value = status; currentPage = 1; renderProfissionais(); }
-
+    function aplicarFiltroFuncao(funcao) { document.getElementById('funcaoFilter').value = funcao; carregarPaginaProfissionais(true); }
+    function aplicarFiltroStatus(status) { document.getElementById('statusFilter').value = status; carregarPaginaProfissionais(true); }
+    
+    // ==================== MÁSCARA TELEFONE ====================
+    function configurarMascaraTelefoneLocal() {
+        const telInput = document.getElementById('prfTelefone');
+        if (telInput) {
+            telInput.addEventListener('input', (e) => {
+                e.target.value = aplicarMascaraTelefone(e.target.value);
+                if (e.target.value && !validarTelefone(e.target.value)) {
+                    e.target.style.borderColor = '#e76f51';
+                } else {
+                    e.target.style.borderColor = '#e2edf2';
+                }
+            });
+        }
+    }
+    
     // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
-        if (profissionaisCache.length === 0) { showToast('Não há profissionais para exportar!', 'error'); return; }
+        const constraints = getConstraints();
+        let q = query(collection(db, 'profissionais'), ...constraints);
+        const funcaoFilter = document.getElementById('funcaoFilter')?.value || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        if (funcaoFilter) q = query(q, where('funcao', '==', funcaoFilter));
+        if (statusFilter) q = query(q, where('ativo', '==', (statusFilter === 'true')));
+        q = query(q, orderBy('nome', 'asc'));
+        const snap = await getDocs(q);
+        let profissionais = snap.docs.map(d => d.data());
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        if (searchTerm) {
+            profissionais = profissionais.filter(p => 
+                (p.nome || '').toLowerCase().includes(searchTerm) ||
+                (p.email || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        if (profissionais.length === 0) { showToast('Não há profissionais para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -441,14 +605,14 @@
             doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Profissionais', 14, 20);
             doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
             doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
-            doc.text(`Total: ${profissionaisCache.length} profissionais`, 14, 46);
+            doc.text(`Total: ${profissionais.length} profissionais`, 14, 46);
             const colunas = [{ label: 'Nome', width: 50 }, { label: 'Função', width: 35 }, { label: 'Telefone', width: 35 }, { label: 'Email', width: 45 }, { label: 'Comissão', width: 25 }, { label: 'Status', width: 25 }];
             let y = 55;
             doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
             let x = 14;
             colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
             doc.setTextColor(0,0,0); y += 12;
-            for (const p of profissionaisCache) {
+            for (const p of profissionais) {
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
                 const funcaoDisplay = p.funcao === 'veterinario' ? 'Veterinário' : (p.funcao === 'tosador' ? 'Tosador' : (p.funcao === 'recepcionista' ? 'Recepcionista' : (p.funcao === 'banhista' ? 'Banhista' : p.funcao)));
                 doc.text((p.nome || '-').substring(0,30), x+2, y+4); x += 50;
@@ -464,58 +628,39 @@
             showToast('PDF gerado com sucesso!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
-
-    // ==================== MÁSCARA DE TELEFONE ====================
-    function configurarMascaraTelefoneLocal() {
-        const telInput = document.getElementById('prfTelefone');
-        if (telInput) {
-            telInput.addEventListener('input', (e) => {
-                e.target.value = aplicarMascaraTelefone(e.target.value);
-                // Validação em tempo real (opcional)
-                if (e.target.value && !validarTelefone(e.target.value)) {
-                    e.target.style.borderColor = '#e76f51';
-                } else {
-                    e.target.style.borderColor = '#e2edf2';
-                }
-            });
-        }
-    }
-
+    
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
-            // Exibir alerta de trial
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'expirado') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await carregarDadosEmpresa();
-            renderProfissionais();
-            updateStats();
+            await carregarPaginaProfissionais(true);
             configurarMascaraTelefoneLocal();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -523,28 +668,27 @@
             window.location.href = 'login.html';
         }
     });
-
+    
     // ==================== EVENTOS DOM ====================
     document.getElementById('saveProfissionalBtn').onclick = salvarProfissional;
     document.getElementById('cancelEditBtn').onclick = cancelEdit;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderProfissionais(); });
-    document.getElementById('funcaoFilter').addEventListener('change', () => { currentPage = 1; renderProfissionais(); });
-    document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderProfissionais(); });
+    document.getElementById('searchInput').addEventListener('input', () => carregarPaginaProfissionais(true));
+    document.getElementById('funcaoFilter').addEventListener('change', () => carregarPaginaProfissionais(true));
+    document.getElementById('statusFilter').addEventListener('change', () => carregarPaginaProfissionais(true));
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = fecharModal;
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-    window.goToPage = goToPage;
-    window.aplicarFiltroFuncao = aplicarFiltroFuncao;
-    window.aplicarFiltroStatus = aplicarFiltroStatus;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
+        showToast('Abrindo e-mail...', 'info');
     };
-    console.log('✅ Profissionais - Refatorado (uma empresa por usuário)');
+    window.aplicarFiltroFuncao = aplicarFiltroFuncao;
+    window.aplicarFiltroStatus = aplicarFiltroStatus;
+    console.log('✅ Profissionais refatorado - paginação real, unicidade verificada');
 </script>
 </body>
 </html>

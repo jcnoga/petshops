@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Clientes | Firebase + Firestore</title>
+    <title>PerShop - Módulo de Clientes | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -174,10 +174,11 @@
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
-        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        runTransaction, limit, startAfter, orderBy, getCountFromServer
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
-        escapeHtml, showToast, formatCurrency, formatarData, validarEmail, validarTelefone, 
+        escapeHtml, showToast, formatarData, validarEmail, validarTelefone, 
         carregarEmpresaUsuario, verificarStatusEmpresa, aplicarMascaraTelefone 
     } from './util.js';
 
@@ -190,12 +191,18 @@
     let currentOrderDir = 'asc';
     let showDeleted = false;
     const itemsPerPage = 10;
-    let clientesCache = [];
+    
+    // Cache da página atual e cursor
+    let clientesCache = [];           // apenas a página atual
+    let lastVisibleDoc = null;        // cursor para a próxima página
+    let totalClientesCount = 0;       // contagem total (inclui lixeira? controlado separado)
+    let totalAtivosCount = 0;
+    let totalLixeiraCount = 0;
+    let isLoading = false;
+    
+    // Caches auxiliares (pequenos, podem ser carregados por completo)
     let petsCache = [];
     let agendamentosCache = [];
-    let unsubscribeClientes = null;
-    let unsubscribePets = null;
-    let unsubscribeAgendamentos = null;
 
     // ==================== AUXILIAR: CONSTRAINTS ====================
     function getConstraints() {
@@ -203,65 +210,157 @@
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== VERIFICAÇÕES DE UNICIDADE ====================
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaClientes(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                clientesCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'clientes'), ...constraints);
+            
+            // Filtrar lixeira (exceto se estiver na aba lixeira)
+            if (showDeleted) {
+                q = query(q, where('deleted_at', '!=', null));
+            } else {
+                q = query(q, where('deleted_at', '==', null));
+            }
+            
+            // Ordenação (necessária para paginação estável)
+            const orderField = currentOrder === 'nome' ? 'cli_nome' : 'criado_em';
+            q = query(q, orderBy(orderField, currentOrderDir), limit(itemsPerPage));
+            
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novosClientes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                clientesCache = novosClientes;
+            } else {
+                clientesCache = [...clientesCache, ...novosClientes];
+            }
+            
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Atualizar contagem total (apenas primeira página ou quando filtros mudam)
+            if (reset) {
+                await atualizarContagens();
+            }
+            
+            renderClientes();
+            atualizarPaginacao();
+        } catch (error) {
+            console.error("Erro ao carregar clientes:", error);
+            showToast("Erro ao carregar clientes. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    async function atualizarContagens() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'clientes'), ...constraints);
+        
+        // Total de clientes ativos (sem deleted_at)
+        const ativosQuery = query(baseQuery, where('deleted_at', '==', null));
+        const ativosSnap = await getCountFromServer(ativosQuery);
+        totalClientesCount = ativosSnap.data().count;
+        
+        // Total na lixeira
+        const lixeiraQuery = query(baseQuery, where('deleted_at', '!=', null));
+        const lixeiraSnap = await getCountFromServer(lixeiraQuery);
+        totalLixeiraCount = lixeiraSnap.data().count;
+        
+        // Total ativos (status = 'ativo')
+        const ativosStatusQuery = query(ativosQuery, where('cli_status', '==', 'ativo'));
+        const ativosStatusSnap = await getCountFromServer(ativosStatusQuery);
+        totalAtivosCount = ativosStatusSnap.data().count;
+        
+        // Atualizar stats na tela
+        document.getElementById('totalClientes').innerText = totalClientesCount;
+        document.getElementById('totalAtivos').innerText = totalAtivosCount;
+        document.getElementById('totalLixeira').innerText = totalLixeiraCount;
+    }
+    
+    function atualizarPaginacao() {
+        const totalItens = showDeleted ? totalLixeiraCount : totalClientesCount;
+        const totalPages = Math.ceil(totalItens / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            // Avançar: carregar mais páginas até alcançar
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaClientes(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            // Retroceder: recarregar da primeira até a desejada (simplificado)
+            await carregarPaginaClientes(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaClientes(false);
+                currentPage++;
+            }
+        }
+        renderClientes();
+        atualizarPaginacao();
+    };
+    
+    // ==================== CARREGAR DADOS AUXILIARES (pets, agendamentos) ====================
+    async function carregarDadosAuxiliares() {
+        if (!currentEmpresa) return;
+        const constraints = getConstraints();
+        const petsSnap = await getDocs(query(collection(db, 'pets'), ...constraints));
+        petsCache = petsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const agendamentosSnap = await getDocs(query(collection(db, 'agendamentos'), ...constraints));
+        agendamentosCache = agendamentosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        document.getElementById('totalPets').innerText = petsCache.length;
+    }
+
+    // ==================== CRUD COM TRANSAÇÃO PARA UNICIDADE ====================
     async function verificarUnicidadeEmail(email, idIgnorar = null) {
         if (!email) return true;
         const constraints = getConstraints();
-        constraints.push(where('cli_email', '==', email));
-        const q = query(collection(db, 'clientes'), ...constraints);
+        const q = query(collection(db, 'clientes'), ...constraints, where('cli_email', '==', email));
         const snap = await getDocs(q);
         const existe = snap.docs.some(doc => doc.id !== idIgnorar && !doc.data().deleted_at);
         return !existe;
     }
-
+    
     async function verificarUnicidadeDocumento(documento, idIgnorar = null) {
         if (!documento) return true;
         const constraints = getConstraints();
-        constraints.push(where('cli_documento', '==', documento));
-        const q = query(collection(db, 'clientes'), ...constraints);
+        const q = query(collection(db, 'clientes'), ...constraints, where('cli_documento', '==', documento));
         const snap = await getDocs(q);
         const existe = snap.docs.some(doc => doc.id !== idIgnorar && !doc.data().deleted_at);
         return !existe;
     }
-
-    // ==================== LISTENERS EM TEMPO REAL ====================
-    async function iniciarListeners() {
-        if (unsubscribeClientes) unsubscribeClientes();
-        if (unsubscribePets) unsubscribePets();
-        if (unsubscribeAgendamentos) unsubscribeAgendamentos();
-
-        if (!currentEmpresa) return;
-
-        const constraints = getConstraints();
-
-        const clientesQuery = query(collection(db, 'clientes'), ...constraints);
-        unsubscribeClientes = onSnapshot(clientesQuery, (snapshot) => {
-            clientesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderClientes();
-            updateStats();
-        }, (error) => console.error('Erro snapshot clientes:', error));
-
-        const petsQuery = query(collection(db, 'pets'), ...constraints);
-        unsubscribePets = onSnapshot(petsQuery, (snapshot) => {
-            petsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderClientes(); // atualiza contagem de pets na tabela
-            updateStats();
-        }, (error) => console.error('Erro snapshot pets:', error));
-
-        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
-        unsubscribeAgendamentos = onSnapshot(agendamentosQuery, (snapshot) => {
-            agendamentosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            updateStats();
-        }, (error) => console.error('Erro snapshot agendamentos:', error));
-    }
-
-    // ==================== CRUD ====================
+    
     async function addCliente(data) {
         const emailOk = await verificarUnicidadeEmail(data.cli_email);
         if (!emailOk) { showToast('E-mail já cadastrado para outro cliente!', 'error'); return false; }
         const docOk = await verificarUnicidadeDocumento(data.cli_documento);
         if (!docOk) { showToast('CPF/CNPJ já cadastrado para outro cliente!', 'error'); return false; }
-
+        
         const newCliente = {
             ...data,
             empresaId: currentEmpresa.id,
@@ -271,30 +370,34 @@
             deleted_at: null
         };
         await addDoc(collection(db, 'clientes'), newCliente);
-        showToast('Cliente cadastrado com sucesso!', 'success');
+        showToast('Cliente cadastrado!', 'success');
+        await carregarPaginaClientes(true);
+        await atualizarContagens();
         return true;
     }
-
+    
     async function updateCliente(id, updates) {
-        const clienteAtual = clientesCache.find(c => c.id === id);
+        const clienteAtual = (await getDocs(query(collection(db, 'clientes'), where('__name__', '==', id)))).docs[0]?.data();
         if (!clienteAtual) throw new Error('Cliente não encontrado');
-
+        
         if (updates.cli_email && updates.cli_email !== clienteAtual.cli_email) {
             const emailOk = await verificarUnicidadeEmail(updates.cli_email, id);
-            if (!emailOk) { showToast('E-mail já cadastrado para outro cliente!', 'error'); return false; }
+            if (!emailOk) { showToast('E-mail já cadastrado!', 'error'); return false; }
         }
         if (updates.cli_documento && updates.cli_documento !== clienteAtual.cli_documento) {
             const docOk = await verificarUnicidadeDocumento(updates.cli_documento, id);
-            if (!docOk) { showToast('CPF/CNPJ já cadastrado para outro cliente!', 'error'); return false; }
+            if (!docOk) { showToast('CPF/CNPJ já cadastrado!', 'error'); return false; }
         }
-
+        
         await updateDoc(doc(db, 'clientes', id), { ...updates, atualizado_em: new Date().toISOString() });
         showToast('Cliente atualizado!', 'success');
+        await carregarPaginaClientes(true);
+        await atualizarContagens();
         return true;
     }
-
+    
     async function softDeleteCliente(id) {
-        const cliente = clientesCache.find(c => c.id === id);
+        const cliente = (await getDocs(query(collection(db, 'clientes'), where('__name__', '==', id)))).docs[0]?.data();
         if (!cliente) return;
         const petsRelacionados = petsCache.filter(p => p.clienteId === id);
         const agendamentosRelacionados = agendamentosCache.filter(a => a.clienteId === id);
@@ -305,16 +408,21 @@
         if (confirm(msg)) {
             await updateDoc(doc(db, 'clientes', id), { deleted_at: new Date().toISOString(), deleted_por: currentUser.uid });
             showToast('Cliente movido para a lixeira!', 'success');
+            await carregarPaginaClientes(true);
+            await atualizarContagens();
         }
     }
-
+    
     async function restaurarCliente(id) {
         await updateDoc(doc(db, 'clientes', id), { deleted_at: null, deleted_por: null });
         showToast('Cliente restaurado!', 'success');
+        await carregarPaginaClientes(true);
+        await atualizarContagens();
     }
-
+    
     async function permanentDeleteCliente(id) {
         if (confirm('⚠️ EXCLUSÃO PERMANENTE! Não pode ser desfeita. Confirmar?')) {
+            // Excluir pets e agendamentos relacionados
             for (const pet of petsCache.filter(p => p.clienteId === id)) {
                 await deleteDoc(doc(db, 'pets', pet.id));
             }
@@ -323,6 +431,9 @@
             }
             await deleteDoc(doc(db, 'clientes', id));
             showToast('Cliente excluído permanentemente!', 'success');
+            await carregarPaginaClientes(true);
+            await atualizarContagens();
+            await carregarDadosAuxiliares(); // recarregar pets/agendamentos
         }
     }
 
@@ -342,7 +453,7 @@
             cli_obs: document.getElementById('cliObs').value
         };
     }
-
+    
     function validarFormulario() {
         const nome = document.getElementById('cliNome').value.trim();
         if (!nome) { showToast('Nome é obrigatório!', 'error'); return false; }
@@ -352,7 +463,7 @@
         if (telefone && !validarTelefone(telefone)) { showToast('Telefone inválido! Use (00) 00000-0000', 'error'); return false; }
         return true;
     }
-
+    
     function resetForm() {
         document.getElementById('cliNome').value = '';
         document.getElementById('cliTelefone').value = '';
@@ -375,7 +486,7 @@
         saveBtn.classList.remove('btn-success');
         saveBtn.classList.add('btn-primary');
     }
-
+    
     function fillForm(cliente) {
         document.getElementById('cliNome').value = cliente.cli_nome || cliente.nome || '';
         document.getElementById('cliTelefone').value = cliente.cli_telefone || cliente.telefone || '';
@@ -389,7 +500,7 @@
         document.getElementById('cliOrigem').value = cliente.cli_origem || cliente.origem || '';
         document.getElementById('cliObs').value = cliente.cli_obs || cliente.obs || '';
     }
-
+    
     async function salvarCliente() {
         if (!validarFormulario()) return;
         const formData = getFormData();
@@ -404,82 +515,18 @@
             showToast(error.message, 'error');
         }
     }
-
+    
     function cancelEdit() { resetForm(); }
 
-    // ==================== EDIT, VIEW, DELETE (globais) ====================
-    window.editCliente = function(id) {
-        const cliente = clientesCache.find(c => c.id === id);
-        if (cliente) {
-            fillForm(cliente);
-            editingId = id;
-            document.getElementById('cancelEditBtn').style.display = 'inline-block';
-            const saveBtn = document.getElementById('saveClienteBtn');
-            saveBtn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Cliente';
-            saveBtn.classList.remove('btn-primary');
-            saveBtn.classList.add('btn-success');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else { showToast('Cliente não encontrado!', 'error'); }
-    };
-
-    window.viewCliente = function(id) {
-        const cliente = clientesCache.find(c => c.id === id);
-        if (!cliente) return;
-        const petsDoCliente = petsCache.filter(p => p.clienteId === id);
-        const agendamentosDoCliente = agendamentosCache.filter(a => a.clienteId === id);
-        const statusClass = cliente.deleted_at ? 'status-deletado' : (cliente.cli_status === 'ativo' ? 'status-ativo' : (cliente.cli_status === 'inativo' ? 'status-inativo' : 'status-perdido'));
-        document.getElementById('modalBody').innerHTML = `
-            <div style="text-align:center;margin-bottom:20px;">
-                <div style="width:70px;height:70px;background:linear-gradient(135deg,#2c7da0,#61a5c2);border-radius:35px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fas fa-user" style="font-size:2rem;color:white;"></i></div>
-                <h2 style="color:#1f5068;">${escapeHtml(cliente.cli_nome || cliente.nome)}</h2>
-                <span class="status-badge ${statusClass}">${cliente.deleted_at ? '🗑️ Na Lixeira' : (cliente.cli_status || 'ativo')}</span>
-            </div>
-            <div class="info-row"><span class="info-label">Telefone:</span><span class="info-value">${escapeHtml(cliente.cli_telefone || cliente.telefone || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Email:</span><span class="info-value">${escapeHtml(cliente.cli_email || cliente.email || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Documento:</span><span class="info-value">${escapeHtml(cliente.cli_documento || cliente.documento || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Endereço:</span><span class="info-value">${escapeHtml(cliente.cli_endereco || cliente.endereco || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Cidade:</span><span class="info-value">${escapeHtml(cliente.cli_cidade || cliente.cidade || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Pets:</span><span class="info-value">${petsDoCliente.length} pet(s)</span></div>
-            <div class="info-row"><span class="info-label">Agendamentos:</span><span class="info-value">${agendamentosDoCliente.length}</span></div>
-            <div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(cliente.cli_obs || cliente.obs || '-')}</span></div>
-            ${cliente.deleted_at ? `<div class="info-row"><span class="info-label">🗑️ Excluído em:</span><span class="info-value">${new Date(cliente.deleted_at).toLocaleString()}</span></div>` : ''}
-            <div style="margin-top:15px; font-size:0.7rem; text-align:center;">Cadastrado em: ${new Date(cliente.criado_em).toLocaleString()}<br>Última atualização: ${new Date(cliente.atualizado_em).toLocaleString()}</div>
-        `;
-        document.getElementById('viewModal').style.display = 'flex';
-    };
-    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-    window.fecharModal = fecharModal;
-
-    // ==================== RENDER ====================
-    function ordenarClientes(clientes) {
-        return clientes.sort((a, b) => {
-            let aVal = currentOrder === 'nome' ? (a.cli_nome || a.nome || '') : (a.criado_em || '');
-            let bVal = currentOrder === 'nome' ? (b.cli_nome || b.nome || '') : (b.criado_em || '');
-            if (currentOrderDir === 'asc') return aVal > bVal ? 1 : -1;
-            else return aVal < bVal ? 1 : -1;
-        });
-    }
+    // ==================== RENDER (apenas a cache atual) ====================
     function renderClientes() {
-        const statusFilter = document.getElementById('statusFilter')?.value || '';
-        showDeleted = (statusFilter === 'deleted');
-        let baseList = showDeleted ? clientesCache.filter(c => c.deleted_at) : clientesCache.filter(c => !c.deleted_at);
-        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        const statusFilterValue = statusFilter !== 'deleted' ? statusFilter : '';
-        let filtered = baseList.filter(c => {
-            const matchSearch = (c.cli_nome || c.nome || '').toLowerCase().includes(searchTerm) || 
-                               (c.cli_telefone || c.telefone || '').includes(searchTerm) ||
-                               (c.cli_email || c.email || '').toLowerCase().includes(searchTerm);
-            const matchStatus = !statusFilterValue || (c.cli_status || c.status) === statusFilterValue;
-            return matchSearch && matchStatus;
-        });
-        filtered = ordenarClientes(filtered);
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const start = (currentPage - 1) * itemsPerPage;
-        const paginated = filtered.slice(start, start + itemsPerPage);
         const tbody = document.getElementById('clientesTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum cliente encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(c => {
+        if (!tbody) return;
+        if (clientesCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum cliente encontrado</td></tr>';
+            return;
+        }
+        tbody.innerHTML = clientesCache.map(c => {
             const petsCount = petsCache.filter(p => p.clienteId === c.id).length;
             const isDeleted = !!c.deleted_at;
             const statusClass = isDeleted ? 'status-deletado' : (c.cli_status === 'ativo' ? 'status-ativo' : (c.cli_status === 'inativo' ? 'status-inativo' : 'status-perdido'));
@@ -497,27 +544,60 @@
                     ${isDeleted ? `<button class="action-btn restore" onclick="restaurarCliente('${c.id}')"><i class="fas fa-trash-restore"></i></button>` : ''}
                     ${isDeleted ? `<button class="action-btn delete" onclick="permanentDeleteCliente('${c.id}')" style="background:#e76f51; color:white;"><i class="fas fa-skull-crossbones"></i></button>` : ''}
                  </div>
-            </tr>`;
+            </table>`;
         }).join('');
-        let pagHtml = '';
-        for (let i = 1; i <= totalPages; i++) { pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`; }
-        document.getElementById('pagination').innerHTML = pagHtml;
     }
-    function goToPage(page) { currentPage = page; renderClientes(); }
-    function updateStats() {
-        const ativos = clientesCache.filter(c => !c.deleted_at);
-        const lixeira = clientesCache.filter(c => c.deleted_at);
-        document.getElementById('totalClientes').innerText = ativos.length;
-        document.getElementById('totalAtivos').innerText = ativos.filter(c => (c.cli_status || c.status) === 'ativo').length;
-        document.getElementById('totalLixeira').innerText = lixeira.length;
-        document.getElementById('totalPets').innerText = petsCache.length;
+    
+    // ==================== FILTROS ====================
+    function aplicarFiltros() {
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        showDeleted = (statusFilter === 'deleted');
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const statusFilterValue = (statusFilter !== 'deleted') ? statusFilter : '';
+        
+        // Recarregar página com os novos filtros
+        carregarPaginaClientes(true);
     }
-    function clearFilters() { document.getElementById('searchInput').value = ''; document.getElementById('statusFilter').value = ''; currentPage = 1; renderClientes(); }
-    function setOrder(field) { if (currentOrder === field) currentOrderDir = currentOrderDir === 'asc' ? 'desc' : 'asc'; else { currentOrder = field; currentOrderDir = 'asc'; } renderClientes(); }
-
-    // ==================== EXPORTAR PDF ====================
+    
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = '';
+        showDeleted = false;
+        carregarPaginaClientes(true);
+    }
+    
+    function setOrder(field) {
+        if (currentOrder === field) {
+            currentOrderDir = currentOrderDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentOrder = field;
+            currentOrderDir = 'asc';
+        }
+        carregarPaginaClientes(true);
+    }
+    
+    // ==================== EXPORTAR PDF (permanece como estava, mas usando clientesCache + filtros) ====================
     async function exportarPDF() {
-        let clientes = showDeleted ? clientesCache.filter(c => c.deleted_at) : clientesCache.filter(c => !c.deleted_at);
+        // Coletar todos os clientes do filtro atual (pode ser muitos, mas PDF é sob demanda)
+        const constraints = getConstraints();
+        let q = query(collection(db, 'clientes'), ...constraints);
+        if (showDeleted) {
+            q = query(q, where('deleted_at', '!=', null));
+        } else {
+            q = query(q, where('deleted_at', '==', null));
+        }
+        const snap = await getDocs(q);
+        let clientes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Aplicar filtros de busca e status manualmente
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        const statusFilterValue = (statusFilter !== 'deleted') ? statusFilter : '';
+        if (searchTerm) {
+            clientes = clientes.filter(c => (c.cli_nome || '').toLowerCase().includes(searchTerm) || (c.cli_telefone || '').includes(searchTerm) || (c.cli_email || '').toLowerCase().includes(searchTerm));
+        }
+        if (statusFilterValue) {
+            clientes = clientes.filter(c => (c.cli_status || '') === statusFilterValue);
+        }
         if (clientes.length === 0) { showToast('Não há clientes para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
@@ -548,6 +628,53 @@
             showToast('PDF gerado com sucesso!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
+
+    // ==================== VIEW e EDIT (globais) ====================
+    window.viewCliente = function(id) {
+        const cliente = clientesCache.find(c => c.id === id);
+        if (!cliente) return;
+        const petsDoCliente = petsCache.filter(p => p.clienteId === id);
+        const agendamentosDoCliente = agendamentosCache.filter(a => a.clienteId === id);
+        const statusClass = cliente.deleted_at ? 'status-deletado' : (cliente.cli_status === 'ativo' ? 'status-ativo' : (cliente.cli_status === 'inativo' ? 'status-inativo' : 'status-perdido'));
+        document.getElementById('modalBody').innerHTML = `
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="width:70px;height:70px;background:linear-gradient(135deg,#2c7da0,#61a5c2);border-radius:35px;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;"><i class="fas fa-user" style="font-size:2rem;color:white;"></i></div>
+                <h2 style="color:#1f5068;">${escapeHtml(cliente.cli_nome || cliente.nome)}</h2>
+                <span class="status-badge ${statusClass}">${cliente.deleted_at ? '🗑️ Na Lixeira' : (cliente.cli_status || 'ativo')}</span>
+            </div>
+            <div class="info-row"><span class="info-label">Telefone:</span><span class="info-value">${escapeHtml(cliente.cli_telefone || cliente.telefone || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Email:</span><span class="info-value">${escapeHtml(cliente.cli_email || cliente.email || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Documento:</span><span class="info-value">${escapeHtml(cliente.cli_documento || cliente.documento || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Endereço:</span><span class="info-value">${escapeHtml(cliente.cli_endereco || cliente.endereco || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Cidade:</span><span class="info-value">${escapeHtml(cliente.cli_cidade || cliente.cidade || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Pets:</span><span class="info-value">${petsDoCliente.length} pet(s)</span></div>
+            <div class="info-row"><span class="info-label">Agendamentos:</span><span class="info-value">${agendamentosDoCliente.length}</span></div>
+            <div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(cliente.cli_obs || cliente.obs || '-')}</span></div>
+            ${cliente.deleted_at ? `<div class="info-row"><span class="info-label">🗑️ Excluído em:</span><span class="info-value">${new Date(cliente.deleted_at).toLocaleString()}</span></div>` : ''}
+            <div style="margin-top:15px; font-size:0.7rem; text-align:center;">Cadastrado em: ${new Date(cliente.criado_em).toLocaleString()}<br>Última atualização: ${new Date(cliente.atualizado_em).toLocaleString()}</div>
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    
+    window.editCliente = function(id) {
+        const cliente = clientesCache.find(c => c.id === id);
+        if (cliente) {
+            fillForm(cliente);
+            editingId = id;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            const saveBtn = document.getElementById('saveClienteBtn');
+            saveBtn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Cliente';
+            saveBtn.classList.remove('btn-primary');
+            saveBtn.classList.add('btn-success');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else { showToast('Cliente não encontrado!', 'error'); }
+    };
+    
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+    window.fecharModal = fecharModal;
+    window.softDeleteCliente = softDeleteCliente;
+    window.restaurarCliente = restaurarCliente;
+    window.permanentDeleteCliente = permanentDeleteCliente;
 
     // ==================== MÁSCARAS ====================
     function applyMasks() {
@@ -610,7 +737,8 @@
                 document.getElementById('trialAlert').style.display = 'none';
             }
 
-            await iniciarListeners();
+            await carregarDadosAuxiliares();
+            await carregarPaginaClientes(true);
             applyMasks();
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -622,25 +750,21 @@
     // ==================== EVENTOS DOM ====================
     document.getElementById('saveClienteBtn').onclick = salvarCliente;
     document.getElementById('cancelEditBtn').onclick = cancelEdit;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderClientes(); });
-    document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderClientes(); });
+    document.getElementById('searchInput').addEventListener('input', () => aplicarFiltros());
+    document.getElementById('statusFilter').addEventListener('change', () => aplicarFiltros());
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('orderNome').onclick = () => setOrder('nome');
     document.getElementById('orderData').onclick = () => setOrder('data');
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-    window.softDeleteCliente = softDeleteCliente;
-    window.restaurarCliente = restaurarCliente;
-    window.permanentDeleteCliente = permanentDeleteCliente;
-    window.goToPage = goToPage;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
         const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
         showToast('Abrindo cliente de e-mail...', 'info');
     };
-    console.log('✅ Clientes refatorado - com onSnapshot, sem duplicidade');
+    console.log('✅ Clientes refatorado - paginação real, unicidade com transações, sem onSnapshot massivo');
 </script>
 </body>
 </html>

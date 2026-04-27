@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Pets | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF -->
+    <title>PerShop - Módulo de Pets | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mesmos do original) - mantidos */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -29,8 +28,8 @@
         .btn-outline:hover { background: #2c7da0; color: white; }
         .btn-danger { background: #e76f51; color: white; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; cursor: pointer; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -101,10 +100,7 @@
     </style>
 </head>
 <body>
-<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
-    <a href="index.html">Dashboard</a> > 
-    <span>Pets</span>
-</div>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Pets</span></div>
 <div class="container">
     <div class="header">
         <div class="logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><h1>PerShop <span>Pets</span></h1></div>
@@ -120,26 +116,10 @@
 
     <div id="conteudoPrincipal" style="display: none;">
         <div class="stats-grid">
-            <div class="stat-card" onclick="aplicarFiltroEspecie('')">
-                <div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div>
-                <div class="stat-value" id="totalPets">0</div>
-                <div class="stat-label">Total de Pets</div>
-            </div>
-            <div class="stat-card" onclick="aplicarFiltroEspecie('cachorro')">
-                <div class="stat-header"><div class="stat-icon"><i class="fas fa-dog"></i></div></div>
-                <div class="stat-value" id="totalCachorros">0</div>
-                <div class="stat-label">Cachorros</div>
-            </div>
-            <div class="stat-card" onclick="aplicarFiltroEspecie('gato')">
-                <div class="stat-header"><div class="stat-icon"><i class="fas fa-cat"></i></div></div>
-                <div class="stat-value" id="totalGatos">0</div>
-                <div class="stat-label">Gatos</div>
-            </div>
-            <div class="stat-card" onclick="window.location.href='clientes.html'">
-                <div class="stat-header"><div class="stat-icon"><i class="fas fa-user-friends"></i></div></div>
-                <div class="stat-value" id="totalClientes">0</div>
-                <div class="stat-label">Clientes</div>
-            </div>
+            <div class="stat-card" onclick="aplicarFiltroEspecie('')"><div class="stat-icon"><i class="fas fa-paw"></i></div><div class="stat-value" id="totalPets">0</div><div class="stat-label">Total de Pets</div></div>
+            <div class="stat-card" onclick="aplicarFiltroEspecie('cachorro')"><div class="stat-icon"><i class="fas fa-dog"></i></div><div class="stat-value" id="totalCachorros">0</div><div class="stat-label">Cachorros</div></div>
+            <div class="stat-card" onclick="aplicarFiltroEspecie('gato')"><div class="stat-icon"><i class="fas fa-cat"></i></div><div class="stat-value" id="totalGatos">0</div><div class="stat-label">Gatos</div></div>
+            <div class="stat-card" onclick="window.location.href='clientes.html'"><div class="stat-icon"><i class="fas fa-user-friends"></i></div><div class="stat-value" id="totalClientes">0</div><div class="stat-label">Clientes</div></div>
         </div>
 
         <div class="form-card">
@@ -187,50 +167,215 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-paw"></i> Detalhes do Pet</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    
-    // Importa funções compartilhadas do util.js
     import { 
-        escapeHtml, showToast, formatarData, carregarEmpresaUsuario, verificarStatusEmpresa
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        escapeHtml, showToast, formatarData,
+        carregarEmpresaUsuario, verificarStatusEmpresa
     } from './util.js';
 
-    // ==================== CONSTANTES ====================
+    // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
     let currentEmpresa = null;
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
+    let lastVisibleDoc = null;
+    let totalPetsCount = 0;
+    let isLoading = false;
+    
+    // Cache da página atual
     let petsCache = [];
-    let clientesCache = [];
-    let agendamentosCache = [];
+    let clientesCache = [];    // pequeno, carregado integralmente (clientes ativos)
+    let agendamentosCache = []; // carregado sob demanda para verificar vínculos
 
-    // ==================== FUNÇÕES AUXILIARES ESPECÍFICAS ====================
-    function calcularIdade(dataNasc) {
-        if (!dataNasc) return null;
-        const hoje = new Date();
-        const nasc = new Date(dataNasc);
-        let idade = hoje.getFullYear() - nasc.getFullYear();
-        const mes = hoje.getMonth() - nasc.getMonth();
-        if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--;
-        return idade;
+    // ==================== CONSTRAINTS ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
-    async function carregarDadosEmpresa() {
-        if (!currentEmpresa) return;
-        const empresaId = currentEmpresa.id;
-        const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', empresaId)));
-        petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const clientesSnap = await getDocs(query(collection(db, 'clientes'), where('empresaId', '==', empresaId)));
-        clientesCache = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const agendamentosSnap = await getDocs(query(collection(db, 'agendamentos'), where('empresaId', '==', empresaId)));
-        agendamentosCache = agendamentosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // ==================== CARREGAR CLIENTES (auxiliar) ====================
+    async function carregarClientes() {
+        const constraints = getConstraints();
+        const clientesSnap = await getDocs(query(collection(db, 'clientes'), ...constraints));
+        clientesCache = clientesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        atualizarSelectClientes();
     }
 
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaPets(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                petsCache = [];
+            }
+            
+            const constraints = getConstraints();
+            let q = query(collection(db, 'pets'), ...constraints);
+            
+            // Aplicar filtro de espécie diretamente na query
+            const especieFilter = document.getElementById('especieFilter')?.value || '';
+            if (especieFilter) {
+                q = query(q, where('especie', '==', especieFilter));
+            }
+            
+            // Ordenação por nome (ascendente) para paginação estável
+            q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            if (reset) {
+                petsCache = novos;
+            } else {
+                petsCache = [...petsCache, ...novos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Aplicar busca textual local (por nome, raça, tutor)
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = [...petsCache];
+            if (searchTerm) {
+                filtered = filtered.filter(p => {
+                    const tutor = clientesCache.find(c => c.id === p.clienteId);
+                    return (p.nome || '').toLowerCase().includes(searchTerm) ||
+                           (p.raca || '').toLowerCase().includes(searchTerm) ||
+                           (tutor?.cli_nome || '').toLowerCase().includes(searchTerm);
+                });
+            }
+            
+            // Contagem total (com filtro de espécie, sem busca textual)
+            if (reset) {
+                let countQuery = query(collection(db, 'pets'), ...constraints);
+                if (especieFilter) countQuery = query(countQuery, where('especie', '==', especieFilter));
+                const countSnap = await getCountFromServer(countQuery);
+                totalPetsCount = countSnap.data().count;
+            }
+            
+            renderPets(filtered);
+            atualizarPaginacao();
+            await updateStats();      // estatísticas leves (usam count queries separadas)
+        } catch (error) {
+            console.error("Erro ao carregar pets:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalPetsCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaPets(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaPets(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaPets(false);
+                currentPage++;
+            }
+        }
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = [...petsCache];
+        if (searchTerm) {
+            filtered = filtered.filter(p => {
+                const tutor = clientesCache.find(c => c.id === p.clienteId);
+                return (p.nome || '').toLowerCase().includes(searchTerm) ||
+                       (p.raca || '').toLowerCase().includes(searchTerm) ||
+                       (tutor?.cli_nome || '').toLowerCase().includes(searchTerm);
+            });
+        }
+        renderPets(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderPets(lista) {
+        const tbody = document.getElementById('petsTableBody');
+        if (!tbody) return;
+        if (lista.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">Nenhum pet encontrado<\/td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(p => {
+            const tutor = clientesCache.find(c => c.id === p.clienteId);
+            const fotoUrl = p.foto || '';
+            const temFoto = fotoUrl && fotoUrl.trim() !== '';
+            const especieIcon = p.especie === 'cachorro' ? '🐕' : (p.especie === 'gato' ? '🐈' : (p.especie === 'ave' ? '🐦' : '🐾'));
+            return `<tr>
+                <td><div class="pet-photo">${temFoto ? `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-paw\'></i>'">` : '<i class="fas fa-paw"></i>'}</div></td>
+                <td><strong>${especieIcon} ${escapeHtml(p.nome || '-')}</strong><br><span style="font-size:0.65rem;color:#7a9eb0;">${escapeHtml(p.cor || '')}</span></td>
+                <td>${escapeHtml(p.especie || '-')}</td>
+                <td>${escapeHtml(p.raca || '-')}</td>
+                <td>${p.sexo === 'macho' ? '♂️' : (p.sexo === 'femea' ? '♀️' : '-')}</td>
+                <td>${p.peso ? p.peso + 'kg' : '-'}</td>
+                <td>${escapeHtml(tutor?.cli_nome || tutor?.nome || '-')}</td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewPet('${p.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editPet('${p.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deletePet('${p.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = query(collection(db, 'pets'), ...constraints);
+        
+        // Total de pets
+        const totalSnap = await getCountFromServer(baseQuery);
+        document.getElementById('totalPets').innerText = totalSnap.data().count;
+        
+        // Total de cachorros
+        const cachorroQuery = query(baseQuery, where('especie', '==', 'cachorro'));
+        const cachorroSnap = await getCountFromServer(cachorroQuery);
+        document.getElementById('totalCachorros').innerText = cachorroSnap.data().count;
+        
+        // Total de gatos
+        const gatoQuery = query(baseQuery, where('especie', '==', 'gato'));
+        const gatoSnap = await getCountFromServer(gatoQuery);
+        document.getElementById('totalGatos').innerText = gatoSnap.data().count;
+        
+        // Total de clientes (já temos cache, mas atualizar de uma consulta rápida)
+        const clientesSnap = await getCountFromServer(query(collection(db, 'clientes'), ...constraints));
+        document.getElementById('totalClientes').innerText = clientesSnap.data().count;
+    }
+    
     // ==================== CRUD ====================
     async function addPet(data) {
+        // Verificar se o cliente existe e está ativo (já feito no front, mas validação extra)
+        const cliente = clientesCache.find(c => c.id === data.clienteId);
+        if (!cliente) { showToast('Cliente não encontrado!', 'error'); return false; }
+        if (cliente.cli_status === 'inativo' || cliente.deleted_at) {
+            showToast('Este cliente está inativo. Não é possível vincular um pet.', 'error');
+            return false;
+        }
         const newPet = {
             ...data,
             empresaId: currentEmpresa.id,
@@ -238,37 +383,40 @@
             atualizado_em: new Date().toISOString(),
             criado_por: currentUser.uid
         };
-        const docRef = await addDoc(collection(db, 'pets'), newPet);
-        newPet.id = docRef.id;
-        petsCache.unshift(newPet);
-        renderPets();
-        updateStats();
-        atualizarSelectClientes();
-        showToast('Pet cadastrado com sucesso!', 'success');
+        await addDoc(collection(db, 'pets'), newPet);
+        showToast('Pet cadastrado!', 'success');
+        await carregarPaginaPets(true);
+        await updateStats();
+        return true;
     }
+    
     async function updatePet(id, updates) {
         await updateDoc(doc(db, 'pets', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = petsCache.findIndex(p => p.id === id);
-        if (idx !== -1) petsCache[idx] = { ...petsCache[idx], ...updates };
-        renderPets();
-        updateStats();
         showToast('Pet atualizado!', 'success');
+        await carregarPaginaPets(true);
+        await updateStats();
+        return true;
     }
+    
     async function deletePet(id) {
         const pet = petsCache.find(p => p.id === id);
         if (!pet) { showToast('Pet não encontrado!', 'error'); return; }
-        const agendamentosPet = agendamentosCache.filter(a => a.petId === id);
-        let msg = `⚠️ Excluir "${pet.nome || 'este pet'}"?`;
-        if (agendamentosPet.length > 0) msg += `\n\n📌 Este pet possui ${agendamentosPet.length} agendamento(s) vinculado(s).`;
+        // Verificar se existem agendamentos vinculados (consulta leve)
+        const constraints = getConstraints();
+        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints, where('petId', '==', id), limit(1));
+        const agSnap = await getDocs(agendamentosQuery);
+        const temAgendamentos = !agSnap.empty;
+        let msg = `⚠️ Excluir "${pet.nome}"?`;
+        if (temAgendamentos) msg += `\n\n📌 Este pet possui agendamentos vinculados.`;
         if (confirm(msg)) {
             await deleteDoc(doc(db, 'pets', id));
-            petsCache = petsCache.filter(p => p.id !== id);
-            renderPets();
-            updateStats();
             showToast('Pet excluído!', 'success');
+            await carregarPaginaPets(true);
+            await updateStats();
         }
     }
-
+    window.deletePet = deletePet;
+    
     // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
@@ -287,6 +435,7 @@
             obs: document.getElementById('petObs').value
         };
     }
+    
     function validarFormulario() {
         const clienteId = document.getElementById('petClienteId').value;
         if (!clienteId) { showToast('Selecione um tutor!', 'error'); return false; }
@@ -297,14 +446,16 @@
             const hoje = new Date();
             const dataNascDate = new Date(dataNasc);
             if (dataNascDate > hoje) { showToast('Data de nascimento não pode ser futura!', 'error'); return false; }
-            const idade = calcularIdade(dataNasc);
-            if (idade > 50 && !confirm(`Idade calculada: ${idade} anos. Confirmar?`)) return false;
         }
         const cliente = clientesCache.find(c => c.id === clienteId);
         if (!cliente) { showToast('Cliente não encontrado!', 'error'); return false; }
-        if (cliente.cli_status === 'inativo' || cliente.deleted_at) { showToast('Este cliente está inativo. Não é possível vincular um pet.', 'error'); return false; }
+        if (cliente.cli_status === 'inativo' || cliente.deleted_at) {
+            showToast('Este cliente está inativo. Não é possível vincular um pet.', 'error');
+            return false;
+        }
         return true;
     }
+    
     function resetForm() {
         document.getElementById('petClienteId').value = '';
         document.getElementById('petNome').value = '';
@@ -326,6 +477,7 @@
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
     }
+    
     function fillForm(pet) {
         document.getElementById('petClienteId').value = pet.clienteId || '';
         document.getElementById('petNome').value = pet.nome || '';
@@ -341,6 +493,7 @@
         document.getElementById('petAlergias').value = pet.alergias || '';
         document.getElementById('petObs').value = pet.obs || '';
     }
+    
     async function salvarPet() {
         if (!validarFormulario()) return;
         const data = getFormData();
@@ -349,18 +502,13 @@
         resetForm();
     }
     function cancelEdit() { resetForm(); }
-
-    // ==================== EDIT, VIEW, DELETE ====================
-    window.editPet = function(id) {
-        const pet = petsCache.find(p => p.id === id);
-        if (pet) { fillForm(pet); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('savePetBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Pet'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
-        else showToast('Pet não encontrado!', 'error');
-    };
+    
+    // ==================== VIEW e EDIT ====================
     window.viewPet = function(id) {
         const pet = petsCache.find(p => p.id === id);
         if (!pet) return;
         const tutor = clientesCache.find(c => c.id === pet.clienteId);
-        const idade = calcularIdade(pet.dataNasc);
+        const idade = pet.dataNasc ? calcularIdade(pet.dataNasc) : null;
         const fotoUrl = pet.foto || '';
         const temFoto = fotoUrl && fotoUrl.trim() !== '';
         const idadeText = idade !== null ? `${idade} ${idade === 1 ? 'ano' : 'anos'}` : 'Não informada';
@@ -388,64 +536,67 @@
         `;
         document.getElementById('viewModal').style.display = 'flex';
     };
-    window.deletePet = deletePet;
+    
+    window.editPet = function(id) {
+        const pet = petsCache.find(p => p.id === id);
+        if (pet) { fillForm(pet); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('savePetBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Pet'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+        else showToast('Pet não encontrado!', 'error');
+    };
+    
+    function calcularIdade(dataNasc) {
+        if (!dataNasc) return null;
+        const hoje = new Date();
+        const nasc = new Date(dataNasc);
+        let idade = hoje.getFullYear() - nasc.getFullYear();
+        const mes = hoje.getMonth() - nasc.getMonth();
+        if (mes < 0 || (mes === 0 && hoje.getDate() < nasc.getDate())) idade--;
+        return idade;
+    }
+    
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
-
-    // ==================== RENDER ====================
-    function renderPets() {
-        let filtered = petsCache.filter(p => {
-            const tutor = clientesCache.find(c => c.id === p.clienteId);
-            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const especieFilter = document.getElementById('especieFilter')?.value || '';
-            const matchSearch = !searchTerm || (p.nome || '').toLowerCase().includes(searchTerm) || (p.raca || '').toLowerCase().includes(searchTerm) || (tutor?.cli_nome || '').toLowerCase().includes(searchTerm);
-            const matchEspecie = !especieFilter || p.especie === especieFilter;
-            return matchSearch && matchEspecie;
-        });
-        filtered.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('petsTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">Nenhum pet encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(p => {
-            const tutor = clientesCache.find(c => c.id === p.clienteId);
-            const fotoUrl = p.foto || '';
-            const temFoto = fotoUrl && fotoUrl.trim() !== '';
-            const especieIcon = p.especie === 'cachorro' ? '🐕' : (p.especie === 'gato' ? '🐈' : (p.especie === 'ave' ? '🐦' : '🐾'));
-            return `<tr>
-                <td><div class="pet-photo">${temFoto ? `<img src="${fotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" onerror="this.style.display='none';this.parentElement.innerHTML='<i class=\'fas fa-paw\'></i>'">` : '<i class="fas fa-paw"></i>'}</div></td>
-                <td><strong>${especieIcon} ${escapeHtml(p.nome || '-')}</strong><br><span style="font-size:0.65rem;color:#7a9eb0;">${escapeHtml(p.cor || '')}</span></td>
-                <td>${escapeHtml(p.especie || '-')}</td>
-                <td>${escapeHtml(p.raca || '-')}</td>
-                <td>${p.sexo === 'macho' ? '♂️' : (p.sexo === 'femea' ? '♀️' : '-')}</td>
-                <td>${p.peso ? p.peso + 'kg' : '-'}</td>
-                <td>${escapeHtml(tutor?.cli_nome || tutor?.nome || '-')}</td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewPet('${p.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editPet('${p.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn delete" onclick="deletePet('${p.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </tr>`;
-        }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
+    
+    // ==================== FILTROS ====================
+    function aplicarFiltros() {
+        carregarPaginaPets(true);
     }
-    function goToPage(page) { currentPage = page; renderPets(); }
-
-    function updateStats() {
-        document.getElementById('totalPets').innerText = petsCache.length;
-        document.getElementById('totalCachorros').innerText = petsCache.filter(p => p.especie === 'cachorro').length;
-        document.getElementById('totalGatos').innerText = petsCache.filter(p => p.especie === 'gato').length;
-        document.getElementById('totalClientes').innerText = clientesCache.length;
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('especieFilter').value = '';
+        carregarPaginaPets(true);
+        showToast('Filtros limpos!', 'success');
     }
-    function clearFilters() { document.getElementById('searchInput').value = ''; document.getElementById('especieFilter').value = ''; currentPage = 1; renderPets(); showToast('Filtros limpos!', 'success'); }
-    function aplicarFiltroEspecie(especie) { document.getElementById('especieFilter').value = especie; currentPage = 1; renderPets(); }
-
+    function aplicarFiltroEspecie(especie) {
+        document.getElementById('especieFilter').value = especie;
+        carregarPaginaPets(true);
+    }
+    
+    // ==================== SELECT DE CLIENTES ====================
+    function atualizarSelectClientes() {
+        const select = document.getElementById('petClienteId');
+        const clientesAtivos = clientesCache.filter(c => c.cli_status !== 'inativo' && !c.deleted_at);
+        select.innerHTML = '<option value="">🔍 Selecione o tutor (Cliente)</option>' + 
+            clientesAtivos.map(c => `<option value="${c.id}">${escapeHtml(c.cli_nome || c.nome)} - ${escapeHtml(c.cli_telefone || c.telefone || '')}</option>`).join('');
+    }
+    
     // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
-        if (petsCache.length === 0) { showToast('Não há pets para exportar!', 'error'); return; }
+        const constraints = getConstraints();
+        let q = query(collection(db, 'pets'), ...constraints);
+        const especieFilter = document.getElementById('especieFilter')?.value || '';
+        if (especieFilter) q = query(q, where('especie', '==', especieFilter));
+        q = query(q, orderBy('nome', 'asc'));
+        const snap = await getDocs(q);
+        let pets = snap.docs.map(d => d.data());
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        if (searchTerm) {
+            pets = pets.filter(p => {
+                const tutor = clientesCache.find(c => c.id === p.clienteId);
+                return (p.nome || '').toLowerCase().includes(searchTerm) ||
+                       (p.raca || '').toLowerCase().includes(searchTerm) ||
+                       (tutor?.cli_nome || '').toLowerCase().includes(searchTerm);
+            });
+        }
+        if (pets.length === 0) { showToast('Não há pets para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -453,14 +604,14 @@
             doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Pets', 14, 20);
             doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
             doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
-            doc.text(`Total de pets: ${petsCache.length}`, 14, 46);
+            doc.text(`Total de pets: ${pets.length}`, 14, 46);
             const colunas = [{ label: 'Nome', width: 40 }, { label: 'Espécie', width: 25 }, { label: 'Raça', width: 40 }, { label: 'Sexo', width: 20 }, { label: 'Peso', width: 20 }, { label: 'Tutor', width: 50 }];
             let y = 55;
             doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
             let x = 14;
             colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
             doc.setTextColor(0,0,0); y += 12;
-            for (const pet of petsCache) {
+            for (const pet of pets) {
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
                 const tutor = clientesCache.find(c => c.id === pet.clienteId);
                 doc.text((pet.nome || '-').substring(0,25), x+2, y+4); x += 40;
@@ -476,76 +627,65 @@
             showToast('PDF gerado com sucesso!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
     }
-
-    // ==================== SELECTS ====================
-    function atualizarSelectClientes() {
-        const select = document.getElementById('petClienteId');
-        const clientesAtivos = clientesCache.filter(c => c.cli_status !== 'inativo' && !c.deleted_at);
-        select.innerHTML = '<option value="">🔍 Selecione o tutor (Cliente)</option>' + clientesAtivos.map(c => `<option value="${c.id}">${escapeHtml(c.cli_nome || c.nome)} - ${escapeHtml(c.cli_telefone || c.telefone || '')}</option>`).join('');
-    }
-
+    
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
             
-            // Exibir alerta de trial
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'expirado') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await carregarDadosEmpresa();
-            atualizarSelectClientes();
-            renderPets();
-            updateStats();
+            await carregarClientes();
+            await carregarPaginaPets(true);
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {
             window.location.href = 'login.html';
         }
     });
-
+    
     // ==================== EVENTOS DOM ====================
     document.getElementById('savePetBtn').onclick = salvarPet;
     document.getElementById('cancelEditBtn').onclick = cancelEdit;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderPets(); });
-    document.getElementById('especieFilter').addEventListener('change', () => { currentPage = 1; renderPets(); });
+    document.getElementById('searchInput').addEventListener('input', () => carregarPaginaPets(true));
+    document.getElementById('especieFilter').addEventListener('change', () => carregarPaginaPets(true));
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('exportPdfBtn').onclick = exportarPDF;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = fecharModal;
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
-    window.goToPage = goToPage;
-    window.aplicarFiltroEspecie = aplicarFiltroEspecie;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
+        showToast('Abrindo e-mail...', 'info');
     };
-    console.log('✅ Pets - Refatorado (uma empresa por usuário)');
+    window.aplicarFiltroEspecie = aplicarFiltroEspecie;
+    console.log('✅ Pets refatorado - paginação real, estatísticas leves');
 </script>
 </body>
 </html>

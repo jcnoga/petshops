@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Usuários | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF -->
+    <title>PerShop - Módulo de Usuários | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- ESTILOS (mesmos do original) -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
@@ -29,8 +29,8 @@
         .btn-danger { background: #e76f51; color: white; }
         .btn-warning { background: #e9c46a; color: #1f5068; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; cursor: pointer; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -147,7 +147,7 @@
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, orderBy, limit, startAfter, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { escapeHtml, showToast, validarEmail, aplicarMascaraTelefone, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin, verificarStatusEmpresa, SUPER_ADMIN_EMAIL } from './util.js';
 
@@ -156,16 +156,202 @@
     let isSuperAdmin = false;
     let editingId = null;
     let currentPage = 1;
-    const itemsPerPage = 10;
-    let usuariosCache = [];
-    let empresasCache = [];
+    let itemsPerPage = 10;
+    let lastVisibleDoc = null;
+    let totalUsuariosCount = 0;
+    let isLoading = false;
+    
+    let usuariosCache = [];   // página atual
+    let empresasCache = [];   // apenas para superadmin
 
-    // ==================== AUXILIAR: CONSTRAINTS PARA SUPERADMIN ====================
+    // ==================== CONSTRAINTS ====================
     function getConstraints() {
         if (isSuperAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
+    // ==================== PAGINAÇÃO REAL ====================
+    async function carregarPaginaUsuarios(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                usuariosCache = [];
+            }
+            
+            let q;
+            if (isSuperAdmin) {
+                q = query(collection(db, 'usuarios'), orderBy('nome', 'asc'), limit(itemsPerPage));
+            } else {
+                q = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id), orderBy('nome', 'asc'), limit(itemsPerPage));
+            }
+            
+            // Aplicar filtros (perfil, status) na query
+            const perfilFilter = document.getElementById('perfilFilter')?.value || '';
+            if (perfilFilter) {
+                q = query(q, where('perfil', '==', perfilFilter));
+            }
+            const statusFilter = document.getElementById('statusFilter')?.value || '';
+            if (statusFilter) {
+                q = query(q, where('ativo', '==', (statusFilter === 'true')));
+            }
+            
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            
+            const snapshot = await getDocs(q);
+            let novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Filtrar superadmin global para não aparecer na lista
+            novos = novos.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
+            
+            if (reset) {
+                usuariosCache = novos;
+            } else {
+                usuariosCache = [...usuariosCache, ...novos];
+            }
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Busca textual local (nome, email)
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            let filtered = [...usuariosCache];
+            if (searchTerm) {
+                filtered = filtered.filter(u => 
+                    (u.nome || '').toLowerCase().includes(searchTerm) ||
+                    (u.email || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            // Contagem total (com filtros mas sem busca textual)
+            if (reset) {
+                let countQuery;
+                if (isSuperAdmin) {
+                    countQuery = collection(db, 'usuarios');
+                } else {
+                    countQuery = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id));
+                }
+                if (perfilFilter) countQuery = query(countQuery, where('perfil', '==', perfilFilter));
+                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
+                const countSnap = await getCountFromServer(countQuery);
+                totalUsuariosCount = countSnap.data().count;
+                // Subtrair o superadmin se ele estiver na contagem (apenas para superadmin)
+                if (isSuperAdmin) {
+                    const superAdminExists = (await getDocs(query(collection(db, 'usuarios'), where('email', '==', SUPER_ADMIN_EMAIL)))).docs.length > 0;
+                    if (superAdminExists) totalUsuariosCount--;
+                }
+            }
+            
+            renderUsuarios(filtered);
+            atualizarPaginacao();
+            await updateStats();
+        } catch (error) {
+            console.error("Erro ao carregar usuários:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
+    }
+    
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalUsuariosCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaUsuarios(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaUsuarios(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaUsuarios(false);
+                currentPage++;
+            }
+        }
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        let filtered = [...usuariosCache];
+        if (searchTerm) {
+            filtered = filtered.filter(u => 
+                (u.nome || '').toLowerCase().includes(searchTerm) ||
+                (u.email || '').toLowerCase().includes(searchTerm)
+            );
+        }
+        renderUsuarios(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderUsuarios(lista) {
+        const tbody = document.getElementById('usuariosTableBody');
+        if (!tbody) return;
+        if (lista.length === 0) {
+            tbody.innerHTML = '</table><td colspan="7">Nenhum usuário encontrado</td><\/tr>';
+            return;
+        }
+        tbody.innerHTML = lista.map(u => {
+            let empresaNome = '';
+            if (isSuperAdmin) {
+                const empre = empresasCache.find(e => e.id === u.empresaId);
+                empresaNome = empre?.emp_razao_social || empre?.emp_nome_fantasia || '-';
+            } else {
+                empresaNome = currentEmpresa?.emp_razao_social || currentEmpresa?.emp_nome_fantasia || '-';
+            }
+            const statusClass = u.ativo ? 'status-ativo' : 'status-inativo';
+            const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : (u.perfil === 'veterinario' ? '🩺' : (u.perfil === 'tosador' ? '✂️' : '👤')));
+            return `<tr>
+                <td><strong>${escapeHtml(u.nome)}</strong></td>
+                <td>${escapeHtml(u.email)}</span></td>
+                <td>${escapeHtml(u.telefone || '-')}</span></td>
+                <td>${perfilIcon} ${u.perfil}</span></td>
+                <td>${escapeHtml(empresaNome)}</span></td>
+                <td><span class="status-badge ${statusClass}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn reset" onclick="openResetModal('${u.email}')"><i class="fas fa-key"></i></button>
+                    <button class="action-btn delete" onclick="deleteUsuario('${u.id}', '${u.email}')"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </tr>`;
+        }).join('');
+    }
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        let totalQuery, ativosQuery, adminsQuery;
+        if (isSuperAdmin) {
+            totalQuery = collection(db, 'usuarios');
+            ativosQuery = query(collection(db, 'usuarios'), where('ativo', '==', true));
+            adminsQuery = query(collection(db, 'usuarios'), where('perfil', '==', 'admin'));
+        } else {
+            totalQuery = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id));
+            ativosQuery = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id), where('ativo', '==', true));
+            adminsQuery = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id), where('perfil', '==', 'admin'));
+        }
+        const totalSnap = await getCountFromServer(totalQuery);
+        let total = totalSnap.data().count;
+        if (isSuperAdmin) {
+            const superAdminExists = (await getDocs(query(collection(db, 'usuarios'), where('email', '==', SUPER_ADMIN_EMAIL)))).docs.length > 0;
+            if (superAdminExists) total--;
+        }
+        document.getElementById('totalUsuarios').innerText = total;
+        const ativosSnap = await getCountFromServer(ativosQuery);
+        document.getElementById('totalAtivos').innerText = ativosSnap.data().count;
+        const adminsSnap = await getCountFromServer(adminsQuery);
+        document.getElementById('totalAdmins').innerText = adminsSnap.data().count;
+    }
+    
+    // ==================== CARREGAR EMPRESAS (para superadmin) ====================
     async function carregarEmpresas() {
         if (!isSuperAdmin) return;
         const snapshot = await getDocs(collection(db, 'empresas'));
@@ -173,23 +359,8 @@
         const select = document.getElementById('userEmpresaId');
         select.innerHTML = '<option value="">Selecione a empresa</option>' + empresasCache.map(e => `<option value="${e.id}">${escapeHtml(e.emp_razao_social || e.emp_nome_fantasia)}</option>`).join('');
     }
-
-    async function carregarUsuarios() {
-        let usuarios = [];
-        const constraints = getConstraints();
-        if (isSuperAdmin) {
-            const snapshot = await getDocs(collection(db, 'usuarios'));
-            usuarios = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        } else if (currentEmpresa) {
-            const q = query(collection(db, 'usuarios'), ...constraints);
-            const snapshot = await getDocs(q);
-            usuarios = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        }
-        // Filtra para não mostrar o superadmin na lista (evita auto-exclusão)
-        usuariosCache = usuarios.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
-        return usuariosCache;
-    }
-
+    
+    // ==================== CRUD ====================
     async function addUsuario(data, senha) {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, data.email, senha);
@@ -206,9 +377,8 @@
                 criado_por: currentUser.uid
             };
             await setDoc(doc(db, 'usuarios', uid), usuarioData);
-            await carregarUsuarios();
-            renderUsuarios();
-            updateStats();
+            await carregarPaginaUsuarios(true);
+            await updateStats();
             showToast('Usuário criado com sucesso!', 'success');
             return true;
         } catch (error) {
@@ -219,30 +389,27 @@
             return false;
         }
     }
-
+    
     async function updateUsuario(id, updates) {
         await updateDoc(doc(db, 'usuarios', id), { ...updates, atualizado_em: new Date().toISOString() });
-        await carregarUsuarios();
-        renderUsuarios();
-        updateStats();
+        await carregarPaginaUsuarios(true);
+        await updateStats();
         showToast('Usuário atualizado!', 'success');
     }
-
+    
     async function deleteUsuario(id, email) {
         if (!confirm(`Excluir permanentemente o usuário ${email}? Esta ação não pode ser desfeita.`)) return;
         try {
-            // Remove apenas o documento do Firestore. O usuário do Auth permanece (seria órfão),
-            // mas para remover completamente, seria necessário uma Cloud Function.
             await deleteDoc(doc(db, 'usuarios', id));
-            showToast(`Usuário ${email} removido do Firestore. Para remover completamente, use o Firebase Console.`, 'warning');
-            await carregarUsuarios();
-            renderUsuarios();
-            updateStats();
+            showToast(`Usuário ${email} removido.`, 'success');
+            await carregarPaginaUsuarios(true);
+            await updateStats();
         } catch (error) {
             showToast('Erro ao excluir: ' + error.message, 'error');
         }
     }
-
+    window.deleteUsuario = deleteUsuario;
+    
     async function resetPassword(email) {
         try {
             await sendPasswordResetEmail(auth, email);
@@ -251,7 +418,9 @@
             showToast('Erro ao enviar e-mail: ' + error.message, 'error');
         }
     }
-
+    window.resetPassword = resetPassword;
+    
+    // ==================== FORMULÁRIO ====================
     function getFormData() {
         return {
             nome: document.getElementById('userNome').value.trim(),
@@ -262,7 +431,7 @@
             empresaId: isSuperAdmin ? document.getElementById('userEmpresaId').value : currentEmpresa.id
         };
     }
-
+    
     function validarFormulario(editing = false) {
         const nome = document.getElementById('userNome').value.trim();
         if (!nome) { showToast('Nome obrigatório!', 'error'); return false; }
@@ -272,7 +441,7 @@
         if (isSuperAdmin && !document.getElementById('userEmpresaId').value) { showToast('Selecione a empresa!', 'error'); return false; }
         return true;
     }
-
+    
     function resetForm() {
         document.getElementById('userNome').value = '';
         document.getElementById('userEmail').value = '';
@@ -287,10 +456,9 @@
         btn.innerHTML = '<i class="fas fa-save"></i> Salvar Usuário';
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
-        // No modo edição, a senha não é obrigatória
         document.getElementById('senhaGroup').style.display = 'block';
     }
-
+    
     function fillForm(usuario) {
         document.getElementById('userNome').value = usuario.nome || '';
         document.getElementById('userEmail').value = usuario.email || '';
@@ -299,10 +467,9 @@
         document.getElementById('userPerfil').value = usuario.perfil || 'usuario';
         document.getElementById('userAtivo').value = usuario.ativo ? 'true' : 'false';
         if (isSuperAdmin && usuario.empresaId) document.getElementById('userEmpresaId').value = usuario.empresaId;
-        // Em edição, campo senha não é obrigatório
         document.getElementById('senhaGroup').style.display = 'none';
     }
-
+    
     async function salvarUsuario() {
         if (!validarFormulario(!!editingId)) return;
         const data = getFormData();
@@ -316,8 +483,10 @@
         }
         resetForm();
     }
-
-    function editUsuario(id) {
+    
+    function cancelEdit() { resetForm(); }
+    
+    window.editUsuario = function(id) {
         const user = usuariosCache.find(u => u.id === id);
         if (user) {
             fillForm(user);
@@ -329,8 +498,9 @@
             btn.classList.add('btn-success');
             window.scrollTo({ top: 0 });
         }
-    }
-
+    };
+    
+    // ==================== RESET MODAL ====================
     let resetEmail = '';
     function openResetModal(email) {
         resetEmail = email;
@@ -342,74 +512,27 @@
         await resetPassword(resetEmail);
         fecharResetModal();
     }
-
-    function renderUsuarios() {
-        let filtered = usuariosCache.filter(u => {
-            const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-            const perfilFilter = document.getElementById('perfilFilter')?.value || '';
-            const statusFilter = document.getElementById('statusFilter')?.value || '';
-            const matchSearch = !search || (u.nome?.toLowerCase().includes(search) || u.email?.toLowerCase().includes(search));
-            const matchPerfil = !perfilFilter || u.perfil === perfilFilter;
-            const matchStatus = !statusFilter || (u.ativo ? 'true' : 'false') === statusFilter;
-            return matchSearch && matchPerfil && matchStatus;
-        });
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('usuariosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário encontrado</td></table>'; document.getElementById('pagination').innerHTML = ''; return; }
-        tbody.innerHTML = paginated.map(u => {
-            const empresa = isSuperAdmin ? empresasCache.find(e => e.id === u.empresaId) : currentEmpresa;
-            const empresaNome = isSuperAdmin ? (empresa?.emp_razao_social || empresa?.emp_nome_fantasia || '-') : (currentEmpresa?.emp_razao_social || '-');
-            const statusClass = u.ativo ? 'status-ativo' : 'status-inativo';
-            const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : (u.perfil === 'veterinario' ? '🩺' : (u.perfil === 'tosador' ? '✂️' : '👤')));
-            return `<td>
-                <td><strong>${escapeHtml(u.nome)}</strong></td>
-                <td>${escapeHtml(u.email)}</td>
-                <td>${escapeHtml(u.telefone || '-')}</td>
-                <td>${perfilIcon} ${u.perfil}</td>
-                <td>${escapeHtml(empresaNome)}</td>
-                <td><span class="status-badge ${statusClass}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                <td class="action-buttons">
-                    <button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn reset" onclick="openResetModal('${u.email}')"><i class="fas fa-key"></i></button>
-                    <button class="action-btn delete" onclick="deleteUsuario('${u.id}', '${u.email}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-            </tr>`;
-        }).join('');
-        let pagHtml = '';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
-    }
-
-    function goToPage(page) { currentPage = page; renderUsuarios(); }
-    function updateStats() {
-        document.getElementById('totalUsuarios').innerText = usuariosCache.length;
-        document.getElementById('totalAtivos').innerText = usuariosCache.filter(u => u.ativo).length;
-        document.getElementById('totalAdmins').innerText = usuariosCache.filter(u => u.perfil === 'admin').length;
-    }
-    function clearFilters() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('perfilFilter').value = '';
-        document.getElementById('statusFilter').value = '';
-        currentPage = 1;
-        renderUsuarios();
-        showToast('Filtros limpos!', 'success');
-    }
-
+    window.openResetModal = openResetModal;
+    window.fecharResetModal = fecharResetModal;
+    window.confirmReset = confirmReset;
+    
+    // ==================== MÁSCARA TELEFONE ====================
     function applyMask() {
         const tel = document.getElementById('userTelefone');
         tel.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
     }
-
-    // Expor funções globais
-    window.editUsuario = editUsuario;
-    window.deleteUsuario = deleteUsuario;
-    window.openResetModal = openResetModal;
-    window.fecharResetModal = fecharResetModal;
-    window.goToPage = goToPage;
-    window.logout = () => auth.signOut();
-
+    
+    // ==================== FILTROS ====================
+    function aplicarFiltros() { carregarPaginaUsuarios(true); }
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('perfilFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        carregarPaginaUsuarios(true);
+        showToast('Filtros limpos!', 'success');
+    }
+    
+    // ==================== AUTENTICAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -423,29 +546,37 @@
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa && !isSuperAdmin) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = isSuperAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-
-            // Exibir alerta de trial (apenas para não superadmin)
+            
             if (!isSuperAdmin && currentEmpresa) {
                 const statusInfo = verificarStatusEmpresa(currentEmpresa);
                 const trialDiv = document.getElementById('trialAlert');
-                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
-                else trialDiv.style.display = 'none';
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
             } else {
                 document.getElementById('trialAlert').style.display = 'none';
             }
-
+            
             if (isSuperAdmin) {
                 await carregarEmpresas();
                 document.getElementById('empresaGroup').style.display = 'block';
             } else {
                 document.getElementById('empresaGroup').style.display = 'none';
             }
-            await carregarUsuarios();
-            renderUsuarios();
-            updateStats();
+            await carregarPaginaUsuarios(true);
             applyMask();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -453,18 +584,23 @@
             window.location.href = 'login.html';
         }
     });
-
+    
+    // ==================== EVENTOS ====================
     document.getElementById('saveUserBtn').onclick = salvarUsuario;
-    document.getElementById('cancelEditBtn').onclick = resetForm;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage=1; renderUsuarios(); });
-    document.getElementById('perfilFilter').addEventListener('change', () => { currentPage=1; renderUsuarios(); });
-    document.getElementById('statusFilter').addEventListener('change', () => { currentPage=1; renderUsuarios(); });
+    document.getElementById('cancelEditBtn').onclick = cancelEdit;
+    document.getElementById('searchInput').addEventListener('input', () => { carregarPaginaUsuarios(true); });
+    document.getElementById('perfilFilter').addEventListener('change', () => { carregarPaginaUsuarios(true); });
+    document.getElementById('statusFilter').addEventListener('change', () => { carregarPaginaUsuarios(true); });
     document.getElementById('clearFiltersBtn').onclick = clearFilters;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('confirmResetBtn').onclick = confirmReset;
-    window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'),'_blank'); showToast('Abrindo e-mail...','info'); };
     window.onclick = (e) => { if(e.target === document.getElementById('resetModal')) fecharResetModal(); };
+    window.solicitarLiberacao = () => {
+        window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'),'_blank');
+        showToast('Abrindo e-mail...','info');
+    };
     window.setDoc = setDoc; // necessário para addUsuario
+    console.log('✅ Usuários refatorado - paginação real, estatísticas com count, sem listeners massivos');
 </script>
 </body>
 </html>
