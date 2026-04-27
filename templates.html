@@ -9,11 +9,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ========== ESTILOS (mesmos do original, apenas condensados) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
         .logo h1 { font-size: 1.5rem; color: #1f5068; }
@@ -32,7 +32,7 @@
         .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -41,20 +41,19 @@
         .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2edf2; padding-bottom: 10px; flex-wrap: wrap; }
         .tab-btn { background: none; border: none; padding: 10px 24px; font-weight: 600; cursor: pointer; border-radius: 40px; transition: 0.2s; color: #4a6272; }
         .tab-btn.active { background: #2c7da0; color: white; }
-        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
         .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
         .form-header p { opacity: 0.8; font-size: 0.75rem; }
         .form-body { padding: 25px; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
-        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
         .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
         .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
         .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
-        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); margin-bottom: 30px; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-bottom: 30px; }
         .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .table-header h3 { font-size: 1.1rem; color: #1f5068; }
         .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -388,50 +387,38 @@
             const constraints = getConstraints();
             let q = query(collection(db, 'templates'), ...constraints);
             
-            // Aplicar filtros diretamente na query
+            // Aplicar filtros
             const statusFilter = document.getElementById('tplStatusFilter')?.value || '';
-            if (statusFilter) {
-                q = query(q, where('ativo', '==', (statusFilter === 'true')));
-            }
+            if (statusFilter) q = query(q, where('ativo', '==', (statusFilter === 'true')));
             const tipoFilter = document.getElementById('tplTipoFilter')?.value || '';
-            if (tipoFilter) {
-                q = query(q, where('tipo', '==', tipoFilter));
-            }
+            if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
             const canalFilter = document.getElementById('tplCanalFilter')?.value || '';
-            if (canalFilter) {
-                q = query(q, where('canal_id', '==', canalFilter));
-            }
-            // Busca por nome (prefixo)
+            if (canalFilter) q = query(q, where('canal_id', '==', canalFilter));
             const searchTerm = document.getElementById('searchTemplate')?.value.trim() || '';
             if (searchTerm) {
                 const endPrefix = searchTerm + '\uf8ff';
                 q = query(q, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
             }
-            
             q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
-            if (lastVisibleDoc) {
-                q = query(q, startAfter(lastVisibleDoc));
-            }
+            if (lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc));
             const snapshot = await getDocs(q);
             const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             if (reset) templatesCache = novos;
             else templatesCache = [...templatesCache, ...novos];
             lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
             
-            // Contagem total
             if (reset) {
-                let countQuery = query(collection(db, 'templates'), ...constraints);
-                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
-                if (tipoFilter) countQuery = query(countQuery, where('tipo', '==', tipoFilter));
-                if (canalFilter) countQuery = query(countQuery, where('canal_id', '==', canalFilter));
+                let countQ = query(collection(db, 'templates'), ...constraints);
+                if (statusFilter) countQ = query(countQ, where('ativo', '==', (statusFilter === 'true')));
+                if (tipoFilter) countQ = query(countQ, where('tipo', '==', tipoFilter));
+                if (canalFilter) countQ = query(countQ, where('canal_id', '==', canalFilter));
                 if (searchTerm) {
-                    const endPrefix = searchTerm + '\uf8ff';
-                    countQuery = query(countQuery, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
+                    const end = searchTerm + '\uf8ff';
+                    countQ = query(countQ, where('nome', '>=', searchTerm), where('nome', '<=', end));
                 }
-                const countSnap = await getCountFromServer(countQuery);
+                const countSnap = await getCountFromServer(countQ);
                 totalTemplatesCount = countSnap.data().count;
             }
-            
             renderTemplates();
             atualizarPaginacao();
             updateStats();
@@ -499,7 +486,7 @@
                     <button class="action-btn edit" onclick="editTemplate('${t.id}')"><i class="fas fa-edit"></i></button>
                     ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
                     <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
-                </div>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -527,7 +514,7 @@
         document.getElementById('templatesEmail').innerText = emailCount;
     }
 
-    // ==================== FUNÇÕES DE CRUD ====================
+    // ==================== CRUD ====================
     async function addTemplate(data) {
         const constraints = getConstraints();
         const nomeExistente = await getDocs(query(collection(db, 'templates'), ...constraints, where('nome', '==', data.nome), limit(1)));
@@ -642,7 +629,7 @@
         atualizarPreview();
     }
 
-    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
+    // ==================== GERAÇÃO PROFISSIONAL DE TEMPLATE ====================
     function gerarTemplateProfissional(tipo, canalTipo) {
         const empresa = currentEmpresa;
         const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
@@ -680,7 +667,7 @@
         }
     }
 
-    // ==================== VIEW / EDIT / TESTE WHATSAPP ====================
+    // ==================== VIEW / EDIT / WHATSAPP TEST ====================
     window.viewTemplate = function(id) {
         const t = templatesCache.find(t => t.id === id);
         if (!t) return;
@@ -757,7 +744,7 @@
     }
     window.copiarVariavel = (variavel) => { navigator.clipboard.writeText(variavel); showToast(`Variável ${variavel} copiada!`, 'success'); };
 
-    // ==================== FILTROS ====================
+    // ==================== FILTROS E EXPORT ====================
     function clearTemplateFilters() {
         document.getElementById('searchTemplate').value = '';
         document.getElementById('tplCanalFilter').value = '';
@@ -782,7 +769,8 @@
             let x = 14;
             colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
             doc.setTextColor(0,0,0); y += 12;
-            const allTemplates = await getDocs(query(collection(db, 'templates'), ...getConstraints(), limit(1000)));
+            const constraints = getConstraints();
+            const allTemplates = await getDocs(query(collection(db, 'templates'), ...constraints, limit(1000)));
             const tipoLabels = { lembrete:'Lembrete', promocao:'Promoção', confirmacao:'Confirmação', cancelamento:'Cancelamento', notificacao:'Notificação', boas_vindas:'Boas Vindas', aniversario_pet:'Aniversário do Pet', aniversario_cliente:'Aniversário do Cliente', cliente_inativo:'Cliente Inativo', outro:'Outro' };
             for (const docSnap of allTemplates.docs) {
                 const t = docSnap.data();
@@ -813,9 +801,10 @@
                 return;
             }
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            if (!currentEmpresa && !isSuperUser) { window.location.href = 'login.html'; return; }
+            if (isSuperUser && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
             document.getElementById('empresaInfo').innerHTML = isSuperUser ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            if (!isSuperUser && currentEmpresa) {
+            if (!isSuperUser && currentEmpresa && !currentEmpresa.globalAdmin) {
                 const statusInfo = verificarStatusEmpresa(currentEmpresa);
                 const trialDiv = document.getElementById('trialAlert');
                 if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
@@ -841,7 +830,7 @@
     document.getElementById('tplStatusFilter').addEventListener('change', () => carregarPaginaTemplates(true));
     document.getElementById('tplTipoFilter').addEventListener('change', () => carregarPaginaTemplates(true));
     document.getElementById('clearTemplateFilters').onclick = clearTemplateFilters;
-    document.getElementById('refreshTemplatesBtn').onclick = () => { carregarPaginaTemplates(true); showToast('Templates atualizados!', 'success'); };
+    document.getElementById('refreshTemplatesBtn').onclick = () => carregarPaginaTemplates(true);
     document.getElementById('exportTemplatesPdfBtn').onclick = exportTemplatesPDF;
     document.getElementById('searchVariavel').addEventListener('input', renderVariaveis);
     document.getElementById('tplMensagem').addEventListener('input', atualizarPreview);
@@ -866,7 +855,7 @@
             if (tab === 'variaveis') renderVariaveis();
         };
     });
-    console.log('✅ Templates refatorado - paginação real, sem onSnapshot');
+    console.log('✅ Templates refatorado - paginação real, sem onSnapshot, suporte a super admin');
 </script>
 </body>
 </html>

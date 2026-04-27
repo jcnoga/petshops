@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mesmos do original) - mantidos */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(145deg, #eef2f8 0%, #e0e8f0 100%); min-height: 100vh; }
         .app-container { display: flex; min-height: 100vh; }
@@ -153,89 +153,59 @@
     </main>
 </div>
 <div id="logoutModal" class="modal"><div class="modal-content"><i class="fas fa-question-circle" style="font-size:3rem; color:#e9c46a;"></i><h3>Deseja realmente sair?</h3><p>Você será desconectado do sistema.</p><div class="modal-buttons" style="margin-top:20px;"><button class="btn btn-outline" onclick="fecharModalLogout()">Cancelar</button><button class="btn btn-danger" onclick="confirmarLogout()">Sair</button></div></div></div>
-
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { 
-        collection, query, where, getCountFromServer, getDocs, limit, 
-        doc, getDoc, addDoc, updateDoc 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getCountFromServer, getDocs, limit, doc, getDoc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { formatCurrency, showToast, carregarEmpresaUsuario, verificarStatusEmpresa, verificarSuperAdmin } from './util.js';
 
     let currentUser = null;
     let currentEmpresa = null;
     let isSuperAdmin = false;
 
-    // ==================== CARREGAR DADOS DO DASHBOARD ====================
     async function carregarDadosDoDashboard() {
         if (!currentEmpresa) return;
-        
         const cards = document.querySelectorAll('.stat-value');
         cards.forEach(card => card.style.opacity = '0.5');
-        
         try {
             const constraints = (currentEmpresa && currentEmpresa.globalAdmin) ? [] : [where('empresaId', '==', currentEmpresa.id)];
-            
-            // Clientes (ativos, não deletados)
             let clientesQuery = query(collection(db, 'clientes'), ...constraints, where('deleted_at', '==', null));
             const clientesCount = await getCountFromServer(clientesQuery);
             const totalClientesEl = document.getElementById('totalClientes');
             if (totalClientesEl) totalClientesEl.innerText = clientesCount.data().count;
-            
-            // Pets
             const petsQuery = query(collection(db, 'pets'), ...constraints);
             const petsCount = await getCountFromServer(petsQuery);
             const totalPetsEl = document.getElementById('totalPets');
             if (totalPetsEl) totalPetsEl.innerText = petsCount.data().count;
-            
-            // Agendamentos
             const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
             const agendamentosCount = await getCountFromServer(agendamentosQuery);
             const totalAgendamentosEl = document.getElementById('totalAgendamentos');
             if (totalAgendamentosEl) totalAgendamentosEl.innerText = agendamentosCount.data().count;
-            
-            // Produtos
             const produtosQuery = query(collection(db, 'produtos'), ...constraints);
             const produtosCount = await getCountFromServer(produtosQuery);
             const totalProdutosEl = document.getElementById('totalProdutos');
             if (totalProdutosEl) totalProdutosEl.innerText = produtosCount.data().count;
-            
-            // Financeiro (últimos 2000 lançamentos para soma)
             const financeiroQuery = query(collection(db, 'financeiro'), ...constraints, where('tipo', '==', 'entrada'), where('status', '==', 'pago'), limit(2000));
             const financeiroSnap = await getDocs(financeiroQuery);
-            let totalFaturamento = 0;
-            let faturamentoMes = 0;
-            const mesAtual = new Date().getMonth();
-            const anoAtual = new Date().getFullYear();
+            let totalFaturamento = 0, faturamentoMes = 0;
+            const mesAtual = new Date().getMonth(), anoAtual = new Date().getFullYear();
             financeiroSnap.forEach(doc => {
                 const f = doc.data();
                 const valor = f.valor || 0;
                 totalFaturamento += valor;
                 const dataPagto = f.dataPagamento ? new Date(f.dataPagamento) : null;
-                if (dataPagto && dataPagto.getMonth() === mesAtual && dataPagto.getFullYear() === anoAtual) {
-                    faturamentoMes += valor;
-                }
+                if (dataPagto && dataPagto.getMonth() === mesAtual && dataPagto.getFullYear() === anoAtual) faturamentoMes += valor;
             });
             const totalFinanceiroEl = document.getElementById('totalFinanceiro');
             if (totalFinanceiroEl) totalFinanceiroEl.innerHTML = `R$ ${formatCurrency(totalFaturamento)}`;
             const faturamentoMesEl = document.getElementById('faturamentoMes');
             if (faturamentoMesEl) faturamentoMesEl.innerHTML = `Este mês: R$ ${formatCurrency(faturamentoMes)}`;
-            
-            // Profissionais
             const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
             const profissionaisCount = await getCountFromServer(profissionaisQuery);
             const totalProfissionaisEl = document.getElementById('totalProfissionais');
             if (totalProfissionaisEl) totalProfissionaisEl.innerText = profissionaisCount.data().count;
-            
-        } catch (error) {
-            console.error("Erro ao carregar dados do dashboard:", error);
-            showToast("Erro ao carregar estatísticas. Tente novamente.", "error");
-        } finally {
-            cards.forEach(card => card.style.opacity = '1');
-        }
+        } catch (error) { console.error(error); showToast("Erro ao carregar estatísticas.", "error"); } finally { cards.forEach(card => card.style.opacity = '1'); }
     }
 
-    // ==================== CARREGAR INFORMAÇÕES DO USUÁRIO ====================
     async function carregarInfoUsuario() {
         if (!currentUser) return;
         const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
@@ -259,31 +229,16 @@
         if (isSuperAdmin && todasEmpresasMenuItem) todasEmpresasMenuItem.style.display = 'flex';
     }
 
-    // ==================== WELCOME MESSAGE E TRIAL ====================
     function atualizarWelcomeMessage() {
         const welcomeDiv = document.getElementById('welcomeMessage');
         if (!welcomeDiv) return;
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
-        if (!currentEmpresa) {
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p><button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
-            return;
-        }
-        if (currentEmpresa.globalAdmin) {
-            welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
-            return;
-        }
+        if (!currentEmpresa) { welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p><button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`; return; }
+        if (currentEmpresa.globalAdmin) { welcomeDiv.className = 'welcome-message'; welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`; return; }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
-        if (statusInfo.status === 'expirado') {
-            welcomeDiv.className = 'welcome-message expired';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
-        } else if (statusInfo.status === 'trial_urgente') {
-            welcomeDiv.className = 'welcome-message warning';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
-        } else {
-            welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
-        }
+        if (statusInfo.status === 'expirado') { welcomeDiv.className = 'welcome-message expired'; welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`; }
+        else if (statusInfo.status === 'trial_urgente') { welcomeDiv.className = 'welcome-message warning'; welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`; }
+        else { welcomeDiv.className = 'welcome-message'; welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`; }
     }
 
     function adicionarAlertaTrial() {
@@ -291,75 +246,19 @@
         if (!alertDiv) return;
         if (!currentEmpresa || currentEmpresa.globalAdmin) { alertDiv.innerHTML = ''; return; }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
-        if (statusInfo.status === 'trial_urgente') {
-            alertDiv.innerHTML = `<div class="trial-alert-bar"><div><i class="fas fa-hourglass-half"></i> <strong>Atenção:</strong> Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
-        } else if (statusInfo.status === 'expirado') {
-            alertDiv.innerHTML = `<div class="trial-alert-bar" style="background:#fce4e4; border-left-color:#e76f51;"><div><i class="fas fa-hourglass-end"></i> <strong>ACESSO BLOQUEADO:</strong> Período de teste expirado!</div><button class="btn btn-danger" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
-        } else {
-            alertDiv.innerHTML = '';
-        }
+        if (statusInfo.status === 'trial_urgente') alertDiv.innerHTML = `<div class="trial-alert-bar"><div><i class="fas fa-hourglass-half"></i> <strong>Atenção:</strong> Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
+        else if (statusInfo.status === 'expirado') alertDiv.innerHTML = `<div class="trial-alert-bar" style="background:#fce4e4; border-left-color:#e76f51;"><div><i class="fas fa-hourglass-end"></i> <strong>ACESSO BLOQUEADO:</strong> Período de teste expirado!</div><button class="btn btn-danger" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
+        else alertDiv.innerHTML = '';
     }
 
-    window.solicitarLiberacao = function() {
-        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
-        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
-    };
+    window.solicitarLiberacao = function() { window.open('mailto:jcnvap@gmail.com?subject=Liberação - ' + encodeURIComponent(currentEmpresa?.emp_razao_social || 'Empresa'), '_blank'); showToast('Abrindo e-mail...', 'info'); };
+    window.criarEmpresaUrgente = async function() { if (!currentUser) return; const novaEmpresa = { emp_razao_social: `${currentUser.email.split('@')[0]} PetShop`, emp_nome_fantasia: 'Meu PetShop', emp_cnpj: '', emp_whatsapp: '', emp_status: 'ativo', emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(), emp_criado_em: new Date().toISOString() }; const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa); await updateDoc(doc(db, 'usuarios', currentUser.uid), { empresaId: docRef.id }); showToast('Empresa criada! Atualize a página.', 'success'); location.reload(); };
+    async function logout() { await auth.signOut(); sessionStorage.removeItem('empresa_atual'); window.location.href = 'login.html'; }
+    function abrirModalLogout() { const modal = document.getElementById('logoutModal'); if (modal) modal.style.display = 'flex'; }
+    function fecharModalLogout() { const modal = document.getElementById('logoutModal'); if (modal) modal.style.display = 'none'; }
+    function confirmarLogout() { fecharModalLogout(); logout(); }
+    function setupNavegacao() { document.querySelectorAll('.nav-item[data-page], .quick-btn[data-page], .stat-card[data-page]').forEach(el => { el.addEventListener('click', (e) => { e.stopPropagation(); const page = el.getAttribute('data-page'); if (page) window.location.href = page; }); }); const comunicacaoMenu = document.getElementById('comunicacaoMenu'); const comunicacaoSubmenu = document.getElementById('comunicacaoSubmenu'); if (comunicacaoMenu && comunicacaoSubmenu) { comunicacaoMenu.addEventListener('click', (e) => { e.stopPropagation(); comunicacaoSubmenu.classList.toggle('open'); const arrow = comunicacaoMenu.querySelector('.submenu-arrow'); if (arrow) arrow.style.transform = comunicacaoSubmenu.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)'; }); } }
 
-    window.criarEmpresaUrgente = async function() {
-        if (!currentUser) return;
-        const novaEmpresa = {
-            emp_razao_social: `${currentUser.email.split('@')[0]} PetShop`,
-            emp_nome_fantasia: 'Meu PetShop',
-            emp_cnpj: '', 
-            emp_whatsapp: '', 
-            emp_status: 'ativo',
-            emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
-            emp_criado_em: new Date().toISOString()
-        };
-        const docRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
-        await updateDoc(doc(db, 'usuarios', currentUser.uid), { empresaId: docRef.id });
-        showToast('Empresa criada! Atualize a página.', 'success');
-        location.reload();
-    };
-
-    async function logout() { 
-        await auth.signOut(); 
-        sessionStorage.removeItem('empresa_atual'); 
-        window.location.href = 'login.html'; 
-    }
-
-    function abrirModalLogout() { 
-        const modal = document.getElementById('logoutModal');
-        if (modal) modal.style.display = 'flex'; 
-    }
-    function fecharModalLogout() { 
-        const modal = document.getElementById('logoutModal');
-        if (modal) modal.style.display = 'none'; 
-    }
-    function confirmarLogout() { 
-        fecharModalLogout(); 
-        logout(); 
-    }
-
-    function setupNavegacao() {
-        document.querySelectorAll('.nav-item[data-page], .quick-btn[data-page], .stat-card[data-page]').forEach(el => {
-            el.addEventListener('click', (e) => { e.stopPropagation(); const page = el.getAttribute('data-page'); if (page) window.location.href = page; });
-        });
-        const comunicacaoMenu = document.getElementById('comunicacaoMenu');
-        const comunicacaoSubmenu = document.getElementById('comunicacaoSubmenu');
-        if (comunicacaoMenu && comunicacaoSubmenu) {
-            comunicacaoMenu.addEventListener('click', (e) => {
-                e.stopPropagation();
-                comunicacaoSubmenu.classList.toggle('open');
-                const arrow = comunicacaoMenu.querySelector('.submenu-arrow');
-                if (arrow) arrow.style.transform = comunicacaoSubmenu.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
-            });
-        }
-    }
-
-    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     document.addEventListener('DOMContentLoaded', () => {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -368,14 +267,9 @@
                 await carregarInfoUsuario();
                 currentEmpresa = await carregarEmpresaUsuario(user);
                 if (!currentEmpresa && !isSuperAdmin) {
-                    console.warn('Nenhuma empresa associada. Exibindo botão de criação.');
                     atualizarWelcomeMessage();
-                    const statsGrid = document.getElementById('statsGrid');
-                    if (statsGrid) statsGrid.style.display = 'none';
-                    if (isSuperAdmin) {
-                        const todasEmpresasMenuItem = document.getElementById('todasEmpresasMenuItem');
-                        if (todasEmpresasMenuItem) todasEmpresasMenuItem.style.display = 'flex';
-                    }
+                    const statsGrid = document.getElementById('statsGrid'); if (statsGrid) statsGrid.style.display = 'none';
+                    if (isSuperAdmin) { const todasEmpresasMenuItem = document.getElementById('todasEmpresasMenuItem'); if (todasEmpresasMenuItem) todasEmpresasMenuItem.style.display = 'flex'; }
                     setupNavegacao();
                     return;
                 }
@@ -384,23 +278,12 @@
                 adicionarAlertaTrial();
                 if (currentEmpresa) await carregarDadosDoDashboard();
                 setupNavegacao();
-                if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) {
-                    const todasEmpresasMenuItem = document.getElementById('todasEmpresasMenuItem');
-                    if (todasEmpresasMenuItem) todasEmpresasMenuItem.style.display = 'flex';
-                }
-                const refreshBtn = document.getElementById('refreshBtn');
-                if (refreshBtn) refreshBtn.onclick = () => {
-                    carregarDadosDoDashboard();
-                    showToast('Dados atualizados!', 'success');
-                };
-                const logoutBtn = document.getElementById('logoutBtn');
-                if (logoutBtn) logoutBtn.onclick = () => abrirModalLogout();
-            } else {
-                window.location.href = 'login.html';
-            }
+                if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) { const todasEmpresasMenuItem = document.getElementById('todasEmpresasMenuItem'); if (todasEmpresasMenuItem) todasEmpresasMenuItem.style.display = 'flex'; }
+                const refreshBtn = document.getElementById('refreshBtn'); if (refreshBtn) refreshBtn.onclick = () => { carregarDadosDoDashboard(); showToast('Dados atualizados!', 'success'); };
+                const logoutBtn = document.getElementById('logoutBtn'); if (logoutBtn) logoutBtn.onclick = () => abrirModalLogout();
+            } else { window.location.href = 'login.html'; }
         });
     });
-
     window.abrirModalLogout = abrirModalLogout;
     window.fecharModalLogout = fecharModalLogout;
     window.confirmarLogout = confirmarLogout;

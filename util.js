@@ -1,8 +1,9 @@
-verificarSuperAdmin// ==================== util.js (REFATORADO FINAL - COM TRATAMENTO SEGURO) ====================
+// ==================== util.js (COMPLETO - COM SUPORTE A SUPER ADMIN POR E-MAIL) ====================
 import { auth, db } from './firebase-config.js';
 import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 export const DIAS_TESTE = 15;
+export const SUPER_ADMIN_EMAIL = "jcnvap@gmail.com"; // E-mail do super administrador
 
 // ---------- Formatação e segurança ----------
 export function escapeHtml(texto) {
@@ -93,7 +94,6 @@ export function calcularDiasRestantes(dataExpiracao) {
     return dias > 0 ? dias : 0;
 }
 
-// CORREÇÃO CRÍTICA: trata empresa nula/indefinida
 export function verificarStatusEmpresa(empresa) {
     if (!empresa) {
         return { status: 'nao_cadastrada', statusText: 'Empresa não cadastrada', diasRestantes: 0 };
@@ -114,14 +114,11 @@ export function verificarStatusEmpresa(empresa) {
     return { status: 'trial', statusText: 'Em teste', diasRestantes: dias };
 }
 
-// ---------- Superadmin – SOMENTE via Firestore (sem e-mail hardcoded) ----------
-const SUPER_ADMIN_EMAIL = "jcnvap@gmail.com"; // Defina o e-mail do super administrador
-
+// ---------- Superadmin – fallback por e-mail + campo globalAdmin ----------
 export async function verificarSuperAdmin(user) {
     if (!user) return false;
-    // Fallback: se o e-mail for o super admin, já retorna true
+    // Fallback por e-mail
     if (user.email === SUPER_ADMIN_EMAIL) return true;
-    
     const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
     return userDoc.exists() && userDoc.data().globalAdmin === true;
 }
