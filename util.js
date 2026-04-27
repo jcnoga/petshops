@@ -1,4 +1,4 @@
-// ==================== util.js (REFATORADO FINAL - COM TRATAMENTO SEGURO) ====================
+verificarSuperAdmin// ==================== util.js (REFATORADO FINAL - COM TRATAMENTO SEGURO) ====================
 import { auth, db } from './firebase-config.js';
 import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -115,8 +115,13 @@ export function verificarStatusEmpresa(empresa) {
 }
 
 // ---------- Superadmin – SOMENTE via Firestore (sem e-mail hardcoded) ----------
+const SUPER_ADMIN_EMAIL = "jcnvap@gmail.com"; // Defina o e-mail do super administrador
+
 export async function verificarSuperAdmin(user) {
     if (!user) return false;
+    // Fallback: se o e-mail for o super admin, já retorna true
+    if (user.email === SUPER_ADMIN_EMAIL) return true;
+    
     const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
     return userDoc.exists() && userDoc.data().globalAdmin === true;
 }
