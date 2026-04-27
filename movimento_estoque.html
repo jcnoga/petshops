@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Movimento de Estoque | Firebase + Firestore</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-warning { background: #e9c46a; color: #1f5068; }
+        .btn-danger { background: #e76f51; color: white; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
+        .filters-card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 30px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .filter-group input, .filter-group select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; cursor: pointer; }
+        .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .chart-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .chart-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; color: #1f5068; }
+        .chart-container { position: relative; height: 250px; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .type-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .type-entrada { background: #2a9d8f20; color: #2a9d8f; }
+        .type-saida { background: #e76f5120; color: #e76f51; }
+        .type-ajuste { background: #e9c46a20; color: #e9c46a; }
+        .action-buttons { display: flex; gap: 6px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .action-btn.revert:hover { background: #e9c46a; color: #1f5068; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; word-break: break-word; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .toast-warning { background: #e9c46a; color: #1f5068; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 10; }
+        .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } }
+    </style>
+</head>
+<body>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Movimento Estoque</span></div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-exchange-alt"></i></div><h1>PerShop <span>Movimento Estoque</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo...</p></div>
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div></div><div class="stat-value" id="totalEntradas">0</div><div class="stat-label">Entradas</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div></div><div class="stat-value" id="totalSaidas">0</div><div class="stat-label">Saídas</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-cubes"></i></div></div><div class="stat-value" id="totalMovimentacoes">0</div><div class="stat-label">Movimentações</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="saldoEstoque">R$ 0</div><div class="stat-label">Saldo Estoque</div></div>
+        </div>
+        <div class="filters-card">
+            <div class="filter-row">
+                <div class="filter-group"><label>Data Início</label><input type="date" id="dataInicio"></div>
+                <div class="filter-group"><label>Data Fim</label><input type="date" id="dataFim"></div>
+                <div class="filter-group"><label>Tipo</label><select id="tipoFilter"><option value="">Todos</option><option value="entrada">📥 Entradas</option><option value="saida">📤 Saídas</option><option value="ajuste">⚙️ Ajustes</option></select></div>
+                <div class="filter-group"><label>Produto</label><select id="produtoFilter"><option value="">Todos</option></select></div>
+                <div class="filter-group"><button id="aplicarFiltrosBtn" class="btn btn-primary"><i class="fas fa-search"></i> Aplicar</button></div>
+                <div class="filter-group"><button id="clearFiltersBtn" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button></div>
+                <div class="filter-group"><button id="exportPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div>
+            </div>
+        </div>
+        <div class="chart-row">
+            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-line"></i> Movimentações por Mês</div><div class="chart-container"><canvas id="movimentacoesChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-pie"></i> Distribuição por Tipo</div><div class="chart-container"><canvas id="tipoChart"></canvas></div></div>
+        </div>
+        <div class="form-card">
+            <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Nova Movimentação</h2><p>Registre entrada, saída ou ajuste de estoque</p></div>
+            <div class="form-body">
+                <div class="form-grid">
+                    <div class="input-group"><label class="required">Produto</label><select id="movProdutoId"><option value="">Selecione</option></select></div>
+                    <div class="input-group"><label class="required">Tipo</label><select id="movTipo"><option value="">Selecione</option><option value="entrada">📥 Entrada</option><option value="saida">📤 Saída</option><option value="ajuste">⚙️ Ajuste</option></select></div>
+                    <div class="input-group"><label class="required">Quantidade</label><input type="number" id="movQuantidade" min="1" step="1"></div>
+                    <div class="input-group"><label>Responsável</label><input type="text" id="movResponsavel"></div>
+                    <div class="input-group" style="grid-column: span 2;"><label>Motivo</label><textarea id="movMotivo" rows="2" placeholder="Ex: Compra NF 12345, Venda, Ajuste de inventário..."></textarea></div>
+                    <div id="estoqueInfo" class="info-message" style="display: none; padding: 8px; border-radius: 12px; background: #2c7da020; color: #2c7da0; font-size: 0.75rem;"></div>
+                    <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;">Cancelar</button><button type="button" id="saveMovimentoBtn" class="btn btn-primary">Registrar</button></div>
+                </div>
+            </div>
+        </div>
+        <div class="table-card">
+            <div class="table-header"><h3>Histórico de Movimentações</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar por produto, responsável ou motivo..."></div></div>
+            <div class="table-wrapper"><table id="movimentosTable"><thead><tr><th>Data/Hora</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="movimentosTableBody"></tbody>}</div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+    <div class="footer">PerShop Enterprise - Movimento de Estoque | Dados em tempo real com Firebase</div>
+</div>
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-exchange-alt"></i> Detalhes da Movimentação</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<script type="module">
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        escapeHtml, showToast, formatCurrency, formatarDataHora, carregarEmpresaUsuario,
+        verificarStatusEmpresa
+    } from './util.js';
+
+    // ==================== ESTADO GLOBAL ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingId = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let movimentosCache = [];
+    let produtosCache = [];
+    let movimentacoesChart = null;
+    let tipoChart = null;
+    let unsubscribeMovimentos = null;
+    let unsubscribeProdutos = null;
+
+    // ==================== FUNÇÕES AUXILIARES ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
+    }
+
+    // ==================== CARREGAR DADOS COM LISTENER ====================
+    async function iniciarListeners() {
+        if (unsubscribeMovimentos) unsubscribeMovimentos();
+        if (unsubscribeProdutos) unsubscribeProdutos();
+        if (!currentEmpresa) return;
+
+        const constraints = getConstraints();
+        const produtosQuery = query(collection(db, 'produtos'), ...constraints);
+        const movimentosQuery = query(collection(db, 'movimentos'), ...constraints);
+
+        unsubscribeProdutos = onSnapshot(produtosQuery, (snapshot) => {
+            produtosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            atualizarSelects();
+            renderMovimentos(); // para atualizar nomes na tabela
+            updateStats();
+            updateCharts();
+        }, (error) => console.error('Erro snapshot produtos:', error));
+
+        unsubscribeMovimentos = onSnapshot(movimentosQuery, (snapshot) => {
+            movimentosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderMovimentos();
+            updateStats();
+            updateCharts();
+        }, (error) => console.error('Erro snapshot movimentos:', error));
+    }
+
+    // ==================== TRANSAÇÃO PARA ADICIONAR MOVIMENTO ====================
+    async function registrarMovimentoTransacao(produtoId, tipo, quantidade, responsavel, motivo) {
+        if (!produtoId || quantidade <= 0) throw new Error('Produto e quantidade válida são obrigatórios.');
+        
+        const produtoRef = doc(db, 'produtos', produtoId);
+        
+        await runTransaction(db, async (transaction) => {
+            const produtoDoc = await transaction.get(produtoRef);
+            if (!produtoDoc.exists()) throw new Error('Produto não encontrado.');
+            
+            const produtoData = produtoDoc.data();
+            let novoEstoque = produtoData.estoque || 0;
+            
+            if (tipo === 'entrada') {
+                novoEstoque += quantidade;
+            } else if (tipo === 'saida') {
+                if (novoEstoque < quantidade) throw new Error(`Estoque insuficiente! Disponível: ${novoEstoque}`);
+                novoEstoque -= quantidade;
+            } else if (tipo === 'ajuste') {
+                novoEstoque = quantidade;
+            } else {
+                throw new Error('Tipo de movimento inválido.');
+            }
+            
+            // Atualiza estoque do produto
+            transaction.update(produtoRef, { estoque: novoEstoque, atualizado_em: new Date().toISOString() });
+            
+            // Cria o movimento
+            const novoMovimento = {
+                produtoId,
+                tipo,
+                quantidade,
+                responsavel: responsavel || 'Sistema',
+                motivo: motivo || '',
+                data: new Date().toISOString(),
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid,
+                estornado: false,
+                movimento_original_id: null
+            };
+            const movimentoRef = doc(collection(db, 'movimentos'));
+            transaction.set(movimentoRef, novoMovimento);
+        });
+        
+        showToast('Movimentação registrada com sucesso!', 'success');
+    }
+
+    // ==================== ESTORNAR MOVIMENTO (com transação) ====================
+    async function estornarMovimento(id) {
+        const movimento = movimentosCache.find(m => m.id === id);
+        if (!movimento) throw new Error('Movimentação não encontrada.');
+        if (movimento.estornado) throw new Error('Esta movimentação já foi estornada.');
+        
+        await runTransaction(db, async (transaction) => {
+            // Verificar se o movimento ainda existe e não foi estornado
+            const movRef = doc(db, 'movimentos', id);
+            const movDoc = await transaction.get(movRef);
+            if (!movDoc.exists()) throw new Error('Movimentação não encontrada.');
+            if (movDoc.data().estornado) throw new Error('Movimentação já estornada.');
+            
+            const produtoRef = doc(db, 'produtos', movimento.produtoId);
+            const produtoDoc = await transaction.get(produtoRef);
+            if (!produtoDoc.exists()) throw new Error('Produto não encontrado.');
+            
+            let novoEstoque = produtoDoc.data().estoque || 0;
+            // Reverter o efeito do movimento original
+            if (movimento.tipo === 'entrada') {
+                novoEstoque -= movimento.quantidade;
+                if (novoEstoque < 0) novoEstoque = 0;
+            } else if (movimento.tipo === 'saida') {
+                novoEstoque += movimento.quantidade;
+            } else if (movimento.tipo === 'ajuste') {
+                // Para ajuste, o estorno restaura o valor anterior? Como não temos o valor anterior, melhor reverter para o estoque antes do ajuste? 
+                // Opção: ao criar ajuste, armazenar o estoque anterior. Mas por simplicidade, no estorno de ajuste, reaplicamos a lógica oposta? Não é trivial.
+                // Vamos apenas impedir estorno de ajuste com mensagem.
+                throw new Error('Estorno de ajuste não implementado. Para corrigir, faça um novo ajuste.');
+            }
+            
+            transaction.update(produtoRef, { estoque: novoEstoque, atualizado_em: new Date().toISOString() });
+            transaction.update(movRef, { estornado: true, data_estorno: new Date().toISOString() });
+            
+            // Opcional: criar movimento de estorno reverso? (pode ser feito separadamente)
+        });
+        
+        showToast('Movimentação estornada com sucesso!', 'success');
+    }
+
+    // ==================== DELETAR MOVIMENTO (sem transação, apenas se não estornado) ====================
+    async function deleteMovimento(id) {
+        const mov = movimentosCache.find(m => m.id === id);
+        if (!mov) return;
+        if (!mov.estornado && !confirm('Esta movimentação NÃO está estornada. Excluir poderá deixar o estoque inconsistente. Deseja continuar?')) return;
+        await deleteDoc(doc(db, 'movimentos', id));
+        showToast('Movimentação excluída!', 'success');
+    }
+
+    // ==================== FORMULÁRIO ====================
+    function getFormData() {
+        return {
+            produtoId: document.getElementById('movProdutoId').value,
+            tipo: document.getElementById('movTipo').value,
+            quantidade: parseInt(document.getElementById('movQuantidade').value) || 0,
+            responsavel: document.getElementById('movResponsavel').value,
+            motivo: document.getElementById('movMotivo').value
+        };
+    }
+    function resetForm() {
+        document.getElementById('movProdutoId').value = '';
+        document.getElementById('movTipo').value = '';
+        document.getElementById('movQuantidade').value = '';
+        document.getElementById('movResponsavel').value = '';
+        document.getElementById('movMotivo').value = '';
+        document.getElementById('estoqueInfo').style.display = 'none';
+        editingId = null;
+        document.getElementById('cancelEditBtn').style.display = 'none';
+        const btn = document.getElementById('saveMovimentoBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Registrar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+    function fillForm(m) {
+        document.getElementById('movProdutoId').value = m.produtoId || '';
+        document.getElementById('movTipo').value = m.tipo || '';
+        document.getElementById('movQuantidade').value = m.quantidade || '';
+        document.getElementById('movResponsavel').value = m.responsavel || '';
+        document.getElementById('movMotivo').value = m.motivo || '';
+        mostrarInfoEstoque(m.produtoId);
+    }
+    function mostrarInfoEstoque(produtoId) {
+        if (!produtoId) { document.getElementById('estoqueInfo').style.display = 'none'; return; }
+        const produto = produtosCache.find(p => p.id === produtoId);
+        if (produto) {
+            const estoqueAtual = produto.estoque || 0;
+            const estoqueMin = produto.estoqueMin || 0;
+            const statusClass = estoqueAtual <= estoqueMin && estoqueMin > 0 ? 'warning' : 'info';
+            document.getElementById('estoqueInfo').innerHTML = `📊 Estoque atual: <strong>${estoqueAtual}</strong> unidades | Estoque mínimo: ${estoqueMin}`;
+            document.getElementById('estoqueInfo').style.background = statusClass === 'warning' ? '#e76f5120' : '#2c7da020';
+            document.getElementById('estoqueInfo').style.color = statusClass === 'warning' ? '#e76f51' : '#2c7da0';
+            document.getElementById('estoqueInfo').style.display = 'block';
+        } else {
+            document.getElementById('estoqueInfo').style.display = 'none';
+        }
+    }
+    async function salvarMovimento() {
+        const produtoId = document.getElementById('movProdutoId').value;
+        if (!produtoId) { showToast('Selecione um produto!', 'error'); return; }
+        const tipo = document.getElementById('movTipo').value;
+        if (!tipo) { showToast('Selecione o tipo!', 'error'); return; }
+        const quantidade = parseInt(document.getElementById('movQuantidade').value);
+        if (!quantidade || quantidade <= 0) { showToast('Quantidade inválida!', 'error'); return; }
+        
+        const data = getFormData();
+        try {
+            await registrarMovimentoTransacao(data.produtoId, data.tipo, data.quantidade, data.responsavel, data.motivo);
+            resetForm();
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    }
+    function cancelEdit() { resetForm(); }
+
+    // ==================== EDIT, VIEW (globais) ====================
+    window.editMovimento = function(id) {
+        const m = movimentosCache.find(m => m.id === id);
+        if (m && !m.estornado) {
+            fillForm(m);
+            editingId = id;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            const btn = document.getElementById('saveMovimentoBtn');
+            btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            window.scrollTo({ top: 0 });
+        } else if (m && m.estornado) {
+            showToast('Movimentações estornadas não podem ser editadas.', 'warning');
+        }
+    };
+    window.viewMovimento = function(id) {
+        const m = movimentosCache.find(m => m.id === id);
+        if (!m) return;
+        const prod = produtosCache.find(p => p.id === m.produtoId);
+        const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
+        const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
+        const estornadoBadge = m.estornado ? '<span class="badge" style="background:#e76f5120; color:#e76f51; margin-left:8px;"><i class="fas fa-undo-alt"></i> Estornado</span>' : '';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Produto:</span><span class="info-value">${escapeHtml(prod?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value"><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span>${estornadoBadge}</span></div>
+            <div class="info-row"><span class="info-label">Quantidade:</span><span class="info-value">${m.quantidade}</span></div>
+            <div class="info-row"><span class="info-label">Responsável:</span><span class="info-value">${escapeHtml(m.responsavel || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Motivo:</span><span class="info-value">${escapeHtml(m.motivo || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${formatarDataHora(m.data)}</span></div>
+            ${m.data_estorno ? `<div class="info-row"><span class="info-label">Estornado em:</span><span class="info-value">${formatarDataHora(m.data_estorno)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.deleteMovimento = deleteMovimento;
+    window.estornarMovimento = async (id) => {
+        try {
+            await estornarMovimento(id);
+        } catch (error) {
+            showToast(error.message, 'error');
+        }
+    };
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+
+    // ==================== FILTROS ====================
+    function getFiltros() {
+        return {
+            search: document.getElementById('searchInput')?.value.toLowerCase() || '',
+            inicio: document.getElementById('dataInicio').value,
+            fim: document.getElementById('dataFim').value,
+            tipo: document.getElementById('tipoFilter')?.value || '',
+            produtoId: document.getElementById('produtoFilter')?.value || ''
+        };
+    }
+    function aplicarFiltros(movs) {
+        let filtered = [...movs];
+        const { search, inicio, fim, tipo, produtoId } = getFiltros();
+        if (inicio && fim) filtered = filtered.filter(m => m.data && m.data >= inicio && m.data <= fim);
+        if (tipo) filtered = filtered.filter(m => m.tipo === tipo);
+        if (produtoId) filtered = filtered.filter(m => m.produtoId === produtoId);
+        if (search) {
+            filtered = filtered.filter(m => {
+                const prod = produtosCache.find(p => p.id === m.produtoId);
+                return (prod?.nome || '').toLowerCase().includes(search) || (m.responsavel || '').toLowerCase().includes(search) || (m.motivo || '').toLowerCase().includes(search);
+            });
+        }
+        return filtered;
+    }
+    function aplicarFiltrosEAtualizar() { currentPage = 1; renderMovimentos(); updateStats(); updateCharts(); }
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('dataInicio').value = '';
+        document.getElementById('dataFim').value = '';
+        document.getElementById('tipoFilter').value = '';
+        document.getElementById('produtoFilter').value = '';
+        aplicarFiltrosEAtualizar();
+        showToast('Filtros limpos!', 'success');
+    }
+
+    // ==================== RENDER ====================
+    function renderMovimentos() {
+        const filtered = aplicarFiltros(movimentosCache);
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('movimentosTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhuma movimentação encontrada<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(m => {
+            const prod = produtosCache.find(p => p.id === m.produtoId);
+            const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
+            const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
+            const estornadoClass = m.estornado ? 'opacity:0.6; text-decoration:line-through;' : '';
+            return `<tr style="${estornadoClass}">
+                <td style="white-space:nowrap;">${formatarDataHora(m.data)}</td>
+                <td><strong>${escapeHtml(prod?.nome || '-')}</strong>${m.estornado ? '<br><span style="font-size:0.6rem; color:#e76f51;">(Estornado)</span>' : ''}</td>
+                <td><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span></td>
+                <td>${m.quantidade}</td>
+                <td>${escapeHtml(m.responsavel || '-')}</td>
+                <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(m.motivo || '')}">${escapeHtml(m.motivo || '-')}</td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewMovimento('${m.id}')"><i class="fas fa-eye"></i></button>
+                    ${!m.estornado ? `<button class="action-btn edit" onclick="editMovimento('${m.id}')"><i class="fas fa-edit"></i></button>` : ''}
+                    ${!m.estornado ? `<button class="action-btn revert" onclick="estornarMovimento('${m.id}')"><i class="fas fa-undo-alt"></i></button>` : ''}
+                    <button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button>
+                </td>
+              </tr>`;
+        }).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+    function goToPage(page) { currentPage = page; renderMovimentos(); }
+
+    function updateStats() {
+        const filtered = aplicarFiltros(movimentosCache);
+        const entradas = filtered.filter(m => m.tipo === 'entrada').reduce((s,m)=> s+m.quantidade,0);
+        const saidas = filtered.filter(m => m.tipo === 'saida').reduce((s,m)=> s+m.quantidade,0);
+        document.getElementById('totalEntradas').innerText = entradas;
+        document.getElementById('totalSaidas').innerText = saidas;
+        document.getElementById('totalMovimentacoes').innerText = filtered.length;
+        const valorEstoque = produtosCache.reduce((s,p)=> s + ((p.precoCusto || p.precoVenda || 0) * (p.estoque || 0)),0);
+        document.getElementById('saldoEstoque').innerHTML = `R$ ${formatCurrency(valorEstoque)}`;
+    }
+
+    function updateCharts() {
+        const filtered = aplicarFiltros(movimentosCache);
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const entradasMensais = new Array(12).fill(0);
+        const saidasMensais = new Array(12).fill(0);
+        filtered.forEach(m => {
+            const mes = new Date(m.data).getMonth();
+            if (m.tipo === 'entrada') entradasMensais[mes] += m.quantidade;
+            else if (m.tipo === 'saida') saidasMensais[mes] += m.quantidade;
+        });
+        if(movimentacoesChart) movimentacoesChart.destroy();
+        const ctx1 = document.getElementById('movimentacoesChart').getContext('2d');
+        movimentacoesChart = new Chart(ctx1, {
+            type: 'bar', data: { labels: meses, datasets: [
+                { label: 'Entradas', data: entradasMensais, backgroundColor: '#2a9d8f', borderRadius: 8 },
+                { label: 'Saídas', data: saidasMensais, backgroundColor: '#e76f51', borderRadius: 8 }
+            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} unidades` } } } }
+        });
+        const entradaTotal = filtered.filter(m=>m.tipo==='entrada').reduce((s,m)=> s+m.quantidade,0);
+        const saidaTotal = filtered.filter(m=>m.tipo==='saida').reduce((s,m)=> s+m.quantidade,0);
+        const ajusteTotal = filtered.filter(m=>m.tipo==='ajuste').reduce((s,m)=> s+m.quantidade,0);
+        if(tipoChart) tipoChart.destroy();
+        const ctx2 = document.getElementById('tipoChart').getContext('2d');
+        tipoChart = new Chart(ctx2, {
+            type: 'doughnut', data: { labels: ['Entradas', 'Saídas', 'Ajustes'], datasets: [{ data: [entradaTotal, saidaTotal, ajusteTotal], backgroundColor: ['#2a9d8f', '#e76f51', '#e9c46a'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} unidades` } } } }
+        });
+    }
+
+    // ==================== SELECTS ====================
+    function atualizarSelects() {
+        const select = document.getElementById('movProdutoId');
+        const filterSelect = document.getElementById('produtoFilter');
+        const options = produtosCache.map(p => `<option value="${p.id}">${escapeHtml(p.nome)} (Estoque: ${p.estoque || 0})</option>`).join('');
+        select.innerHTML = '<option value="">Selecione</option>' + options;
+        filterSelect.innerHTML = '<option value="">Todos</option>' + options;
+        select.onchange = () => mostrarInfoEstoque(select.value);
+    }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportarPDF() {
+        const filtered = aplicarFiltros(movimentosCache);
+        if (filtered.length === 0) { showToast('Não há dados para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Movimento de Estoque', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Período: ${getFiltros().inicio || 'Todas'} a ${getFiltros().fim || 'Todas'}`, 14, 38);
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 46);
+            const entradas = filtered.filter(m=>m.tipo==='entrada').reduce((s,m)=> s+m.quantidade,0);
+            const saidas = filtered.filter(m=>m.tipo==='saida').reduce((s,m)=> s+m.quantidade,0);
+            doc.setFontSize(9); doc.text(`Total Entradas: ${entradas} unidades`, 14, 54);
+            doc.text(`Total Saídas: ${saidas} unidades`, 14, 62);
+            doc.text(`Saldo: ${entradas - saidas} unidades`, 14, 70);
+            const colunas = [{ label: 'Data', width: 35 }, { label: 'Produto', width: 50 }, { label: 'Tipo', width: 25 }, { label: 'Qtd', width: 20 }, { label: 'Responsável', width: 35 }, { label: 'Motivo', width: 50 }];
+            let y = 80;
+            doc.setFontSize(8); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; });
+            doc.setTextColor(0,0,0); y += 10;
+            for (const m of filtered) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; }); y += 10; x = 14; doc.setTextColor(0,0,0); }
+                const prod = produtosCache.find(p => p.id === m.produtoId);
+                const dataFormatada = formatarDataHora(m.data).substring(0,16);
+                doc.text(dataFormatada, x+2, y+4); x += colunas[0].width;
+                doc.text((prod?.nome || '-').substring(0,30), x+2, y+4); x += colunas[1].width;
+                doc.text(m.tipo || '-', x+2, y+4); x += colunas[2].width;
+                doc.text(String(m.quantidade), x+2, y+4); x += colunas[3].width;
+                doc.text((m.responsavel || '-').substring(0,20), x+2, y+4); x += colunas[4].width;
+                doc.text((m.motivo || '-').substring(0,35), x+2, y+4);
+                y += 7; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`movimento_estoque_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado com sucesso!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 
+                '<i class="fas fa-globe"></i> Super Administrador' :
+                `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Alerta de trial (apenas para empresas reais)
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.className = 'trial-alert warning';
+                } else if (statusInfo.status === 'expirado') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.className = 'trial-alert expired';
+                } else if (statusInfo.status === 'trial') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.className = 'trial-alert';
+                } else if (statusInfo.status === 'ativo') {
+                    trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                    trialDiv.style.display = 'flex';
+                    trialDiv.style.background = '#e0f2e9';
+                    trialDiv.style.borderLeftColor = '#2a9d8f';
+                } else {
+                    trialDiv.style.display = 'none';
+                }
+            } else {
+                document.getElementById('trialAlert').style.display = 'none';
+            }
+            
+            await iniciarListeners();
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveMovimentoBtn').onclick = salvarMovimento;
+    document.getElementById('cancelEditBtn').onclick = cancelEdit;
+    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderMovimentos(); });
+    document.getElementById('aplicarFiltrosBtn').onclick = aplicarFiltrosEAtualizar;
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+    document.getElementById('exportPdfBtn').onclick = exportarPDF;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = fecharModal;
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
+    window.goToPage = goToPage;
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    console.log('✅ Movimento Estoque refatorado – transações, tempo real e suporte a superadmin');
+</script>
+</body>
+</html>
