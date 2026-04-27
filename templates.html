@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>PerShop - Módulo de Templates | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -260,7 +259,7 @@
             </div>
             <div class="table-card">
                 <div class="table-header"><h3><i class="fas fa-list"></i> Templates Cadastrados</h3><div class="search-area"><input type="text" id="searchTemplate" placeholder="🔍 Buscar por nome..."><select id="tplCanalFilter"><option value="">Todos canais</option></select><select id="tplStatusFilter"><option value="">Todos status</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select><select id="tplTipoFilter"><option value="">Todos tipos</option><option value="lembrete">🔔 Lembrete</option><option value="promocao">🎉 Promoção</option><option value="confirmacao">✅ Confirmação</option><option value="cancelamento">❌ Cancelamento</option><option value="notificacao">📢 Notificação</option><option value="boas_vindas">👋 Boas Vindas</option><option value="aniversario_pet">🎂 Aniversário do Pet</option><option value="aniversario_cliente">🎂 Aniversário do Cliente</option><option value="cliente_inativo">⏰ Cliente Inativo</option><option value="outro">📌 Outro</option></select><button id="clearTemplateFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button><button id="exportTemplatesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
-                <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></table></thead><tbody id="templatesTableBody"></tbody>}</div>
+                <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></tr></thead><tbody id="templatesTableBody"></tbody>}</div>
                 <div class="pagination" id="templatesPagination"></div>
             </div>
         </div>
@@ -300,6 +299,7 @@
 </div>
 
 <script type="module">
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
@@ -345,7 +345,7 @@
         { nome: "link_whatsapp", descricao: "Link para WhatsApp da empresa", exemplo: "https://wa.me/...", categoria: "Links" }
     ];
 
-    // ==================== AUXILIAR: CONSTRAINTS (SUPERADMIN) ====================
+    // ==================== AUXILIAR: CONSTRAINTS ====================
     function getConstraints() {
         if (currentEmpresa && currentEmpresa.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
@@ -361,7 +361,7 @@
         templatesCache = templatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
-    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE PROFISSIONAL ====================
+    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
     function gerarTemplateProfissional(tipo, canalTipo, gatilho) {
         const empresa = currentEmpresa;
         const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
@@ -534,13 +534,16 @@
         document.getElementById('tplAtivo').value = 'true';
         document.getElementById('tplAutomatico').value = 'true';
         document.getElementById('tplMensagem').value = '';
-        document.getElementById('previewMessage').innerHTML = '';
+        if (document.getElementById('previewMessage')) document.getElementById('previewMessage').innerHTML = '';
         editingId = null;
-        document.getElementById('cancelTemplateBtn').style.display = 'none';
-        const btn = document.getElementById('saveTemplateBtn');
-        btn.innerHTML = '<i class="fas fa-save"></i> Salvar Template';
-        btn.classList.remove('btn-success');
-        btn.classList.add('btn-primary');
+        const cancelBtn = document.getElementById('cancelTemplateBtn');
+        if (cancelBtn) cancelBtn.style.display = 'none';
+        const saveBtn = document.getElementById('saveTemplateBtn');
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Template';
+            saveBtn.classList.remove('btn-success');
+            saveBtn.classList.add('btn-primary');
+        }
     }
     function fillForm(template) {
         document.getElementById('tplNome').value = template.nome || '';
@@ -566,8 +569,10 @@
 
     // ==================== PREVIEW ====================
     function atualizarPreview() {
+        const previewDiv = document.getElementById('previewMessage');
+        if (!previewDiv) return;
         const mensagem = document.getElementById('tplMensagem').value;
-        if (!mensagem) { document.getElementById('previewMessage').innerHTML = '<span style="color:#7a9eb0;">A mensagem aparecerá aqui...</span>'; return; }
+        if (!mensagem) { previewDiv.innerHTML = '<span style="color:#7a9eb0;">A mensagem aparecerá aqui...</span>'; return; }
         let preview = mensagem;
         const exemplos = {
             '{{pet_nome}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">Rex</span>',
@@ -580,10 +585,11 @@
             preview = preview.split(variavel).join(exemplo);
         }
         preview = preview.replace(/\n/g, '<br>');
-        document.getElementById('previewMessage').innerHTML = preview;
+        previewDiv.innerHTML = preview;
     }
     function inserirVariavel(variavel) {
         const textarea = document.getElementById('tplMensagem');
+        if (!textarea) return;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const text = textarea.value;
@@ -599,26 +605,40 @@
     function atualizarProvedorPorCanal() {
         const canalId = document.getElementById('tplCanalId').value;
         const canal = canaisCache.find(c => c.id === canalId);
-        document.getElementById('tplProvedor').value = canal?.provedor || '';
+        const provedorInput = document.getElementById('tplProvedor');
+        if (provedorInput) provedorInput.value = canal?.provedor || '';
     }
 
     // ==================== RENDER ====================
     function renderTemplates() {
+        const tbody = document.getElementById('templatesTableBody');
+        if (!tbody) {
+            console.error('Elemento templatesTableBody não encontrado');
+            return;
+        }
         let filtered = templatesCache.filter(t => {
-            const search = document.getElementById('searchTemplate')?.value.toLowerCase() || '';
-            const canalFilter = document.getElementById('tplCanalFilter')?.value || '';
-            const statusFilter = document.getElementById('tplStatusFilter')?.value || '';
-            const tipoFilter = document.getElementById('tplTipoFilter')?.value || '';
+            const searchInput = document.getElementById('searchTemplate');
+            const canalFilter = document.getElementById('tplCanalFilter');
+            const statusFilter = document.getElementById('tplStatusFilter');
+            const tipoFilter = document.getElementById('tplTipoFilter');
+            const search = searchInput?.value.toLowerCase() || '';
+            const canalFilterValue = canalFilter?.value || '';
+            const statusFilterValue = statusFilter?.value || '';
+            const tipoFilterValue = tipoFilter?.value || '';
             return (!search || t.nome.toLowerCase().includes(search)) &&
-                   (!canalFilter || t.canal_id === canalFilter) &&
-                   (!statusFilter || (t.ativo ? 'true' : 'false') === statusFilter) &&
-                   (!tipoFilter || t.tipo === tipoFilter);
+                   (!canalFilterValue || t.canal_id === canalFilterValue) &&
+                   (!statusFilterValue || (t.ativo ? 'true' : 'false') === statusFilterValue) &&
+                   (!tipoFilterValue || t.tipo === tipoFilterValue);
         });
         const totalPages = Math.ceil(filtered.length / itemsPerPage);
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        const tbody = document.getElementById('templatesTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum template encontrado<\/td><\/tr>'; document.getElementById('templatesPagination').innerHTML = ''; return; }
+        if (paginated.length === 0) {
+            tbody.innerHTML = '</td><td colspan="7" style="text-align:center; padding:40px;">Nenhum template encontrado</td><tr>';
+            const paginationDiv = document.getElementById('templatesPagination');
+            if (paginationDiv) paginationDiv.innerHTML = '';
+            return;
+        }
         tbody.innerHTML = paginated.map(t => {
             const canal = canaisCache.find(c => c.id === t.canal_id);
             const statusClass = t.ativo ? 'status-ativo' : 'status-inativo';
@@ -638,19 +658,25 @@
                     ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
                     <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
                  </div>
-            <table>`;
+             </tr>`;
         }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('templatesPagination').innerHTML = pagHtml;
+        const paginationDiv = document.getElementById('templatesPagination');
+        if (paginationDiv) {
+            let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+            for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+            pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+            paginationDiv.innerHTML = pagHtml;
+        }
     }
     function goToPage(page) { currentPage = page; renderTemplates(); }
 
     function updateStats() {
-        document.getElementById('totalTemplates').innerText = templatesCache.length;
-        document.getElementById('templatesAtivos').innerText = templatesCache.filter(t => t.ativo).length;
-        document.getElementById('templatesInativos').innerText = templatesCache.filter(t => t.tipo === 'cliente_inativo').length;
+        const totalSpan = document.getElementById('totalTemplates');
+        if (totalSpan) totalSpan.innerText = templatesCache.length;
+        const ativosSpan = document.getElementById('templatesAtivos');
+        if (ativosSpan) ativosSpan.innerText = templatesCache.filter(t => t.ativo).length;
+        const inativosSpan = document.getElementById('templatesInativos');
+        if (inativosSpan) inativosSpan.innerText = templatesCache.filter(t => t.tipo === 'cliente_inativo').length;
         let whatsappCount = 0, emailCount = 0;
         templatesCache.forEach(t => {
             const canal = canaisCache.find(c => c.id === t.canal_id);
@@ -659,8 +685,10 @@
                 if (canal.canal === 'email') emailCount++;
             }
         });
-        document.getElementById('templatesWhatsApp').innerText = whatsappCount;
-        document.getElementById('templatesEmail').innerText = emailCount;
+        const whatsappSpan = document.getElementById('templatesWhatsApp');
+        if (whatsappSpan) whatsappSpan.innerText = whatsappCount;
+        const emailSpan = document.getElementById('templatesEmail');
+        if (emailSpan) emailSpan.innerText = emailCount;
     }
 
     // ==================== EXPORTAR PDF ====================
@@ -702,19 +730,38 @@
 
     // ==================== FILTROS ====================
     function clearTemplateFilters() {
-        document.getElementById('searchTemplate').value = '';
-        document.getElementById('tplCanalFilter').value = '';
-        document.getElementById('tplStatusFilter').value = '';
-        document.getElementById('tplTipoFilter').value = '';
+        const searchInput = document.getElementById('searchTemplate');
+        if (searchInput) searchInput.value = '';
+        const canalFilter = document.getElementById('tplCanalFilter');
+        if (canalFilter) canalFilter.value = '';
+        const statusFilter = document.getElementById('tplStatusFilter');
+        if (statusFilter) statusFilter.value = '';
+        const tipoFilter = document.getElementById('tplTipoFilter');
+        if (tipoFilter) tipoFilter.value = '';
         currentPage = 1;
         renderTemplates();
         showToast('Filtros limpos!', 'success');
     }
-    function aplicarFiltroTipo(tipo) { document.getElementById('tplTipoFilter').value = tipo; currentPage = 1; renderTemplates(); }
-    function aplicarFiltroAtivo(ativo) { document.getElementById('tplStatusFilter').value = ativo; currentPage = 1; renderTemplates(); }
+    function aplicarFiltroTipo(tipo) {
+        const tipoFilter = document.getElementById('tplTipoFilter');
+        if (tipoFilter) tipoFilter.value = tipo;
+        currentPage = 1;
+        renderTemplates();
+    }
+    function aplicarFiltroAtivo(ativo) {
+        const statusFilter = document.getElementById('tplStatusFilter');
+        if (statusFilter) statusFilter.value = ativo;
+        currentPage = 1;
+        renderTemplates();
+    }
     function aplicarFiltroCanal(canal) {
         const canalObj = canaisCache.find(c => c.canal === canal);
-        if (canalObj) { document.getElementById('tplCanalFilter').value = canalObj.id; currentPage = 1; renderTemplates(); }
+        if (canalObj) {
+            const canalFilter = document.getElementById('tplCanalFilter');
+            if (canalFilter) canalFilter.value = canalObj.id;
+            currentPage = 1;
+            renderTemplates();
+        }
     }
 
     // ==================== VIEW FUNCTIONS ====================
@@ -724,23 +771,27 @@
         if (!t) return;
         const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
         const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
-        document.getElementById('modalBody').innerHTML = `
-            <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(t.nome)}</span></div>
-            <div class="info-row"><span class="info-label">Canal:</span><span class="info-value">${escapeHtml(canal?.nome || '-')} (${canal?.canal || '-'})</span></div>
-            <div class="info-row"><span class="info-label">Provedor:</span><span class="info-value">${escapeHtml(t.provedor || canal?.provedor || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${tipoLabels[t.tipo] || t.tipo || '-'}</span></div>
-            <div class="info-row"><span class="info-label">Gatilho:</span><span class="info-value">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></div>
-            <div class="info-row"><span class="info-label">Título/Assunto:</span><span class="info-value">${escapeHtml(t.titulo || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Dias Antecedência:</span><span class="info-value">${t.dias_antecedencia || 0} dias</span></div>
-            <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${t.ativo ? '<span class="status-badge status-ativo">✅ Ativo</span>' : '<span class="status-badge status-inativo">⭕ Inativo</span>'}</span></div>
-            <div class="info-row"><span class="info-label">Automático:</span><span class="info-value">${t.automatico ? '✅ Sim' : '❌ Não'}</span></div>
-            <div class="info-row"><span class="info-label">Mensagem:</span><span class="info-value"><div class="preview-message" style="background:#f8fbfd; white-space:pre-wrap; text-align:left;">${escapeHtml(t.mensagem || '-')}</div></span></div>
-        `;
-        document.getElementById('viewModal').style.display = 'flex';
+        const modalBody = document.getElementById('modalBody');
+        if (modalBody) {
+            modalBody.innerHTML = `
+                <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(t.nome)}</span></div>
+                <div class="info-row"><span class="info-label">Canal:</span><span class="info-value">${escapeHtml(canal?.nome || '-')} (${canal?.canal || '-'})</span></div>
+                <div class="info-row"><span class="info-label">Provedor:</span><span class="info-value">${escapeHtml(t.provedor || canal?.provedor || '-')}</span></div>
+                <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${tipoLabels[t.tipo] || t.tipo || '-'}</span></div>
+                <div class="info-row"><span class="info-label">Gatilho:</span><span class="info-value">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></div>
+                <div class="info-row"><span class="info-label">Título/Assunto:</span><span class="info-value">${escapeHtml(t.titulo || '-')}</span></div>
+                <div class="info-row"><span class="info-label">Dias Antecedência:</span><span class="info-value">${t.dias_antecedencia || 0} dias</span></div>
+                <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${t.ativo ? '<span class="status-badge status-ativo">✅ Ativo</span>' : '<span class="status-badge status-inativo">⭕ Inativo</span>'}</span></div>
+                <div class="info-row"><span class="info-label">Automático:</span><span class="info-value">${t.automatico ? '✅ Sim' : '❌ Não'}</span></div>
+                <div class="info-row"><span class="info-label">Mensagem:</span><span class="info-value"><div class="preview-message" style="background:#f8fbfd; white-space:pre-wrap; text-align:left;">${escapeHtml(t.mensagem || '-')}</div></span></div>
+            `;
+        }
+        const modal = document.getElementById('viewModal');
+        if (modal) modal.style.display = 'flex';
     };
     window.editTemplate = function(id) {
         const t = templatesCache.find(t => t.id === id);
-        if (t) { fillForm(t); editingId = id; document.getElementById('cancelTemplateBtn').style.display = 'inline-block'; document.getElementById('saveTemplateBtn').innerHTML = '<i class="fas fa-pen"></i> Atualizar Template'; document.getElementById('saveTemplateBtn').classList.remove('btn-primary'); document.getElementById('saveTemplateBtn').classList.add('btn-success'); document.querySelector('.tab-btn[data-tab="templates"]').click(); window.scrollTo({ top: 0 }); }
+        if (t) { fillForm(t); editingId = id; const cancelBtn = document.getElementById('cancelTemplateBtn'); if (cancelBtn) cancelBtn.style.display = 'inline-block'; const saveBtn = document.getElementById('saveTemplateBtn'); if (saveBtn) { saveBtn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Template'; saveBtn.classList.remove('btn-primary'); saveBtn.classList.add('btn-success'); } const tabBtn = document.querySelector('.tab-btn[data-tab="templates"]'); if (tabBtn) tabBtn.click(); window.scrollTo({ top: 0 }); }
     };
     window.deleteTemplate = deleteTemplate;
 
@@ -751,14 +802,21 @@
         currentWhatsappTemplate = template;
         const messageTextarea = document.getElementById('whatsappTestMessage');
         const numeroInput = document.getElementById('whatsappTestNumber');
-        numeroInput.value = '';
-        let previewMsg = template.mensagem;
-        const previewExemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{empresa_nome}}':currentEmpresa?.emp_razao_social || 'PetShop Central', '{{empresa_telefone}}':currentEmpresa?.emp_whatsapp || '(34) 99782-4990' };
-        for (const [k,v] of Object.entries(previewExemplos)) previewMsg = previewMsg.split(k).join(v);
-        messageTextarea.value = previewMsg;
-        document.getElementById('whatsappTestModal').style.display = 'flex';
+        if (messageTextarea) {
+            let previewMsg = template.mensagem;
+            const previewExemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{empresa_nome}}':currentEmpresa?.emp_razao_social || 'PetShop Central', '{{empresa_telefone}}':currentEmpresa?.emp_whatsapp || '(34) 99782-4990' };
+            for (const [k,v] of Object.entries(previewExemplos)) previewMsg = previewMsg.split(k).join(v);
+            messageTextarea.value = previewMsg;
+        }
+        if (numeroInput) numeroInput.value = '';
+        const modal = document.getElementById('whatsappTestModal');
+        if (modal) modal.style.display = 'flex';
     }
-    function fecharWhatsappModal() { document.getElementById('whatsappTestModal').style.display = 'none'; currentWhatsappTemplate = null; }
+    function fecharWhatsappModal() {
+        const modal = document.getElementById('whatsappTestModal');
+        if (modal) modal.style.display = 'none';
+        currentWhatsappTemplate = null;
+    }
     function formatarNumeroWhatsApp(numero) {
         let limp = numero.replace(/\D/g, '');
         if (limp.length === 10) limp = limp.substring(0,2) + '9' + limp.substring(2);
@@ -768,10 +826,11 @@
     }
     function enviarWhatsappTeste() {
         if (!currentWhatsappTemplate) { showToast('Nenhum template selecionado!', 'error'); fecharWhatsappModal(); return; }
-        let numero = document.getElementById('whatsappTestNumber').value;
-        if (!numero) { showToast('Digite um número de telefone!', 'error'); return; }
-        const numeroWhats = formatarNumeroWhatsApp(numero);
-        const mensagem = document.getElementById('whatsappTestMessage').value;
+        const numeroInput = document.getElementById('whatsappTestNumber');
+        if (!numeroInput || !numeroInput.value) { showToast('Digite um número de telefone!', 'error'); return; }
+        const numeroWhats = formatarNumeroWhatsApp(numeroInput.value);
+        const messageTextarea = document.getElementById('whatsappTestMessage');
+        const mensagem = messageTextarea ? messageTextarea.value : '';
         window.open(`https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagem)}`, '_blank');
         showToast('✅ Abrindo WhatsApp! A mensagem foi preenchida.', 'success');
         setTimeout(() => fecharWhatsappModal(), 2000);
@@ -779,7 +838,8 @@
 
     // ==================== VARIÁVEIS ====================
     function renderVariaveis() {
-        const search = document.getElementById('searchVariavel')?.value.toLowerCase() || '';
+        const searchInput = document.getElementById('searchVariavel');
+        const search = searchInput?.value.toLowerCase() || '';
         let variaveis = VARIAVEIS_DISPONIVEIS.filter(v => !search || v.nome.includes(search) || v.descricao.includes(search) || v.categoria.includes(search));
         const categorias = {};
         variaveis.forEach(v => { if (!categorias[v.categoria]) categorias[v.categoria] = []; categorias[v.categoria].push(v); });
@@ -795,16 +855,19 @@
             });
             html += `</div></div>`;
         }
-        document.getElementById('variaveisList').innerHTML = html || '<div style="text-align:center; padding:40px;">Nenhuma variável encontrada</div>';
+        const variaveisList = document.getElementById('variaveisList');
+        if (variaveisList) variaveisList.innerHTML = html || '<div style="text-align:center; padding:40px;">Nenhuma variável encontrada</div>';
     }
     window.copiarVariavel = function(variavel) { navigator.clipboard.writeText(variavel); showToast(`Variável ${variavel} copiada!`, 'success'); };
 
     // ==================== SELECTS ====================
     function atualizarSelectCanais() {
         const options = canaisCache.filter(c => c.ativo).map(c => `<option value="${c.id}" data-canal="${c.canal}" data-provedor="${c.provedor || ''}">${escapeHtml(c.nome)} (${c.canal === 'whatsapp' ? 'WhatsApp' : (c.canal === 'email' ? 'E-mail' : 'SMS')})</option>`).join('');
-        document.getElementById('tplCanalId').innerHTML = '<option value="">Selecione um canal</option>' + options;
-        document.getElementById('tplCanalFilter').innerHTML = '<option value="">Todos canais</option>' + options;
-        document.getElementById('tplCanalId').onchange = atualizarProvedorPorCanal;
+        const canalSelect = document.getElementById('tplCanalId');
+        if (canalSelect) canalSelect.innerHTML = '<option value="">Selecione um canal</option>' + options;
+        const canalFilter = document.getElementById('tplCanalFilter');
+        if (canalFilter) canalFilter.innerHTML = '<option value="">Todos canais</option>' + options;
+        if (canalSelect) canalSelect.onchange = atualizarProvedorPorCanal;
     }
 
     // ==================== DADOS EXEMPLO ====================
@@ -863,76 +926,100 @@
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            const isAdminUser = await verificarAcessoAdmin(user);
-            const isSuperUser = await verificarSuperAdmin(user);
-            if (!isAdminUser && !isSuperUser) {
-                document.getElementById('loadingScreen').classList.add('hidden');
-                document.getElementById('blockedContent').classList.remove('hidden');
-                document.getElementById('conteudoPrincipal').style.display = 'none';
-                return;
-            }
-            currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'expired') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+    document.addEventListener('DOMContentLoaded', () => {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                const isAdminUser = await verificarAcessoAdmin(user);
+                const isSuperUser = await verificarSuperAdmin(user);
+                if (!isAdminUser && !isSuperUser) {
+                    const loadingScreen = document.getElementById('loadingScreen');
+                    if (loadingScreen) loadingScreen.classList.add('hidden');
+                    const blockedContent = document.getElementById('blockedContent');
+                    if (blockedContent) blockedContent.classList.remove('hidden');
+                    const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+                    if (conteudoPrincipal) conteudoPrincipal.style.display = 'none';
+                    return;
+                }
+                currentEmpresa = await carregarEmpresaUsuario(user);
+                if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+                const empresaInfo = document.getElementById('empresaInfo');
+                if (empresaInfo) {
+                    empresaInfo.innerHTML = isSuperUser ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+                }
+                
+                // Exibir alerta de trial (apenas para não superadmin)
+                if (!isSuperUser && currentEmpresa) {
+                    const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                    const trialDiv = document.getElementById('trialAlert');
+                    if (trialDiv) {
+                        if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                        else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                        else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                        else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                        else trialDiv.style.display = 'none';
+                    }
+                } else {
+                    const trialDiv = document.getElementById('trialAlert');
+                    if (trialDiv) trialDiv.style.display = 'none';
+                }
+
+                await carregarDadosEmpresa();
+                atualizarSelectCanais();
+                await initSampleData();
+                renderTemplates();
+                renderVariaveis();
+                updateStats();
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) loadingScreen.style.display = 'none';
+                const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+                if (conteudoPrincipal) conteudoPrincipal.style.display = 'block';
             } else {
-                trialDiv.style.display = 'none';
+                window.location.href = 'login.html';
             }
-
-            await carregarDadosEmpresa();
-            atualizarSelectCanais();
-            await initSampleData();
-            renderTemplates();
-            renderVariaveis();
-            updateStats();
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('conteudoPrincipal').style.display = 'block';
-        } else {
-            window.location.href = 'login.html';
-        }
+        });
     });
 
-    // ==================== EVENTOS DOM ====================
-    document.getElementById('saveTemplateBtn').onclick = salvarTemplate;
-    document.getElementById('cancelTemplateBtn').onclick = cancelEdit;
-    document.getElementById('generateMessageBtn').onclick = gerarMensagemManual;
-    document.getElementById('searchTemplate').addEventListener('input', () => { currentPage = 1; renderTemplates(); });
-    document.getElementById('tplCanalFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    document.getElementById('tplStatusFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    document.getElementById('tplTipoFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    document.getElementById('clearTemplateFilters').onclick = clearTemplateFilters;
-    document.getElementById('exportTemplatesPdfBtn').onclick = exportTemplatesPDF;
-    document.getElementById('searchVariavel').addEventListener('input', () => renderVariaveis());
-    document.getElementById('tplMensagem').addEventListener('input', atualizarPreview);
-    document.getElementById('variablesBox').addEventListener('click', (e) => {
-        const tag = e.target.closest('.variable-tag');
-        if (tag) inserirVariavel(tag.getAttribute('data-var'));
-    });
-    document.getElementById('logoutBtn').onclick = () => auth.signOut();
-    document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
-    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; if (e.target === document.getElementById('whatsappTestModal')) fecharWhatsappModal(); };
+    // ==================== EVENTOS DOM (com verificação de existência) ====================
+    const saveBtn = document.getElementById('saveTemplateBtn');
+    if (saveBtn) saveBtn.onclick = salvarTemplate;
+    const cancelBtn = document.getElementById('cancelTemplateBtn');
+    if (cancelBtn) cancelBtn.onclick = cancelEdit;
+    const generateBtn = document.getElementById('generateMessageBtn');
+    if (generateBtn) generateBtn.onclick = gerarMensagemManual;
+    const searchTemplate = document.getElementById('searchTemplate');
+    if (searchTemplate) searchTemplate.addEventListener('input', () => { currentPage = 1; renderTemplates(); });
+    const canalFilter = document.getElementById('tplCanalFilter');
+    if (canalFilter) canalFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    const statusFilter = document.getElementById('tplStatusFilter');
+    if (statusFilter) statusFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    const tipoFilter = document.getElementById('tplTipoFilter');
+    if (tipoFilter) tipoFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    const clearFiltersBtn = document.getElementById('clearTemplateFilters');
+    if (clearFiltersBtn) clearFiltersBtn.onclick = clearTemplateFilters;
+    const exportPdfBtn = document.getElementById('exportTemplatesPdfBtn');
+    if (exportPdfBtn) exportPdfBtn.onclick = exportTemplatesPDF;
+    const searchVariavel = document.getElementById('searchVariavel');
+    if (searchVariavel) searchVariavel.addEventListener('input', () => renderVariaveis());
+    const mensagemTextarea = document.getElementById('tplMensagem');
+    if (mensagemTextarea) mensagemTextarea.addEventListener('input', atualizarPreview);
+    const variablesBox = document.getElementById('variablesBox');
+    if (variablesBox) {
+        variablesBox.addEventListener('click', (e) => {
+            const tag = e.target.closest('.variable-tag');
+            if (tag) inserirVariavel(tag.getAttribute('data-var'));
+        });
+    }
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = () => auth.signOut();
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    if (modalCloseBtn) modalCloseBtn.onclick = () => { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; };
+    window.onclick = (e) => {
+        const viewModal = document.getElementById('viewModal');
+        if (e.target === viewModal && viewModal) viewModal.style.display = 'none';
+        const whatsappModal = document.getElementById('whatsappTestModal');
+        if (e.target === whatsappModal && whatsappModal) fecharWhatsappModal();
+    };
     window.goToPage = goToPage;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
@@ -941,12 +1028,27 @@
         showToast('Abrindo cliente de e-mail...', 'info');
     };
     window.logout = () => auth.signOut();
-    window.fecharModal = () => document.getElementById('viewModal').style.display = 'none';
+    window.fecharModal = () => { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; };
     window.fecharWhatsappModal = fecharWhatsappModal;
     window.enviarWhatsappTeste = enviarWhatsappTeste;
     window.abrirWhatsappTeste = abrirWhatsappTeste;
 
-    console.log('✅ Templates refatorado - superadmin liberado');
+    // TABS
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(btn => {
+        btn.onclick = () => {
+            const tab = btn.dataset.tab;
+            const templatesPanel = document.getElementById('templatesPanel');
+            const variaveisPanel = document.getElementById('variaveisPanel');
+            if (templatesPanel) templatesPanel.style.display = tab === 'templates' ? 'block' : 'none';
+            if (variaveisPanel) variaveisPanel.style.display = tab === 'variaveis' ? 'block' : 'none';
+            tabs.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (tab === 'variaveis') renderVariaveis();
+        };
+    });
+
+    console.log('✅ Templates refatorado - com verificações de DOM e estabilidade');
 </script>
 </body>
 </html>

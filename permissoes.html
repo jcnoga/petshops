@@ -169,7 +169,7 @@
         .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
         .breadcrumb a { color: #2c7da0; text-decoration: none; }
         .breadcrumb a:hover { text-decoration: underline; }
-        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .module-body { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .module-body { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -255,12 +255,14 @@
 </div>
 
 <script type="module">
+    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
         collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
-        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin
+        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin,
+        verificarStatusEmpresa
     } from './util.js';
 
     // ==================== CONFIGURAÇÃO DOS MÓDULOS E PERMISSÕES ====================
@@ -328,6 +330,8 @@
     // ==================== GERAR CHECKLIST DE PERMISSÕES ====================
     function gerarChecklistPermissoes() {
         const container = document.getElementById('permissionsContainer');
+        if (!container) return;
+        
         const searchTerm = document.getElementById('permissaoSearch')?.value.toLowerCase() || '';
         
         if (!usuarioSelecionadoId) {
@@ -395,12 +399,14 @@
     window.toggleModule = function(moduleId) {
         const body = document.getElementById(`body_${moduleId}`);
         const icon = document.getElementById(`icon_${moduleId}`);
-        if (body.classList.contains('open')) {
-            body.classList.remove('open');
-            if (icon) icon.style.transform = 'rotate(0deg)';
-        } else {
-            body.classList.add('open');
-            if (icon) icon.style.transform = 'rotate(90deg)';
+        if (body) {
+            if (body.classList.contains('open')) {
+                body.classList.remove('open');
+                if (icon) icon.style.transform = 'rotate(0deg)';
+            } else {
+                body.classList.add('open');
+                if (icon) icon.style.transform = 'rotate(90deg)';
+            }
         }
     };
     window.marcarPermissao = function(checkbox) { /* apenas registro */ };
@@ -465,12 +471,17 @@
     // ==================== COPIAR PERMISSÕES ====================
     function mostrarModalCopiar() {
         const selectOrigem = document.getElementById('copyUsuarioOrigem');
+        if (!selectOrigem) return;
         selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
             usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
-        document.getElementById('copyModal').style.display = 'flex';
+        const modal = document.getElementById('copyModal');
+        if (modal) modal.style.display = 'flex';
     }
-    function fecharCopyModal() { document.getElementById('copyModal').style.display = 'none'; }
-    async function confirmarCopiarPermissoes() {
+    window.fecharCopyModal = function() {
+        const modal = document.getElementById('copyModal');
+        if (modal) modal.style.display = 'none';
+    };
+    window.confirmarCopiarPermissoes = async function() {
         const usuarioOrigemId = document.getElementById('copyUsuarioOrigem').value;
         if (!usuarioOrigemId) { showToast('Selecione um usuário de origem!', 'error'); return; }
         
@@ -504,21 +515,24 @@
         renderPermissoes();
         updateStats();
         showToast('Permissões copiadas com sucesso!', 'success');
-        fecharCopyModal();
-    }
+        window.fecharCopyModal();
+    };
 
     // ==================== CARREGAR PERMISSÕES DO USUÁRIO SELECIONADO ====================
     function carregarPermissoesDoUsuario() {
         const usuarioId = document.getElementById('permUsuarioId').value;
         if (!usuarioId) {
             usuarioSelecionadoId = null;
-            document.getElementById('permissionsContainer').innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
-            document.getElementById('copyPermissoesBtn').style.display = 'none';
+            const container = document.getElementById('permissionsContainer');
+            if (container) container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+            const copyBtn = document.getElementById('copyPermissoesBtn');
+            if (copyBtn) copyBtn.style.display = 'none';
             return;
         }
         usuarioSelecionadoId = usuarioId;
         gerarChecklistPermissoes();
-        document.getElementById('copyPermissoesBtn').style.display = 'inline-block';
+        const copyBtn = document.getElementById('copyPermissoesBtn');
+        if (copyBtn) copyBtn.style.display = 'inline-block';
     }
 
     // ==================== RENDER TABELA DE PERMISSÕES POR USUÁRIO ====================
@@ -547,9 +561,12 @@
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = usuariosComPermissoes.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('permissoesTableBody');
+        if (!tbody) return;
+        
         if (paginated.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário com permissões encontrado<\/td><\/tr>';
-            document.getElementById('pagination').innerHTML = '';
+            tbody.innerHTML = '</td><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário com permissões encontrado</td><\/tr>';
+            const paginationDiv = document.getElementById('pagination');
+            if (paginationDiv) paginationDiv.innerHTML = '';
             return;
         }
         
@@ -575,11 +592,12 @@
         let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
         for (let i=1; i<=totalPages; i++) { pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`; }
         pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
+        const paginationDiv = document.getElementById('pagination');
+        if (paginationDiv) paginationDiv.innerHTML = pagHtml;
     }
     
     function goToPage(page) { currentPage = page; renderPermissoes(); }
-    function filtrarPorPermissao(permissao) {
+    window.filtrarPorPermissao = function(permissao) {
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.value = permissao.split('.')[0];
@@ -587,30 +605,36 @@
             renderPermissoes();
             showToast(`Filtrando por: ${permissao.split('.')[0]}`, 'info');
         }
-    }
-    function editarPermissoes(usuarioId) {
+    };
+    window.editarPermissoes = function(usuarioId) {
         const select = document.getElementById('permUsuarioId');
-        select.value = usuarioId;
+        if (select) select.value = usuarioId;
         carregarPermissoesDoUsuario();
         window.scrollTo({ top: 0, behavior: 'smooth' });
         showToast('Carregando permissões do usuário...', 'info');
-    }
-    function copiarPermissoesUsuario(usuarioId) {
+    };
+    window.copiarPermissoesUsuario = function(usuarioId) {
         if (usuarioSelecionadoId) {
-            document.getElementById('copyModal').style.display = 'flex';
+            const modal = document.getElementById('copyModal');
+            if (modal) modal.style.display = 'flex';
             const selectOrigem = document.getElementById('copyUsuarioOrigem');
-            selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
-                usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}" ${u.id === usuarioId ? 'selected' : ''}>${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+            if (selectOrigem) {
+                selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
+                    usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}" ${u.id === usuarioId ? 'selected' : ''}>${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+            }
         } else {
             showToast('Selecione um usuário destino primeiro!', 'error');
         }
-    }
+    };
 
     // ==================== UPDATE STATS ====================
     function updateStats() {
-        document.getElementById('totalUsuarios').innerText = usuariosCache.length;
-        document.getElementById('totalPermissoes').innerText = permissoesCache.length;
-        document.getElementById('totalModulos').innerText = MODULOS_PERMISSOES.length;
+        const totalUsuariosSpan = document.getElementById('totalUsuarios');
+        if (totalUsuariosSpan) totalUsuariosSpan.innerText = usuariosCache.length;
+        const totalPermissoesSpan = document.getElementById('totalPermissoes');
+        if (totalPermissoesSpan) totalPermissoesSpan.innerText = permissoesCache.length;
+        const totalModulosSpan = document.getElementById('totalModulos');
+        if (totalModulosSpan) totalModulosSpan.innerText = MODULOS_PERMISSOES.length;
     }
     
     // ==================== SELECT DE USUÁRIOS ====================
@@ -630,57 +654,79 @@
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            const isAdmin = await verificarAcessoAdmin(user);
-            const isSuper = await verificarSuperAdmin(user);
-            if (!isAdmin && !isSuper) {
-                document.getElementById('loadingScreen').classList.add('hidden');
-                document.getElementById('blockedContent').classList.remove('hidden');
-                document.getElementById('conteudoPrincipal').style.display = 'none';
-                return;
-            }
-            currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa && !isSuper) { window.location.href = 'empresa.html'; return; }
-            // Para superadmin sem empresa, criar objeto especial
-            if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-            
-            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 
-                '<i class="fas fa-globe"></i> Super Administrador' :
-                `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            
-            // Alerta de trial (apenas para empresas reais)
-            if (!currentEmpresa.globalAdmin) {
-                const statusInfo = verificarStatusEmpresa(currentEmpresa);
-                const trialDiv = document.getElementById('trialAlert');
-                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
-                else trialDiv.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', () => {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                const isAdmin = await verificarAcessoAdmin(user);
+                const isSuper = await verificarSuperAdmin(user);
+                if (!isAdmin && !isSuper) {
+                    const loadingScreen = document.getElementById('loadingScreen');
+                    if (loadingScreen) loadingScreen.classList.add('hidden');
+                    const blockedContent = document.getElementById('blockedContent');
+                    if (blockedContent) blockedContent.classList.remove('hidden');
+                    const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+                    if (conteudoPrincipal) conteudoPrincipal.style.display = 'none';
+                    return;
+                }
+                
+                currentEmpresa = await carregarEmpresaUsuario(user);
+                if (!currentEmpresa && !isSuper) { window.location.href = 'empresa.html'; return; }
+                // Para superadmin sem empresa, criar objeto especial
+                if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
+                
+                const empresaInfo = document.getElementById('empresaInfo');
+                if (empresaInfo) {
+                    empresaInfo.innerHTML = currentEmpresa.globalAdmin ? 
+                        '<i class="fas fa-globe"></i> Super Administrador' :
+                        `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+                }
+                
+                // Alerta de trial (apenas para empresas reais)
+                if (!currentEmpresa.globalAdmin) {
+                    const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                    const trialDiv = document.getElementById('trialAlert');
+                    if (trialDiv) {
+                        if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                        else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                        else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                        else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                        else trialDiv.style.display = 'none';
+                    }
+                } else {
+                    const trialDiv = document.getElementById('trialAlert');
+                    if (trialDiv) trialDiv.style.display = 'none';
+                }
+                
+                await iniciarListeners();
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) loadingScreen.classList.add('hidden');
+                const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+                if (conteudoPrincipal) conteudoPrincipal.style.display = 'block';
             } else {
-                document.getElementById('trialAlert').style.display = 'none';
+                window.location.href = 'login.html';
             }
-            
-            await iniciarListeners();
-            document.getElementById('loadingScreen').classList.add('hidden');
-            document.getElementById('conteudoPrincipal').style.display = 'block';
-        } else {
-            window.location.href = 'login.html';
-        }
+        });
     });
     
     // ==================== EVENTOS ====================
-    document.getElementById('permUsuarioId').addEventListener('change', carregarPermissoesDoUsuario);
-    document.getElementById('savePermissaoBtn').onclick = salvarPermissoes;
-    document.getElementById('copyPermissoesBtn').onclick = mostrarModalCopiar;
-    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderPermissoes(); });
-    document.getElementById('permissaoSearch').addEventListener('input', () => gerarChecklistPermissoes());
-    document.getElementById('logoutBtn').onclick = () => auth.signOut();
-    window.onclick = (e) => { if (e.target === document.getElementById('copyModal')) fecharCopyModal(); };
-    window.fecharCopyModal = fecharCopyModal;
-    window.confirmarCopiarPermissoes = confirmarCopiarPermissoes;
+    const permUsuarioSelect = document.getElementById('permUsuarioId');
+    if (permUsuarioSelect) permUsuarioSelect.addEventListener('change', carregarPermissoesDoUsuario);
+    const savePermissaoBtn = document.getElementById('savePermissaoBtn');
+    if (savePermissaoBtn) savePermissaoBtn.onclick = salvarPermissoes;
+    const copyPermissoesBtn = document.getElementById('copyPermissoesBtn');
+    if (copyPermissoesBtn) copyPermissoesBtn.onclick = mostrarModalCopiar;
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; renderPermissoes(); });
+    const permissaoSearch = document.getElementById('permissaoSearch');
+    if (permissaoSearch) permissaoSearch.addEventListener('input', () => gerarChecklistPermissoes());
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.onclick = () => auth.signOut();
+    
+    window.onclick = (e) => {
+        const copyModal = document.getElementById('copyModal');
+        if (e.target === copyModal && copyModal) window.fecharCopyModal();
+    };
     window.goToPage = goToPage;
     window.logout = () => auth.signOut();
     window.solicitarLiberacao = () => {
