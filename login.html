@@ -91,7 +91,7 @@
         setTimeout(() => { element.style.display = 'none'; }, 5000);
     }
 
-    // ==================== LOGIN ====================
+    // ==================== LOGIN COM CRIAÇÃO AUTOMÁTICA DE PERFIL ====================
     window.fazerLogin = async function() {
         const email = document.getElementById('loginEmail').value.trim();
         const senha = document.getElementById('loginSenha').value;
@@ -109,17 +109,50 @@
             const userCredential = await signInWithEmailAndPassword(auth, email, senha);
             const user = userCredential.user;
 
-            const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+            let userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+
+            // Se o perfil não existe, criá-lo automaticamente
             if (!userDoc.exists()) {
-                showMessage('loginError', 'Usuário não possui perfil no sistema. Contate o administrador.');
-                await auth.signOut();
-                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
-                loginBtn.disabled = false;
+                console.log('Perfil não encontrado. Criando automaticamente...');
+                
+                // 1. Criar uma empresa padrão para o usuário (caso não exista uma associada)
+                const nomeEmpresa = `${(user.displayName || email.split('@')[0])} PetShop`;
+                const novaEmpresa = {
+                    emp_razao_social: nomeEmpresa,
+                    emp_nome_fantasia: email.split('@')[0],
+                    emp_cnpj: '',
+                    emp_whatsapp: '',
+                    emp_status: 'ativo',
+                    emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
+                    emp_criado_em: new Date().toISOString()
+                };
+                const empresaRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+                const empresaId = empresaRef.id;
+
+                // 2. Criar documento do usuário no Firestore
+                const usuarioData = {
+                    uid: user.uid,
+                    nome: user.displayName || email.split('@')[0],
+                    email: user.email,
+                    telefone: '',
+                    perfil: 'usuario',   // perfil padrão; pode ser ajustado depois
+                    ativo: true,
+                    empresaId: empresaId,
+                    criado_em: new Date().toISOString(),
+                    criado_por: user.uid
+                };
+                await setDoc(doc(db, 'usuarios', user.uid), usuarioData);
+                
+                // Recuperar o documento recém-criado
+                userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+                showMessage('loginError', 'Perfil criado automaticamente! Redirecionando...', true);
+                setTimeout(() => { window.location.href = 'index.html'; }, 1500);
                 return;
             }
 
+            // Se o perfil existe, verificar se está ativo
             const userData = userDoc.data();
-            if (!userData.ativo && userData.ativo !== undefined) {
+            if (userData.ativo === false) {
                 showMessage('loginError', 'Usuário desativado. Contate o administrador.');
                 await auth.signOut();
                 loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
@@ -186,16 +219,17 @@
             const empresaRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
             const empresaId = empresaRef.id;
 
-            // Criar usuário no Firestore com perfil ADMIN (primeiro usuário)
+            // Criar usuário no Firestore
             const usuarioData = {
+                uid: user.uid,
                 nome: nome,
                 email: email,
                 telefone: telefone,
-                perfil: 'admin',      // <-- ADMINISTRADOR para ter acesso total
+                perfil: 'admin',      // primeiro usuário da empresa recebe admin
                 ativo: true,
                 empresaId: empresaId,
                 criado_em: new Date().toISOString(),
-                uid: user.uid
+                criado_por: user.uid
             };
             await setDoc(doc(db, 'usuarios', user.uid), usuarioData);
 
@@ -241,15 +275,17 @@
     }
     window.mostrarCadastro = mostrarCadastro;
 
-    // Se já estiver logado, redirecionar para o dashboard
+    // Se já estiver logado, redirecionar para o dashboard (evita loop)
     import { onAuthStateChanged } from './firebase-config.js';
     onAuthStateChanged(auth, async (user) => {
         if (user) {
+            // Verifica se o perfil existe, senão pode redirecionar para o próprio login que criará
             const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
             if (userDoc.exists()) {
                 window.location.href = 'index.html';
             } else {
-                await auth.signOut();
+                // Se não existe perfil, permanece na tela de login (o login automático criará)
+                console.log('Perfil não encontrado, aguardando login.');
             }
         }
     });
