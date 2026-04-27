@@ -1,6 +1,6 @@
 /*==============================================================*/
 /* DBMS name:      PostgreSQL 9.x                               */
-/* Created on:     26/04/2026 07:16:40                          */
+/* Created on:     27/04/2026 04:54:08                          */
 /*==============================================================*/
 
 
@@ -163,7 +163,6 @@ comment on column CLIENTES.CLI_STATUS is
 /*==============================================================*/
 create table EMPRESA (
    EMP_ID               SERIAL               not null,
-   LOG_EMAIL            VARCHAR(50)          null,
    EMP_RAZAO_SOCIAL     VARCHAR(100)         null,
    EM_NOME_FANTASIA     VARCHAR(100)         null,
    EM_CNPJ              VARCHAR(20)          null,
@@ -265,6 +264,7 @@ comment on column LEMBRETES_AUTOMACAO.LEM_STATUS is
 create table LOGIN (
    LOG_EMAIL            VARCHAR(50)          not null,
    USU_ID               INT4                 null,
+   EMP_ID               INT4                 null,
    LOG_SENHA            VARCHAR(50)          null,
    constraint PK_LOGIN primary key (LOG_EMAIL)
 );
@@ -527,11 +527,6 @@ alter table CLIENTES
       references EMPRESA (EMP_ID)
       on delete restrict on update restrict;
 
-alter table EMPRESA
-   add constraint FK_EMPRESA_REFERENCE_LOGIN foreign key (LOG_EMAIL)
-      references LOGIN (LOG_EMAIL)
-      on delete restrict on update restrict;
-
 alter table FINANCEIRO
    add constraint FK_FINANCEI_REFERENCE_EMPRESA foreign key (EMP_ID)
       references EMPRESA (EMP_ID)
@@ -575,6 +570,11 @@ alter table LEMBRETES_AUTOMACAO
 alter table LOGIN
    add constraint FK_LOGIN_REFERENCE_USUARIOS foreign key (USU_ID)
       references USUARIOS (USU_ID)
+      on delete restrict on update restrict;
+
+alter table LOGIN
+   add constraint FK_LOGIN_REFERENCE_EMPRESA foreign key (EMP_ID)
+      references EMPRESA (EMP_ID)
       on delete restrict on update restrict;
 
 alter table MOVIMENTO_ESTOQUE

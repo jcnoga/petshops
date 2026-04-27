@@ -9,9 +9,11 @@ const firebaseConfig = {
   projectId: "pet-shop-noga1",
   storageBucket: "pet-shop-noga1.firebasestorage.app",
   messagingSenderId: "735321499822",
-  appId: "1:735321499822:web:7c60e77b3255311547a53f",
-  measurementId: "G-L5EXYXZ3V8"
+  appId: "1:735321499822:web:414e29965262b14d47a53f",
+  measurementId: "G-MYBMZSZ8C4"
 };
+
+
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
