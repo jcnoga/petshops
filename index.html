@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ========== ESTILOS (mantidos, exatamente iguais aos originais) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(145deg, #eef2f8 0%, #e0e8f0 100%); min-height: 100vh; }
         .app-container { display: flex; min-height: 100vh; }
@@ -80,12 +80,7 @@
 <body>
 <div class="app-container">
     <aside class="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <div class="logo-icon"><i class="fas fa-paw"></i></div>
-                <div class="logo-text"><h2>PerShop</h2><p>Enterprise</p></div>
-            </div>
-        </div>
+        <div class="sidebar-header"><div class="logo"><div class="logo-icon"><i class="fas fa-paw"></i></div><div class="logo-text"><h2>PerShop</h2><p>Enterprise</p></div></div></div>
         <div class="nav-section">PRINCIPAL</div>
         <div class="nav-item active" data-page="index.html"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></div>
         <div class="nav-section">🐾 GESTÃO DE CLIENTES</div>
@@ -104,32 +99,22 @@
         <div class="nav-item" data-page="lembretes.html"><i class="fas fa-bell"></i><span>Lembretes</span></div>
         <div class="nav-section">⚙️ CONFIGURAÇÕES</div>
         <div class="nav-item" data-page="empresa.html"><i class="fas fa-building"></i><span>Empresa</span></div>
-        <div class="nav-item has-submenu" id="comunicacaoMenu">
-            <i class="fas fa-comments"></i><span>Comunicação</span>
-            <i class="fas fa-chevron-down submenu-arrow"></i>
-        </div>
+        <div class="nav-item has-submenu" id="comunicacaoMenu"><i class="fas fa-comments"></i><span>Comunicação</span><i class="fas fa-chevron-down submenu-arrow"></i></div>
         <div class="submenu" id="comunicacaoSubmenu">
             <div class="nav-item submenu-item" data-page="canais.html"><i class="fas fa-plug"></i><span>Canais</span></div>
             <div class="nav-item submenu-item" data-page="templates.html"><i class="fas fa-file-alt"></i><span>Templates</span></div>
         </div>
         <div id="permissoesMenuItem" class="nav-item" style="display: none;" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span><span class="admin-badge">Admin</span></div>
         <div id="usuariosMenuItem" class="nav-item" style="display: none;" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span><span class="admin-badge">Admin</span></div>
-        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globales.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
+        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globais.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
     </aside>
     <main class="main-content">
         <div class="top-bar">
-            <div class="page-title">
-                <h1><i class="fas fa-chart-line"></i> Dashboard</h1>
-                <p>Visão geral do seu negócio em tempo real</p>
-            </div>
+            <div class="page-title"><h1><i class="fas fa-chart-line"></i> Dashboard</h1><p>Visão geral do seu negócio em tempo real</p></div>
             <div class="user-area">
                 <div class="user-info" id="userInfo">
                     <div class="user-avatar" id="userAvatar">A</div>
-                    <div class="user-details">
-                        <span class="user-name" id="userName">Carregando...</span>
-                        <span class="user-email" id="userEmail">carregando@email.com</span>
-                        <span class="user-perfil" id="userPerfil"></span>
-                    </div>
+                    <div class="user-details"><span class="user-name" id="userName">Carregando...</span><span class="user-email" id="userEmail">carregando@email.com</span><span class="user-perfil" id="userPerfil"></span></div>
                 </div>
                 <button id="refreshBtn" class="btn btn-outline" title="Atualizar"><i class="fas fa-sync-alt"></i> Atualizar</button>
                 <button id="logoutBtn" class="btn btn-outline" title="Sair"><i class="fas fa-sign-out-alt"></i> Sair</button>
@@ -145,31 +130,25 @@
             <div class="stat-card" data-page="financeiro.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="totalFinanceiro">R$ 0</div><div class="stat-label">Faturamento Total</div><div class="stat-sub" id="faturamentoMes">Este mês: R$ 0</div></div>
             <div class="stat-card" data-page="profissionais.html"><div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div><div class="stat-value" id="totalProfissionais">0</div><div class="stat-label">Profissionais</div></div>
         </div>
-        <div class="recent-section">
-            <div class="section-header"><h3><i class="fas fa-bolt"></i> Atalhos Rápidos</h3></div>
-            <div class="quick-actions">
-                <div class="quick-btn" data-page="clientes.html"><i class="fas fa-user-plus"></i><span>Novo Cliente</span></div>
-                <div class="quick-btn" data-page="pets.html"><i class="fas fa-paw"></i><span>Novo Pet</span></div>
-                <div class="quick-btn" data-page="agendamentos.html"><i class="fas fa-calendar-plus"></i><span>Novo Agendamento</span></div>
-                <div class="quick-btn" data-page="produtos.html"><i class="fas fa-box-open"></i><span>Novo Produto</span></div>
-                <div class="quick-btn" data-page="financeiro.html"><i class="fas fa-dollar-sign"></i><span>Novo Lançamento</span></div>
-                <div class="quick-btn" data-page="vacinas.html"><i class="fas fa-syringe"></i><span>Nova Vacina</span></div>
-            </div>
-        </div>
-        <div class="recent-section">
-            <div class="section-header"><h3><i class="fas fa-cubes"></i> Módulos do Sistema</h3></div>
-            <div class="quick-actions">
-                <div class="quick-btn" data-page="servicos.html"><i class="fas fa-cut"></i><span>Serviços</span></div>
-                <div class="quick-btn" data-page="vacinas.html"><i class="fas fa-syringe"></i><span>Vacinas</span></div>
-                <div class="quick-btn" data-page="lembretes.html"><i class="fas fa-bell"></i><span>Lembretes</span></div>
-                <div class="quick-btn" data-page="movimentos.html"><i class="fas fa-exchange-alt"></i><span>Mov.Estoque</span></div>
-                <div class="quick-btn" data-page="canais.html"><i class="fas fa-plug"></i><span>Canais</span></div>
-                <div class="quick-btn" data-page="templates.html"><i class="fas fa-file-alt"></i><span>Templates</span></div>
-                <div class="quick-btn" data-page="empresa.html"><i class="fas fa-building"></i><span>Empresa</span></div>
-                <div class="quick-btn" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span></div>
-                <div class="quick-btn" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span></div>
-            </div>
-        </div>
+        <div class="recent-section"><div class="section-header"><h3><i class="fas fa-bolt"></i> Atalhos Rápidos</h3></div><div class="quick-actions">
+            <div class="quick-btn" data-page="clientes.html"><i class="fas fa-user-plus"></i><span>Novo Cliente</span></div>
+            <div class="quick-btn" data-page="pets.html"><i class="fas fa-paw"></i><span>Novo Pet</span></div>
+            <div class="quick-btn" data-page="agendamentos.html"><i class="fas fa-calendar-plus"></i><span>Novo Agendamento</span></div>
+            <div class="quick-btn" data-page="produtos.html"><i class="fas fa-box-open"></i><span>Novo Produto</span></div>
+            <div class="quick-btn" data-page="financeiro.html"><i class="fas fa-dollar-sign"></i><span>Novo Lançamento</span></div>
+            <div class="quick-btn" data-page="vacinas.html"><i class="fas fa-syringe"></i><span>Nova Vacina</span></div>
+        </div></div>
+        <div class="recent-section"><div class="section-header"><h3><i class="fas fa-cubes"></i> Módulos do Sistema</h3></div><div class="quick-actions">
+            <div class="quick-btn" data-page="servicos.html"><i class="fas fa-cut"></i><span>Serviços</span></div>
+            <div class="quick-btn" data-page="vacinas.html"><i class="fas fa-syringe"></i><span>Vacinas</span></div>
+            <div class="quick-btn" data-page="lembretes.html"><i class="fas fa-bell"></i><span>Lembretes</span></div>
+            <div class="quick-btn" data-page="movimentos.html"><i class="fas fa-exchange-alt"></i><span>Mov.Estoque</span></div>
+            <div class="quick-btn" data-page="canais.html"><i class="fas fa-plug"></i><span>Canais</span></div>
+            <div class="quick-btn" data-page="templates.html"><i class="fas fa-file-alt"></i><span>Templates</span></div>
+            <div class="quick-btn" data-page="empresa.html"><i class="fas fa-building"></i><span>Empresa</span></div>
+            <div class="quick-btn" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span></div>
+            <div class="quick-btn" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span></div>
+        </div></div>
         <div class="footer"><i class="fas fa-database"></i> PerShop Enterprise – Gestão completa para PetShop</div>
     </main>
 </div>
@@ -186,18 +165,14 @@
     let dadosCache = { clientes: [], pets: [], agendamentos: [], produtos: [], profissionais: [], financeiro: [] };
     let unsubscribes = [];
 
-    // ==================== FUNÇÕES DE ATUALIZAÇÃO DA UI ====================
     function atualizarStats() {
         document.getElementById('totalClientes').innerText = dadosCache.clientes.length;
         document.getElementById('totalPets').innerText = dadosCache.pets.length;
         document.getElementById('totalAgendamentos').innerText = dadosCache.agendamentos.length;
         document.getElementById('totalProdutos').innerText = dadosCache.produtos.length;
         document.getElementById('totalProfissionais').innerText = dadosCache.profissionais.length;
-        const totalGeral = dadosCache.financeiro
-            .filter(f => f.tipo === 'entrada' && f.status === 'pago')
-            .reduce((s, f) => s + (f.valor || 0), 0);
-        const mesAtual = new Date().getMonth();
-        const anoAtual = new Date().getFullYear();
+        const totalGeral = dadosCache.financeiro.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+        const mesAtual = new Date().getMonth(), anoAtual = new Date().getFullYear();
         const faturamentoMes = dadosCache.financeiro.filter(f => {
             if (f.tipo !== 'entrada' || f.status !== 'pago') return false;
             const dataPagto = f.dataPagamento ? new Date(f.dataPagamento) : null;
@@ -215,10 +190,7 @@
         document.getElementById('userName').innerText = userData.nome || currentUser.email;
         document.getElementById('userEmail').innerText = currentUser.email;
         document.getElementById('userAvatar').innerText = (userData.nome?.charAt(0) || currentUser.email.charAt(0)).toUpperCase();
-        const perfilLabel = userData.perfil === 'admin' ? '👑 Administrador' :
-                           (userData.perfil === 'gerente' ? '📊 Gerente' :
-                           (userData.perfil === 'veterinario' ? '🩺 Veterinário' :
-                           (userData.perfil === 'tosador' ? '✂️ Tosador' : '👤 Usuário')));
+        const perfilLabel = userData.perfil === 'admin' ? '👑 Administrador' : (userData.perfil === 'gerente' ? '📊 Gerente' : (userData.perfil === 'veterinario' ? '🩺 Veterinário' : (userData.perfil === 'tosador' ? '✂️ Tosador' : '👤 Usuário')));
         document.getElementById('userPerfil').innerText = perfilLabel;
         const isAdmin = userData.perfil === 'admin' || isSuperAdmin;
         document.getElementById('permissoesMenuItem').style.display = isAdmin ? 'flex' : 'none';
@@ -230,33 +202,25 @@
         if (!welcomeDiv) return;
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2>
-                                    <p>Nenhuma empresa associada. Contate o administrador.</p>
-                                    <button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p><button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
             return;
         }
         if (currentEmpresa.globalAdmin) {
             welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2>
-                                    <p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
             return;
         }
-        // Para empresa normal, verifica status
+        // safe call: verificarStatusEmpresa agora trata null/undefined internamente
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2>
-                                    <p>Período de teste expirado. Solicite liberação.</p>
-                                    <button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else if (statusInfo.status === 'trial_urgente') {
             welcomeDiv.className = 'welcome-message warning';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2>
-                                    <p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p>
-                                    <button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else {
             welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2>
-                                    <p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
         }
     }
 
@@ -274,59 +238,25 @@
         }
     }
 
-    // ==================== LISTENERS EM TEMPO REAL (onSnapshot) ====================
     function iniciarListeners() {
         unsubscribes.forEach(unsub => unsub());
         unsubscribes = [];
         if (!currentEmpresa) return;
-
-        // Se for superadmin, NÃO filtra por empresaId
         const constraints = (currentEmpresa.globalAdmin) ? [] : [where('empresaId', '==', currentEmpresa.id)];
-
         const clientesQuery = query(collection(db, 'clientes'), ...constraints);
-        const unsubClientes = onSnapshot(clientesQuery, (snapshot) => {
-            dadosCache.clientes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        }, (error) => console.error('Erro snapshot clientes:', error));
-        unsubscribes.push(unsubClientes);
-
+        unsubscribes.push(onSnapshot(clientesQuery, (snapshot) => { dadosCache.clientes = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
         const petsQuery = query(collection(db, 'pets'), ...constraints);
-        const unsubPets = onSnapshot(petsQuery, (snapshot) => {
-            dadosCache.pets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        });
-        unsubscribes.push(unsubPets);
-
+        unsubscribes.push(onSnapshot(petsQuery, (snapshot) => { dadosCache.pets = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
         const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
-        const unsubAgendamentos = onSnapshot(agendamentosQuery, (snapshot) => {
-            dadosCache.agendamentos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        });
-        unsubscribes.push(unsubAgendamentos);
-
+        unsubscribes.push(onSnapshot(agendamentosQuery, (snapshot) => { dadosCache.agendamentos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
         const produtosQuery = query(collection(db, 'produtos'), ...constraints);
-        const unsubProdutos = onSnapshot(produtosQuery, (snapshot) => {
-            dadosCache.produtos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        });
-        unsubscribes.push(unsubProdutos);
-
+        unsubscribes.push(onSnapshot(produtosQuery, (snapshot) => { dadosCache.produtos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
         const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
-        const unsubProfissionais = onSnapshot(profissionaisQuery, (snapshot) => {
-            dadosCache.profissionais = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        });
-        unsubscribes.push(unsubProfissionais);
-
+        unsubscribes.push(onSnapshot(profissionaisQuery, (snapshot) => { dadosCache.profissionais = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
         const financeiroQuery = query(collection(db, 'financeiro'), ...constraints);
-        const unsubFinanceiro = onSnapshot(financeiroQuery, (snapshot) => {
-            dadosCache.financeiro = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarStats();
-        });
-        unsubscribes.push(unsubFinanceiro);
+        unsubscribes.push(onSnapshot(financeiroQuery, (snapshot) => { dadosCache.financeiro = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
     }
 
-    // ==================== FUNÇÕES AUXILIARES ====================
     window.solicitarLiberacao = function() {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
         const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
@@ -339,9 +269,7 @@
         const novaEmpresa = {
             emp_razao_social: `${currentUser.email.split('@')[0]} PetShop`,
             emp_nome_fantasia: 'Meu PetShop',
-            emp_cnpj: '',
-            emp_whatsapp: '',
-            emp_status: 'ativo',
+            emp_cnpj: '', emp_whatsapp: '', emp_status: 'ativo',
             emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
             emp_criado_em: new Date().toISOString()
         };
@@ -351,27 +279,15 @@
         location.reload();
     };
 
-    async function logout() {
-        unsubscribes.forEach(unsub => unsub());
-        await auth.signOut();
-        sessionStorage.removeItem('empresa_atual');
-        window.location.href = 'login.html';
-    }
+    async function logout() { unsubscribes.forEach(unsub => unsub()); await auth.signOut(); sessionStorage.removeItem('empresa_atual'); window.location.href = 'login.html'; }
     function abrirModalLogout() { document.getElementById('logoutModal').style.display = 'flex'; }
     function fecharModalLogout() { document.getElementById('logoutModal').style.display = 'none'; }
     function confirmarLogout() { fecharModalLogout(); logout(); }
 
     function setupNavegacao() {
-        // Seleciona todos os elementos que têm data-page e não são submenus
-        const navItems = document.querySelectorAll('.nav-item[data-page], .quick-btn[data-page], .stat-card[data-page]');
-        navItems.forEach(el => {
-            el.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const page = el.getAttribute('data-page');
-                if (page) window.location.href = page;
-            });
+        document.querySelectorAll('.nav-item[data-page], .quick-btn[data-page], .stat-card[data-page]').forEach(el => {
+            el.addEventListener('click', (e) => { e.stopPropagation(); const page = el.getAttribute('data-page'); if (page) window.location.href = page; });
         });
-        // Tratamento especial para submenu de comunicação
         const comunicacaoMenu = document.getElementById('comunicacaoMenu');
         const comunicacaoSubmenu = document.getElementById('comunicacaoSubmenu');
         if (comunicacaoMenu && comunicacaoSubmenu) {
@@ -384,7 +300,6 @@
         }
     }
 
-    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     document.addEventListener('DOMContentLoaded', () => {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -396,42 +311,17 @@
                     console.warn('Nenhuma empresa associada. Exibindo botão de criação.');
                     atualizarWelcomeMessage();
                     document.getElementById('statsGrid').style.display = 'none';
-                    if (isSuperAdmin) {
-                        const menuSuper = document.getElementById('todasEmpresasMenuItem');
-                        if (menuSuper) menuSuper.style.display = 'flex';
-                    }
-                    // Ainda assim configura navegação para que o usuário possa tentar criar empresa?
+                    if (isSuperAdmin) document.getElementById('todasEmpresasMenuItem').style.display = 'flex';
                     setupNavegacao();
                     return;
                 }
-                // Se for superadmin sem empresa, cria um objeto especial (já feito em carregarEmpresaUsuario)
-                if (isSuperAdmin && !currentEmpresa) {
-                    currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-                }
+                if (isSuperAdmin && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
                 atualizarWelcomeMessage();
                 adicionarAlertaTrial();
-                
-                // Só chama os listeners se tiver empresa (para superadmin, será tratado dentro de iniciarListeners)
-                if (currentEmpresa) {
-                    iniciarListeners();
-                } else {
-                    // Se não tem empresa, mas é superadmin, ainda pode usar o sistema? Nesse caso não há dados, mas menu funciona.
-                    console.log('Superadmin sem empresa específica - dados não carregados');
-                }
-                
-                // Configurar navegação após garantir que o DOM está pronto (já está, pois DOMContentLoaded já disparou)
+                if (currentEmpresa) iniciarListeners();
                 setupNavegacao();
-
-                // Exibir menu de superadmin se for o caso
-                if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) {
-                    const menuSuper = document.getElementById('todasEmpresasMenuItem');
-                    if (menuSuper) menuSuper.style.display = 'flex';
-                }
-
-                // Botão de atualizar manual – apenas toast informativo (dados já são real-time)
-                document.getElementById('refreshBtn').onclick = () => {
-                    showToast('Os dados já são atualizados automaticamente em tempo real!', 'info');
-                };
+                if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) document.getElementById('todasEmpresasMenuItem').style.display = 'flex';
+                document.getElementById('refreshBtn').onclick = () => showToast('Dados já atualizados em tempo real!', 'info');
                 document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
             } else {
                 window.location.href = 'login.html';
