@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Configuração da Empresa | Firebase</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="index.html">Dashboard</a> > 
+        <span>Empresa</span>
+    </div>
+
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-building"></i></div><h1>PerShop <span>Empresa</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Configuração</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+
+    <div id="loadingScreen" class="loading-screen">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Carregando configuração da empresa...</p>
+    </div>
+
+    <div id="blockedContent" class="acesso-bloqueado hidden">
+        <i class="fas fa-lock"></i>
+        <h2>⛔ Acesso Restrito</h2>
+        <p>Você não tem permissão para acessar esta área.</p>
+        <p>O módulo de <strong>Empresa</strong> é exclusivo para <strong>Administradores</strong>.</p>
+        <button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar ao Dashboard</button>
+        <button class="btn btn-outline" onclick="logout()" style="margin-left:10px;">Sair</button>
+    </div>
+
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="form-card">
+            <div class="form-header">
+                <h2><i class="fas fa-edit"></i> Dados da Empresa</h2>
+                <p>Visualize e edite as informações da sua empresa</p>
+            </div>
+            <div class="form-body">
+                <div class="form-grid">
+                    <div class="input-group"><label class="required"><i class="fas fa-building"></i> Razão Social</label><input type="text" id="empRazaoSocial" placeholder="Razão social"></div>
+                    <div class="input-group"><label class="required"><i class="fas fa-store"></i> Nome Fantasia</label><input type="text" id="empNomeFantasia" placeholder="Nome fantasia"></div>
+                    <div class="input-group"><label class="required"><i class="fas fa-id-card"></i> CNPJ</label><input type="text" id="empCnpj" placeholder="00.000.000/0001-00"></div>
+                    <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> Endereço</label><input type="text" id="empEndereco" placeholder="Endereço completo"></div>
+                    <div class="input-group"><label><i class="fas fa-mail-bulk"></i> CEP</label><input type="text" id="empCep" placeholder="00000-000"></div>
+                    <div class="input-group"><label><i class="fas fa-city"></i> Cidade</label><input type="text" id="empCidade" placeholder="Cidade"></div>
+                    <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> Estado</label>
+                        <select id="empEstado"><option value="">Selecione</option><option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option></select>
+                    </div>
+                    <div class="input-group"><label><i class="fas fa-phone"></i> Telefone</label><input type="text" id="empTelefone" placeholder="(00) 0000-0000"></div>
+                    <div class="input-group"><label class="required"><i class="fab fa-whatsapp"></i> WhatsApp</label><input type="text" id="empWhatsapp" placeholder="(00) 00000-0000"></div>
+                    <div class="input-group">
+                        <label><i class="fas fa-hourglass-half"></i> Inatividade do Cliente (dias)</label>
+                        <select id="empClienteInativo">
+                            <option value="">Selecione</option>
+                            <option value="30">30 dias (1 mês)</option>
+                            <option value="45">45 dias (1.5 meses)</option>
+                            <option value="60">60 dias (2 meses)</option>
+                            <option value="75">75 dias (2.5 meses)</option>
+                            <option value="90">90 dias (3 meses)</option>
+                        </select>
+                        <div style="font-size:0.7rem; color:#7a9eb0; margin-top:4px;">⚠️ Define após quantos dias sem compras/agendamentos o cliente será marcado como inativo e receberá alertas</div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" id="saveEmpresaBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Alterações</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">PerShop Enterprise - Configuração da Empresa | Período de teste de 15 dias</div>
+</div>
+
+<script type="module">
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin,
+        aplicarMascaraCNPJ, aplicarMascaraTelefone, aplicarMascaraCEP,
+        verificarStatusEmpresa
+    } from './util.js';
+
+    let currentUser = null;
+    let currentEmpresa = null;
+    let isAdminUser = false;
+
+    async function carregarEmpresa() {
+        if (!currentUser) return null;
+        const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
+        if (!userDoc.exists()) return null;
+        const userData = userDoc.data();
+        const empresaId = userData.empresaId;
+        if (!empresaId) return null;
+        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
+        if (!empresaDoc.exists()) return null;
+        return { id: empresaDoc.id, ...empresaDoc.data() };
+    }
+
+    async function updateEmpresa(id, updates) {
+        await updateDoc(doc(db, 'empresas', id), { ...updates, emp_atualizado_em: new Date().toISOString() });
+        showToast('Empresa atualizada com sucesso!', 'success');
+        await recarregarDados();
+    }
+
+    function getFormData() {
+        return {
+            emp_razao_social: document.getElementById('empRazaoSocial').value,
+            emp_nome_fantasia: document.getElementById('empNomeFantasia').value,
+            emp_cnpj: document.getElementById('empCnpj').value,
+            emp_endereco: document.getElementById('empEndereco').value,
+            emp_cep: document.getElementById('empCep').value,
+            emp_cidade: document.getElementById('empCidade').value,
+            emp_estado: document.getElementById('empEstado').value,
+            emp_telefone: document.getElementById('empTelefone').value,
+            emp_whatsapp: document.getElementById('empWhatsapp').value,
+            emp_cliente_inativo: document.getElementById('empClienteInativo').value || null
+        };
+    }
+
+    function fillForm(empresa) {
+        document.getElementById('empRazaoSocial').value = empresa.emp_razao_social || '';
+        document.getElementById('empNomeFantasia').value = empresa.emp_nome_fantasia || '';
+        document.getElementById('empCnpj').value = empresa.emp_cnpj || '';
+        document.getElementById('empEndereco').value = empresa.emp_endereco || '';
+        document.getElementById('empCep').value = empresa.emp_cep || '';
+        document.getElementById('empCidade').value = empresa.emp_cidade || '';
+        document.getElementById('empEstado').value = empresa.emp_estado || '';
+        document.getElementById('empTelefone').value = empresa.emp_telefone || '';
+        document.getElementById('empWhatsapp').value = empresa.emp_whatsapp || '';
+        document.getElementById('empClienteInativo').value = empresa.emp_cliente_inativo || '';
+    }
+
+    async function salvarEmpresa() {
+        if (!isAdminUser) { showToast('Apenas administradores podem editar a empresa.', 'error'); return; }
+        if (!document.getElementById('empRazaoSocial').value.trim()) { showToast('Razão Social obrigatória!', 'error'); return; }
+        if (!document.getElementById('empCnpj').value.trim()) { showToast('CNPJ obrigatório!', 'error'); return; }
+        if (!document.getElementById('empWhatsapp').value.trim()) { showToast('WhatsApp obrigatório!', 'error'); return; }
+        const data = getFormData();
+        if (currentEmpresa && currentEmpresa.id) {
+            await updateEmpresa(currentEmpresa.id, data);
+        } else {
+            showToast('Nenhuma empresa encontrada para atualizar.', 'error');
+        }
+    }
+
+    function atualizarTrialAlert() {
+        if (!currentEmpresa) { document.getElementById('trialAlert').style.display = 'none'; return; }
+        const statusInfo = verificarStatusEmpresa(currentEmpresa);
+        const alertDiv = document.getElementById('trialAlert');
+        if (statusInfo.status === 'expirado') {
+            alertDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+            alertDiv.style.display = 'flex';
+            alertDiv.className = 'trial-alert expired';
+        } else if (statusInfo.status === 'trial_urgente') {
+            alertDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+            alertDiv.style.display = 'flex';
+            alertDiv.className = 'trial-alert warning';
+        } else if (statusInfo.status === 'trial') {
+            alertDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+            alertDiv.style.display = 'flex';
+            alertDiv.className = 'trial-alert';
+        } else if (statusInfo.status === 'ativo') {
+            alertDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+            alertDiv.style.display = 'flex';
+            alertDiv.style.background = '#e0f2e9';
+            alertDiv.style.borderLeftColor = '#2a9d8f';
+        } else { alertDiv.style.display = 'none'; }
+    }
+
+    window.solicitarLiberacao = function() {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+
+    async function recarregarDados() {
+        currentEmpresa = await carregarEmpresa();
+        if (currentEmpresa) {
+            fillForm(currentEmpresa);
+            atualizarTrialAlert();
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+        }
+    }
+
+    function applyMasks() {
+        const cnpj = document.getElementById('empCnpj');
+        cnpj.addEventListener('input', (e) => { e.target.value = aplicarMascaraCNPJ(e.target.value); });
+        const cep = document.getElementById('empCep'); 
+        cep.addEventListener('input', (e) => { e.target.value = aplicarMascaraCEP(e.target.value); });
+        const tel = document.getElementById('empTelefone'); 
+        tel.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
+        const whats = document.getElementById('empWhatsapp'); 
+        whats.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            isAdminUser = await verificarAcessoAdmin(user);
+            if (!isAdminUser) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('blockedContent').classList.remove('hidden');
+                document.getElementById('conteudoPrincipal').style.display = 'none';
+                return;
+            }
+            currentEmpresa = await carregarEmpresa();
+            if (currentEmpresa) {
+                fillForm(currentEmpresa);
+                atualizarTrialAlert();
+                document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            } else {
+                showToast('Erro ao carregar dados da empresa.', 'error');
+            }
+            applyMasks();
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    document.getElementById('saveEmpresaBtn').onclick = salvarEmpresa;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    window.solicitarLiberacao = solicitarLiberacao;
+    window.logout = () => auth.signOut();
+</script>
+</body>
+</html>

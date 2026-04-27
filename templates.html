@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Templates | Firebase + Firestore</title>
+    <!-- Bibliotecas para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
+        .btn-danger { background: #e76f51; color: white; }
+        .btn-warning { background: #e9c46a; color: #1f5068; }
+        .btn-purple { background: linear-gradient(135deg, #6c5ce7, #5a4acf); color: white; }
+        .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; margin-top: 5px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2edf2; padding-bottom: 10px; flex-wrap: wrap; }
+        .tab-btn { background: none; border: none; padding: 10px 24px; font-weight: 600; cursor: pointer; border-radius: 40px; transition: 0.2s; color: #4a6272; }
+        .tab-btn.active { background: #2c7da0; color: white; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); margin-bottom: 30px; }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .status-ativo { background: #2a9d8f20; color: #2a9d8f; }
+        .status-inativo { background: #e9c46a20; color: #e9c46a; }
+        .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .action-btn.test:hover { background: #e9c46a; color: #1f5068; }
+        .action-btn.whatsapp-test { background: #25D36620; color: #25D366; }
+        .action-btn.whatsapp-test:hover { background: #25D366; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 750px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; flex-wrap: wrap; }
+        .info-label { font-weight: 600; color: #1f5068; min-width: 120px; }
+        .info-value { text-align: right; color: #4a6272; word-break: break-word; flex: 1; }
+        .preview-message { background: #f8fbfd; padding: 15px; border-radius: 16px; margin-top: 10px; white-space: pre-wrap; font-family: monospace; font-size: 0.8rem; }
+        .variables-box { background: #e8f4f8; padding: 12px; border-radius: 12px; margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+        .variable-tag { background: #2c7da0; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-family: monospace; cursor: pointer; transition: all 0.2s; }
+        .variable-tag:hover { background: #1f5e7a; transform: scale(1.02); }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .toast-warning { background: #e9c46a; color: #1f5068; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
+        .acesso-bloqueado i { font-size: 4rem; color: #e76f51; margin-bottom: 20px; }
+        .acesso-bloqueado h2 { color: #e76f51; margin-bottom: 15px; }
+        .hidden { display: none !important; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .preview-area { margin-top: 10px; }
+        .preview-area h4 { font-size: 0.8rem; color: #1f5068; margin-bottom: 5px; }
+        .suggestion-badge { background: #e9c46a20; color: #e9c46a; border: 1px dashed #e9c46a; padding: 2px 8px; border-radius: 20px; font-size: 0.65rem; display: inline-flex; align-items: center; gap: 4px; }
+        .btn-generate { background: linear-gradient(135deg, #6c5ce7, #5a4acf); color: white; margin-right: 8px; }
+        .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
+        .button-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } .info-row { flex-direction: column; } .info-value { text-align: left; margin-top: 5px; } .button-group { flex-direction: column; width: 100%; } }
+        .info-box { background: #e8f4f8; border-radius: 12px; padding: 12px; margin-bottom: 15px; font-size: 0.75rem; color: #1f5068; }
+        .info-box i { margin-right: 8px; color: #2c7da0; }
+        .test-options { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+    </style>
+</head>
+<body>
+<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
+    <a href="index.html">Dashboard</a> > 
+    <a href="javascript:void(0)">Configurações</a> > 
+    <span>Templates de Mensagens</span>
+</div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-file-alt"></i></div><h1>PerShop <span>Templates</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+
+    <!-- Loading -->
+    <div id="loadingScreen" class="loading-screen">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Carregando módulo de templates...</p>
+    </div>
+
+    <!-- Mensagem de bloqueio (se não for admin) -->
+    <div id="blockedContent" class="acesso-bloqueado hidden">
+        <i class="fas fa-lock"></i>
+        <h2>⛔ Acesso Restrito</h2>
+        <p>Você não tem permissão para acessar esta área.</p>
+        <p>O módulo de <strong>Templates</strong> é exclusivo para <strong>Administradores</strong>.</p>
+        <button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar ao Dashboard</button>
+        <button class="btn btn-outline" onclick="logout()" style="margin-left:10px;">Sair</button>
+    </div>
+
+    <!-- Conteúdo principal -->
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card" onclick="aplicarFiltroTipo('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-file-alt"></i></div></div><div class="stat-value" id="totalTemplates">0</div><div class="stat-label">Total de Templates</div></div>
+            <div class="stat-card" onclick="aplicarFiltroAtivo('true')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="templatesAtivos">0</div><div class="stat-label">Templates Ativos</div></div>
+            <div class="stat-card" onclick="aplicarFiltroCanal('whatsapp')"><div class="stat-header"><div class="stat-icon"><i class="fab fa-whatsapp"></i></div></div><div class="stat-value" id="templatesWhatsApp">0</div><div class="stat-label">WhatsApp</div></div>
+            <div class="stat-card" onclick="aplicarFiltroCanal('email')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-envelope"></i></div></div><div class="stat-value" id="templatesEmail">0</div><div class="stat-label">E-mail</div></div>
+            <div class="stat-card" onclick="aplicarFiltroTipo('cliente_inativo')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-clock"></i></div></div><div class="stat-value" id="templatesInativos">0</div><div class="stat-label">Clientes Inativos</div></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="templates"><i class="fas fa-file-alt"></i> Templates</button>
+            <button class="tab-btn" data-tab="variaveis"><i class="fas fa-code"></i> Variáveis Disponíveis</button>
+        </div>
+
+        <!-- PAINEL TEMPLATES -->
+        <div id="templatesPanel" class="panel">
+            <div class="form-card">
+                <div class="form-header">
+                    <h2><i class="fas fa-plus-circle"></i> Template de Mensagem</h2>
+                    <p>Crie e gerencie templates para mensagens automáticas. <span class="suggestion-badge"><i class="fas fa-magic"></i> Dica: Selecione os parâmetros e clique em "Gerar Mensagem"!</span></p>
+                </div>
+                <div class="form-body">
+                    <div class="form-grid">
+                        <div class="input-group"><label class="required"><i class="fas fa-tag"></i> Nome do Template</label><input type="text" id="tplNome" placeholder="Ex: Lembrete_Vacina, Boas_Vindas, Aniversario_Pet"></div>
+                        <div class="input-group"><label class="required"><i class="fas fa-circle"></i> Canal</label><select id="tplCanalId"><option value="">Selecione um canal</option></select></div>
+                        <div class="input-group"><label><i class="fas fa-building"></i> Provedor</label><input type="text" id="tplProvedor" placeholder="Ex: Evolution, Twilio, SMTP" readonly style="background:#f8fbfd;"></div>
+                        <div class="input-group"><label class="required"><i class="fas fa-tag"></i> Tipo</label><select id="tplTipo">
+                            <option value="">Selecione</option>
+                            <option value="lembrete">🔔 Lembrete</option>
+                            <option value="promocao">🎉 Promoção</option>
+                            <option value="confirmacao">✅ Confirmação</option>
+                            <option value="cancelamento">❌ Cancelamento</option>
+                            <option value="notificacao">📢 Notificação</option>
+                            <option value="boas_vindas">👋 Boas Vindas</option>
+                            <option value="aniversario_pet">🎂 Aniversário do Pet</option>
+                            <option value="aniversario_cliente">🎂 Aniversário do Cliente</option>
+                            <option value="cliente_inativo">⏰ Cliente Inativo</option>
+                            <option value="outro">📌 Outro</option>
+                        </select></div>
+                        <div class="input-group"><label><i class="fas fa-bolt"></i> Gatilho</label><select id="tplGatilho">
+                            <option value="">Selecione</option>
+                            <option value="agendamento_criado">📅 Novo Agendamento</option>
+                            <option value="agendamento_confirmado">✅ Agendamento Confirmado</option>
+                            <option value="agendamento_cancelado">❌ Agendamento Cancelado</option>
+                            <option value="lembrete_vencimento">⏰ Lembrete de Vencimento</option>
+                            <option value="aniversario_pet">🎂 Aniversário do Pet</option>
+                            <option value="aniversario_cliente">🎂 Aniversário do Cliente</option>
+                            <option value="cliente_inativo">📉 Cliente Inativo</option>
+                            <option value="promocao_especial">🎁 Promoção Especial</option>
+                            <option value="boas_vindas">👋 Boas Vindas</option>
+                            <option value="vacina_vencendo">💉 Vacina Vencendo</option>
+                            <option value="consulta_agendada">🩺 Consulta Agendada</option>
+                        </select></div>
+                        <div class="input-group"><label><i class="fas fa-heading"></i> Título / Assunto</label><input type="text" id="tplTitulo" placeholder="Assunto do e-mail ou título da mensagem"></div>
+                        <div class="input-group"><label><i class="fas fa-calendar-alt"></i> Dias de Antecedência</label><input type="number" id="tplDiasAntecedencia" placeholder="0" min="0" value="0"></div>
+                        <div class="input-group"><label><i class="fas fa-toggle-on"></i> Status</label><select id="tplAtivo"><option value="true">✅ Ativo</option><option value="false">⭕ Inativo</option></select></div>
+                        <div class="input-group"><label><i class="fas fa-robot"></i> Automático</label><select id="tplAutomatico"><option value="true">✅ Sim (disparo automático)</option><option value="false">❌ Não (uso manual)</option></select></div>
+                        <div class="input-group" style="grid-column: span 2;">
+                            <label class="required"><i class="fas fa-comment"></i> Mensagem</label>
+                            <textarea id="tplMensagem" rows="6" placeholder="Digite sua mensagem aqui... Use as variáveis clicando nos botões abaixo."></textarea>
+                            <div class="preview-area">
+                                <h4><i class="fas fa-eye"></i> Pré-visualização:</h4>
+                                <div id="previewMessage" class="preview-message" style="background:#f8fbfd; padding:12px; border-radius:12px; font-size:0.8rem; white-space:pre-wrap;"></div>
+                            </div>
+                        </div>
+                        <div class="input-group" style="grid-column: span 2;">
+                            <label><i class="fas fa-code"></i> Variáveis Disponíveis</label>
+                            <div class="variables-box" id="variablesBox">
+                                <span class="variable-tag" data-var="{{pet_nome}}">{{pet_nome}}</span>
+                                <span class="variable-tag" data-var="{{pet_raca}}">{{pet_raca}}</span>
+                                <span class="variable-tag" data-var="{{pet_especie}}">{{pet_especie}}</span>
+                                <span class="variable-tag" data-var="{{pet_idade}}">{{pet_idade}}</span>
+                                <span class="variable-tag" data-var="{{cliente_nome}}">{{cliente_nome}}</span>
+                                <span class="variable-tag" data-var="{{cliente_telefone}}">{{cliente_telefone}}</span>
+                                <span class="variable-tag" data-var="{{cliente_email}}">{{cliente_email}}</span>
+                                <span class="variable-tag" data-var="{{data}}">{{data}}</span>
+                                <span class="variable-tag" data-var="{{hora}}">{{hora}}</span>
+                                <span class="variable-tag" data-var="{{data_vencimento}}">{{data_vencimento}}</span>
+                                <span class="variable-tag" data-var="{{dias_restantes}}">{{dias_restantes}}</span>
+                                <span class="variable-tag" data-var="{{dias_inativo}}">{{dias_inativo}}</span>
+                                <span class="variable-tag" data-var="{{ultima_compra}}">{{ultima_compra}}</span>
+                                <span class="variable-tag" data-var="{{servico}}">{{servico}}</span>
+                                <span class="variable-tag" data-var="{{servico_preco}}">{{servico_preco}}</span>
+                                <span class="variable-tag" data-var="{{profissional}}">{{profissional}}</span>
+                                <span class="variable-tag" data-var="{{valor}}">{{valor}}</span>
+                                <span class="variable-tag" data-var="{{empresa_nome}}">{{empresa_nome}}</span>
+                                <span class="variable-tag" data-var="{{empresa_telefone}}">{{empresa_telefone}}</span>
+                                <span class="variable-tag" data-var="{{empresa_email}}">{{empresa_email}}</span>
+                                <span class="variable-tag" data-var="{{empresa_endereco}}">{{empresa_endereco}}</span>
+                                <span class="variable-tag" data-var="{{link_confirmacao}}">{{link_confirmacao}}</span>
+                                <span class="variable-tag" data-var="{{link_cancelamento}}">{{link_cancelamento}}</span>
+                                <span class="variable-tag" data-var="{{link_whatsapp}}">{{link_whatsapp}}</span>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <div class="button-group">
+                                <button type="button" id="generateMessageBtn" class="btn btn-purple btn-generate"><i class="fas fa-magic"></i> Gerar Mensagem</button>
+                                <button type="button" id="cancelTemplateBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button>
+                                <button type="button" id="saveTemplateBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Template</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="table-header"><h3><i class="fas fa-list"></i> Templates Cadastrados</h3><div class="search-area"><input type="text" id="searchTemplate" placeholder="🔍 Buscar por nome..."><select id="tplCanalFilter"><option value="">Todos canais</option></select><select id="tplStatusFilter"><option value="">Todos status</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select><select id="tplTipoFilter"><option value="">Todos tipos</option><option value="lembrete">🔔 Lembrete</option><option value="promocao">🎉 Promoção</option><option value="confirmacao">✅ Confirmação</option><option value="cancelamento">❌ Cancelamento</option><option value="notificacao">📢 Notificação</option><option value="boas_vindas">👋 Boas Vindas</option><option value="aniversario_pet">🎂 Aniversário do Pet</option><option value="aniversario_cliente">🎂 Aniversário do Cliente</option><option value="cliente_inativo">⏰ Cliente Inativo</option><option value="outro">📌 Outro</option></select><button id="clearTemplateFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button><button id="exportTemplatesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
+                <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></tr></thead><tbody id="templatesTableBody"></tbody>}</div>
+                <div class="pagination" id="templatesPagination"></div>
+            </div>
+        </div>
+
+        <!-- PAINEL VARIÁVEIS -->
+        <div id="variaveisPanel" class="panel" style="display:none;">
+            <div class="form-card">
+                <div class="form-header"><h2><i class="fas fa-code"></i> Guia de Variáveis</h2><p>Utilize estas variáveis nos templates para personalizar as mensagens</p></div>
+                <div class="form-body">
+                    <div class="input-group"><label><i class="fas fa-search"></i> Buscar variável</label><input type="text" id="searchVariavel" placeholder="Digite para filtrar..."></div>
+                    <div id="variaveisList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">PerShop Enterprise - Módulo de Templates | Personalize suas mensagens com variáveis dinâmicas</div>
+</div>
+
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-file-alt"></i> Detalhes do Template</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<!-- Modal para Teste WhatsApp -->
+<div id="whatsappTestModal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3><i class="fab fa-whatsapp"></i> Teste no WhatsApp</h3>
+            <button class="modal-close" onclick="fecharWhatsappModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="info-box"><i class="fas fa-info-circle"></i> Ao clicar em "Enviar Teste", você será redirecionado para o WhatsApp Web/App <strong>sem custos adicionais</strong>.</div>
+            <div class="info-box" style="background:#e0f2e9;"><i class="fab fa-whatsapp" style="color:#25D366;"></i> <strong>Gratuito!</strong> O envio é feito pelo seu próprio WhatsApp, sem cobrança de API.</div>
+            <div class="input-group"><label><i class="fas fa-phone"></i> Número para teste</label><input type="text" id="whatsappTestNumber" placeholder="(00) 00000-0000" value=""></div>
+            <div class="input-group"><label><i class="fas fa-comment"></i> Mensagem que será enviada</label><textarea id="whatsappTestMessage" rows="6" readonly style="background:#f8fbfd; resize:vertical;"></textarea></div>
+            <div class="test-options">
+                <button class="btn btn-outline" onclick="fecharWhatsappModal()">Cancelar</button>
+                <button class="btn btn-success" id="sendWhatsappTestBtn" onclick="enviarWhatsappTeste()"><i class="fab fa-whatsapp"></i> Abrir no WhatsApp</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // ==================== IMPORTAÇÕES ====================
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, carregarEmpresaUsuario, verificarAcessoAdmin,
+        verificarStatusEmpresa, aplicarMascaraTelefone, formatarData
+    } from './util.js';
+
+    // ==================== CONSTANTES ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingId = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let templatesCache = [];
+    let canaisCache = [];
+    let currentWhatsappTemplate = null;
+
+    // ==================== LISTA COMPLETA DE VARIÁVEIS ====================
+    const VARIAVEIS_DISPONIVEIS = [
+        { nome: "pet_nome", descricao: "Nome do pet", exemplo: "Rex", categoria: "Pet" },
+        { nome: "pet_raca", descricao: "Raça do pet", exemplo: "Golden Retriever", categoria: "Pet" },
+        { nome: "pet_especie", descricao: "Espécie do pet", exemplo: "Cachorro", categoria: "Pet" },
+        { nome: "pet_idade", descricao: "Idade do pet", exemplo: "3 anos", categoria: "Pet" },
+        { nome: "cliente_nome", descricao: "Nome do cliente/tutor", exemplo: "João Silva", categoria: "Cliente" },
+        { nome: "cliente_telefone", descricao: "Telefone do cliente", exemplo: "(11) 99999-9999", categoria: "Cliente" },
+        { nome: "cliente_email", descricao: "E-mail do cliente", exemplo: "joao@email.com", categoria: "Cliente" },
+        { nome: "data", descricao: "Data atual formatada", exemplo: "25/04/2026", categoria: "Data/Hora" },
+        { nome: "hora", descricao: "Hora atual formatada", exemplo: "14:30", categoria: "Data/Hora" },
+        { nome: "data_vencimento", descricao: "Data de vencimento", exemplo: "30/04/2026", categoria: "Data/Hora" },
+        { nome: "dias_restantes", descricao: "Dias restantes para vencimento", exemplo: "5 dias", categoria: "Data/Hora" },
+        { nome: "dias_inativo", descricao: "Dias sem atividade do cliente", exemplo: "60 dias", categoria: "Cliente" },
+        { nome: "ultima_compra", descricao: "Data da última compra/agendamento", exemplo: "25/02/2026", categoria: "Cliente" },
+        { nome: "servico", descricao: "Nome do serviço", exemplo: "Banho e Tosa", categoria: "Serviço" },
+        { nome: "servico_preco", descricao: "Preço do serviço", exemplo: "R$ 89,90", categoria: "Serviço" },
+        { nome: "profissional", descricao: "Nome do profissional", exemplo: "Dr. Carlos", categoria: "Profissional" },
+        { nome: "valor", descricao: "Valor genérico", exemplo: "R$ 150,00", categoria: "Financeiro" },
+        { nome: "empresa_nome", descricao: "Nome da empresa", exemplo: "PetShop Central", categoria: "Empresa" },
+        { nome: "empresa_telefone", descricao: "Telefone da empresa", exemplo: "(34) 99782-4990", categoria: "Empresa" },
+        { nome: "empresa_email", descricao: "E-mail da empresa", exemplo: "contato@petshop.com", categoria: "Empresa" },
+        { nome: "empresa_endereco", descricao: "Endereço da empresa", exemplo: "Rua Central, 123", categoria: "Empresa" },
+        { nome: "link_confirmacao", descricao: "Link para confirmar agendamento", exemplo: "https://...", categoria: "Links" },
+        { nome: "link_cancelamento", descricao: "Link para cancelar agendamento", exemplo: "https://...", categoria: "Links" },
+        { nome: "link_whatsapp", descricao: "Link para WhatsApp da empresa", exemplo: "https://wa.me/...", categoria: "Links" }
+    ];
+
+    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    async function carregarDadosEmpresa() {
+        if (!currentEmpresa) return;
+        const empresaId = currentEmpresa.id;
+        const canaisSnap = await getDocs(query(collection(db, 'canais'), where('empresaId', '==', empresaId)));
+        canaisCache = canaisSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const templatesSnap = await getDocs(query(collection(db, 'templates'), where('empresaId', '==', empresaId)));
+        templatesCache = templatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
+    function gerarTemplateProfissional(tipo, canalTipo, gatilho) {
+        const empresa = currentEmpresa;
+        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
+        const empresaTelefone = empresa?.emp_whatsapp || '(34) 99782-4990';
+        const empresaEmail = empresa?.emp_email || 'contato@pershop.com';
+        const empresaEndereco = empresa?.emp_endereco || 'Rua Principal, 123';
+        const templates = {
+            cliente_inativo: {
+                whatsapp: `🐾 *${empresaNome} - Sentimos sua falta!* 🐾\n\nOlá {{cliente_nome}}! 👋\n\nJá fazem *{{dias_inativo}} dias* que você não visita nosso PetShop. Seu amigo {{pet_nome}} está com saudades!\n\n✨ *Novidades especiais para você:*\n• 15% de desconto em serviços para reativação\n• Produtos com preços especiais\n• Ambiente renovado e confortável\n\n📞 *Agende agora:* ${empresaTelefone}\n📍 *Onde estamos:* ${empresaEndereco}\n\n*Aguardamos ansiosamente por vocês!* 💙\n\n_${empresaNome} - Cuidando de quem você ama_`,
+                email: `**${empresaNome} - Sentimos sua falta!**\n\nOlá {{cliente_nome}},\n\nJá fazem {{dias_inativo}} dias que você não visita nosso PetShop. Seu amigo {{pet_nome}} está com saudades!\n\n**Novidades especiais para você:**\n- 15% de desconto em serviços para reativação\n- Produtos com preços especiais\n- Ambiente renovado e confortável\n\n**Como agendar:**\n- WhatsApp: ${empresaTelefone}\n- E-mail: ${empresaEmail}\n\nAtenciosamente,\n${empresaNome}`,
+                padrao: `Olá {{cliente_nome}}! Sentimos sua falta! Já fazem {{dias_inativo}} dias que você não visita nosso PetShop. Temos novidades especiais esperando por você e seu pet! 🐾 Entre em contato pelo WhatsApp ${empresaTelefone} e agende já! ${empresaNome}`
+            },
+            lembrete: {
+                whatsapp: `🔔 *${empresaNome} - LEMBRETE IMPORTANTE* 🔔\n\nOlá {{cliente_nome}}! Este é um lembrete sobre o pet *{{pet_nome}}*.\n\n📋 *Detalhes do agendamento:*\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n✂️ *Serviço:* {{servico}}\n💰 *Valor:* {{valor}}\n\n✅ *Confirme sua presença* respondendo com "CONFIRMADO".\n❌ *Cancelar/Remarcar:* {{link_cancelamento}}\n\n*Estamos à sua disposição!*\n${empresaNome} - ${empresaTelefone}`,
+                email: `**${empresaNome} - LEMBRETE IMPORTANTE**\n\nOlá {{cliente_nome}},\n\nEste é um lembrete sobre o pet **{{pet_nome}}**.\n\n**Detalhes do agendamento:**\n- Data: {{data}}\n- Hora: {{hora}}\n- Serviço: {{servico}}\n- Valor: {{valor}}\n\n**Confirme sua presença** clicando no link abaixo:\n🔗 Confirmar: {{link_confirmacao}}\n\nPara cancelar ou remarcar: {{link_cancelamento}}\n\nAtenciosamente,\n${empresaNome}`,
+                padrao: `🔔 LEMBRETE IMPORTANTE\nOlá {{cliente_nome}}! Este é um lembrete sobre o pet {{pet_nome}}. 📅 Data: {{data}} ⏰ Hora: {{hora}} ✂️ Serviço: {{servico}} Por favor, confirme sua presença. ${empresaNome}`
+            },
+            promocao: {
+                whatsapp: `🎉 *${empresaNome} - PROMOÇÃO IMPERDÍVEL!* 🎉\n\nOlá {{cliente_nome}}! 🐾\n\nAproveite nossa *oferta especial* para você e seu pet {{pet_nome}}:\n\n✨ *Ofertas válidas até 30/04/2026:*\n• 🔥 *20% OFF* em todos os serviços\n• 🛍️ *Compre 2 banhos, leve 1 tosa grátis*\n• 🎁 *Produtos com até 25% de desconto*\n• ✨ *Indique um amigo e ganhe 10% de desconto*\n\n📞 *Agende agora:* ${empresaTelefone}\n📍 *Visite-nos:* ${empresaEndereco}\n\n*Não perca essa chance!* 🎯\n\n${empresaNome}`,
+                email: `**${empresaNome} - PROMOÇÃO IMPERDÍVEL!**\n\nOlá {{cliente_nome}},\n\nAproveite nossa oferta especial para você e seu pet **{{pet_nome}}**!\n\n**Ofertas válidas até 30/04/2026:**\n- 20% OFF em todos os serviços\n- Compre 2 banhos, leve 1 tosa grátis\n- Produtos com até 25% de desconto\n- Indique um amigo e ganhe 10% de desconto\n\nAgende já pelo WhatsApp: ${empresaTelefone}\n\n${empresaNome}`,
+                padrao: `🎉 PROMOÇÃO ESPECIAL! Olá {{cliente_nome}}! Aproveite nossa oferta imperdível para seu pet! Desconto especial em todos os serviços! Agende já: ${empresaTelefone} ${empresaNome}`
+            },
+            confirmacao: {
+                whatsapp: `✅ *${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO* ✅\n\nOlá {{cliente_nome}}!\n\nSeu agendamento foi *confirmado com sucesso*!\n\n📋 *Detalhes do serviço:*\n🐕 *Pet:* {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n💰 *Valor:* {{valor}}\n👨‍⚕️ *Profissional:* {{profissional}}\n\n📍 *Endereço:* ${empresaEndereco}\n📞 *Contato:* ${empresaTelefone}\n\n🔗 *Cancelar/Remarcar:* ${link_cancelamento}\n\n*Estamos ansiosos para receber vocês!* 🐾\n\n${empresaNome}`,
+                email: `**${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO**\n\nOlá {{cliente_nome}},\n\nSeu agendamento foi **confirmado com sucesso**!\n\n**Detalhes do serviço:**\n- Pet: {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n- Serviço: {{servico}}\n- Data: {{data}}\n- Hora: {{hora}}\n- Valor: {{valor}}\n- Profissional: {{profissional}}\n\n**Endereço:** ${empresaEndereco}\n**Contato:** ${empresaTelefone}\n\nPara cancelar ou remarcar: ${link_cancelamento}\n\n${empresaNome}`,
+                padrao: `✅ CONFIRMAÇÃO DE AGENDAMENTO\nOlá {{cliente_nome}}! Seu agendamento foi confirmado. Pet: {{pet_nome}}. Serviço: {{servico}}. Data: {{data}} às {{hora}}. ${empresaNome}`
+            },
+            cancelamento: {
+                whatsapp: `❌ *${empresaNome} - CANCELAMENTO DE AGENDAMENTO* ❌\n\nOlá {{cliente_nome}},\n\nInformamos que seu agendamento foi *cancelado* conforme solicitado.\n\n📋 *Detalhes do cancelamento:*\n🐕 *Pet:* {{pet_nome}}\n📅 *Data original:* {{data}}\n⏰ *Horário:* {{hora}}\n✂️ *Serviço:* {{servico}}\n\n🔗 *Remarcar agora:* {{link_confirmacao}}\n\n📞 *Dúvidas?* Fale conosco: ${empresaTelefone}\n\n*Estamos à disposição para um novo agendamento!* 💙\n\n${empresaNome}`,
+                padrao: `❌ CANCELAMENTO DE AGENDAMENTO\nOlá {{cliente_nome}}, informamos que seu agendamento do pet {{pet_nome}} para o dia {{data}} foi cancelado. Para remarcar, entre em contato. ${empresaNome}`
+            },
+            boas_vindas: {
+                whatsapp: `👋 *Bem-vindo(a) ao ${empresaNome}!* 🐾\n\nOlá {{cliente_nome}}! É uma imensa alegria tê-lo(a) conosco!\n\n✨ *Sobre nós:*\n• 🛁 Banho e tosa especializado\n• 🩺 Consultas veterinárias\n• 🛍️ Produtos de qualidade\n• 🏠 Hospedagem confortável\n• 💅 Estética animal\n\n🎁 *Como cortesia de boas-vindas, ganhe 10% OFF* na primeira visita!\n\n📞 *Fale conosco:* ${empresaTelefone}\n📍 *Visite-nos:* ${empresaEndereco}\n\n*Seu pet merece o melhor!* 🌟\n\n${empresaNome}`,
+                padrao: `👋 Bem-vindo(a) ao ${empresaNome}! Olá {{cliente_nome}}! É um prazer tê-lo(a) conosco. Estamos à disposição para cuidar do seu pet com todo carinho. ${empresaNome}`
+            },
+            aniversario_pet: {
+                whatsapp: `🎂 *${empresaNome} - FELIZ ANIVERSÁRIO, {{pet_nome}}!* 🎂\n\nOlá {{cliente_nome}}!\n\n🎉 *Hoje é um dia muito especial!* 🎉\n\nParabéns ao seu pet *{{pet_nome}}* que está completando mais um ano de vida! 🐾\n\n✨ *Como presente, ganhe 20% de desconto* em qualquer serviço para comemorar esta data especial!\n\n📞 *Agende:* ${empresaTelefone}\n⏰ *Válido:* Hoje e amanhã\n\n*Muitas felicidades ao seu amigão!* 🥳\n\n${empresaNome}`,
+                email: `**${empresaNome} - FELIZ ANIVERSÁRIO!**\n\nOlá {{cliente_nome}},\n\nHoje é um dia muito especial! Parabéns ao seu pet **{{pet_nome}}** que está completando mais um ano de vida! 🐾\n\nComo presente, ganhe **20% de desconto** em qualquer serviço para comemorar esta data!\n\nAgende já pelo WhatsApp: ${empresaTelefone}\n\n${empresaNome}`,
+                padrao: `🎂 FELIZ ANIVERSÁRIO, {{pet_nome}}! Olá {{cliente_nome}}! Hoje é um dia especial! Parabéns ao seu pet! Traga-o para comemorar com um desconto especial! ${empresaNome}`
+            },
+            aniversario_cliente: {
+                whatsapp: `🎂 *${empresaNome} - FELIZ ANIVERSÁRIO, {{cliente_nome}}!* 🎂\n\nOlá {{cliente_nome}}! 🎉\n\nHoje é um dia muito especial - é o SEU aniversário! 🥳\n\nEm comemoração a esta data tão importante, queremos presentear você e seu pet {{pet_nome}} com:\n\n✨ *20% de desconto* em qualquer serviço!\n🎁 *Brinde especial* para seu pet!\n\n📞 *Agende sua visita:* ${empresaTelefone}\n⏰ *Válido:* Hoje e amanhã\n\n*Parabéns e muitas felicidades!* 🎊\n\n${empresaNome}`,
+                email: `**${empresaNome} - FELIZ ANIVERSÁRIO!**\n\nOlá {{cliente_nome}},\n\nHoje é um dia muito especial - é o SEU aniversário! 🎉\n\nEm comemoração a esta data tão importante, queremos presentear você e seu pet **{{pet_nome}}** com:\n- 20% de desconto em qualquer serviço\n- Brinde especial para seu pet\n\nAgende sua visita pelo WhatsApp: ${empresaTelefone}\n\n*Parabéns e muitas felicidades!*\n\n${empresaNome}`,
+                padrao: `🎂 FELIZ ANIVERSÁRIO, {{cliente_nome}}! Olá {{cliente_nome}}! Hoje é um dia especial - é o seu aniversário! Venha comemorar conosco e ganhe um desconto especial! ${empresaNome}`
+            },
+            notificacao: {
+                whatsapp: `📢 *${empresaNome} - NOVIDADES EXCLUSIVAS* 📢\n\nOlá {{cliente_nome}}! Temos novidades para você e seu pet {{pet_nome}}!\n\n✨ *Novidades que preparamos:*\n• 🆕 Nova linha de produtos naturais\n• 🏢 Espaço de convivência ampliado\n• 👨‍⚕️ Novos profissionais especializados\n• 🎯 Programa de fidelidade\n\n📞 *Saiba mais:* ${empresaTelefone}\n🌐 *Site:* www.pershop.com\n\n*Seu pet merece o melhor!* 💙\n\n${empresaNome}`,
+                padrao: `📢 NOVIDADES! Olá {{cliente_nome}}! Temos novidades para você e seu pet! Entre em contato para saber mais! ${empresaNome}`
+            }
+        };
+        const key = tipo;
+        const t = templates[key];
+        if (!t) return '';
+        if (canalTipo === 'whatsapp' && t.whatsapp) return t.whatsapp;
+        if (canalTipo === 'email' && t.email) return t.email;
+        return t.padrao || '';
+    }
+    function gerarTituloProfissional(tipo) {
+        const empresa = currentEmpresa;
+        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
+        const titulos = {
+            cliente_inativo: `🌟 ${empresaNome} - Sentimos sua falta! 🌟`,
+            lembrete: `🔔 ${empresaNome} - Lembrete Importante`,
+            promocao: `🎉 ${empresaNome} - Promoção Especial! 🎉`,
+            confirmacao: `✅ ${empresaNome} - Confirmação de Agendamento`,
+            cancelamento: `❌ ${empresaNome} - Cancelamento de Agendamento`,
+            boas_vindas: `👋 ${empresaNome} - Bem-vindo! 🐾`,
+            aniversario_pet: `🎂 ${empresaNome} - Feliz Aniversário, Pet! 🎂`,
+            aniversario_cliente: `🎂 ${empresaNome} - Feliz Aniversário! 🎂`,
+            notificacao: `📢 ${empresaNome} - Novidades Exclusivas`
+        };
+        return titulos[tipo] || `${empresaNome} - Mensagem`;
+    }
+    function gerarMensagemManual() {
+        const tipo = document.getElementById('tplTipo').value;
+        const canalId = document.getElementById('tplCanalId').value;
+        if (!tipo) { showToast('Selecione o tipo de template!', 'warning'); return; }
+        if (!canalId) { showToast('Selecione o canal!', 'warning'); return; }
+        const canal = canaisCache.find(c => c.id === canalId);
+        const canalTipo = canal?.canal || 'padrao';
+        const novaMensagem = gerarTemplateProfissional(tipo, canalTipo, '');
+        if (novaMensagem) {
+            document.getElementById('tplMensagem').value = novaMensagem;
+            atualizarPreview();
+            showToast('Template profissional gerado!', 'success');
+        } else {
+            showToast('Não foi possível gerar o template.', 'error');
+        }
+        const novoTitulo = gerarTituloProfissional(tipo);
+        if (novoTitulo && !document.getElementById('tplTitulo').value) {
+            document.getElementById('tplTitulo').value = novoTitulo;
+        }
+    }
+
+    // ==================== CRUD TEMPLATES ====================
+    async function addTemplate(data) {
+        if (templatesCache.some(t => t.nome.toLowerCase() === data.nome.toLowerCase())) {
+            showToast('Já existe um template com este nome!', 'error'); return false;
+        }
+        const newDoc = {
+            ...data,
+            empresaId: currentEmpresa.id,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+            criado_por: currentUser.uid
+        };
+        const docRef = await addDoc(collection(db, 'templates'), newDoc);
+        newDoc.id = docRef.id;
+        templatesCache.unshift(newDoc);
+        renderTemplates();
+        updateStats();
+        showToast('Template criado com sucesso!', 'success');
+        return true;
+    }
+    async function updateTemplate(id, updates) {
+        const old = templatesCache.find(t => t.id === id);
+        if (updates.nome && updates.nome.toLowerCase() !== old?.nome.toLowerCase() && templatesCache.some(t => t.nome.toLowerCase() === updates.nome.toLowerCase() && t.id !== id)) {
+            showToast('Já existe um template com este nome!', 'error'); return false;
+        }
+        await updateDoc(doc(db, 'templates', id), { ...updates, atualizado_em: new Date().toISOString() });
+        const idx = templatesCache.findIndex(t => t.id === id);
+        if (idx !== -1) templatesCache[idx] = { ...templatesCache[idx], ...updates };
+        renderTemplates();
+        updateStats();
+        showToast('Template atualizado!', 'success');
+        return true;
+    }
+    async function deleteTemplate(id) {
+        if (confirm('Excluir template? Esta ação não pode ser desfeita.')) {
+            await deleteDoc(doc(db, 'templates', id));
+            templatesCache = templatesCache.filter(t => t.id !== id);
+            renderTemplates();
+            updateStats();
+            showToast('Template excluído!', 'success');
+        }
+    }
+
+    // ==================== FORMULÁRIO ====================
+    function getTemplateForm() {
+        return {
+            nome: document.getElementById('tplNome').value,
+            canal_id: document.getElementById('tplCanalId').value,
+            provedor: document.getElementById('tplProvedor').value,
+            tipo: document.getElementById('tplTipo').value,
+            gatilho: document.getElementById('tplGatilho').value,
+            titulo: document.getElementById('tplTitulo').value,
+            dias_antecedencia: parseInt(document.getElementById('tplDiasAntecedencia').value) || 0,
+            ativo: document.getElementById('tplAtivo').value === 'true',
+            automatico: document.getElementById('tplAutomatico').value === 'true',
+            mensagem: document.getElementById('tplMensagem').value
+        };
+    }
+    function validarFormulario() {
+        const nome = document.getElementById('tplNome').value.trim();
+        if (!nome) { showToast('Nome do template é obrigatório!', 'error'); return false; }
+        const canalId = document.getElementById('tplCanalId').value;
+        if (!canalId) { showToast('Selecione um canal!', 'error'); return false; }
+        const mensagem = document.getElementById('tplMensagem').value.trim();
+        if (!mensagem) { showToast('Mensagem é obrigatória!', 'error'); return false; }
+        return true;
+    }
+    function resetForm() {
+        document.getElementById('tplNome').value = '';
+        document.getElementById('tplCanalId').value = '';
+        document.getElementById('tplProvedor').value = '';
+        document.getElementById('tplTipo').value = '';
+        document.getElementById('tplGatilho').value = '';
+        document.getElementById('tplTitulo').value = '';
+        document.getElementById('tplDiasAntecedencia').value = '0';
+        document.getElementById('tplAtivo').value = 'true';
+        document.getElementById('tplAutomatico').value = 'true';
+        document.getElementById('tplMensagem').value = '';
+        document.getElementById('previewMessage').innerHTML = '';
+        editingId = null;
+        document.getElementById('cancelTemplateBtn').style.display = 'none';
+        const btn = document.getElementById('saveTemplateBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Salvar Template';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+    function fillForm(template) {
+        document.getElementById('tplNome').value = template.nome || '';
+        document.getElementById('tplCanalId').value = template.canal_id || '';
+        document.getElementById('tplProvedor').value = template.provedor || '';
+        document.getElementById('tplTipo').value = template.tipo || '';
+        document.getElementById('tplGatilho').value = template.gatilho || '';
+        document.getElementById('tplTitulo').value = template.titulo || '';
+        document.getElementById('tplDiasAntecedencia').value = template.dias_antecedencia || 0;
+        document.getElementById('tplAtivo').value = template.ativo ? 'true' : 'false';
+        document.getElementById('tplAutomatico').value = template.automatico ? 'true' : 'false';
+        document.getElementById('tplMensagem').value = template.mensagem || '';
+        atualizarPreview();
+    }
+    async function salvarTemplate() {
+        if (!validarFormulario()) return;
+        const data = getTemplateForm();
+        if (editingId) await updateTemplate(editingId, data);
+        else await addTemplate(data);
+        resetForm();
+    }
+    function cancelEdit() { resetForm(); }
+
+    // ==================== PREVIEW ====================
+    function atualizarPreview() {
+        const mensagem = document.getElementById('tplMensagem').value;
+        if (!mensagem) { document.getElementById('previewMessage').innerHTML = '<span style="color:#7a9eb0;">A mensagem aparecerá aqui...</span>'; return; }
+        let preview = mensagem;
+        const exemplos = {
+            '{{pet_nome}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">Rex</span>',
+            '{{cliente_nome}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">João Silva</span>',
+            '{{data}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">25/04/2026</span>',
+            '{{hora}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">14:30</span>',
+            '{{dias_inativo}}': '<span style="background:#e76f5120; padding:2px 8px; border-radius:12px; color:#e76f51;">60 dias</span>'
+        };
+        for (const [variavel, exemplo] of Object.entries(exemplos)) {
+            preview = preview.split(variavel).join(exemplo);
+        }
+        preview = preview.replace(/\n/g, '<br>');
+        document.getElementById('previewMessage').innerHTML = preview;
+    }
+    function inserirVariavel(variavel) {
+        const textarea = document.getElementById('tplMensagem');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const text = textarea.value;
+        const newText = text.substring(0, start) + variavel + text.substring(end);
+        textarea.value = newText;
+        textarea.focus();
+        textarea.setSelectionRange(start + variavel.length, start + variavel.length);
+        atualizarPreview();
+        showToast(`Variável ${variavel} inserida!`, 'success');
+    }
+
+    // ==================== ATUALIZAR PROVEDOR ====================
+    function atualizarProvedorPorCanal() {
+        const canalId = document.getElementById('tplCanalId').value;
+        const canal = canaisCache.find(c => c.id === canalId);
+        document.getElementById('tplProvedor').value = canal?.provedor || '';
+    }
+
+    // ==================== RENDER TEMPLATES ====================
+    function renderTemplates() {
+        let filtered = templatesCache.filter(t => {
+            const search = document.getElementById('searchTemplate')?.value.toLowerCase() || '';
+            const canalFilter = document.getElementById('tplCanalFilter')?.value || '';
+            const statusFilter = document.getElementById('tplStatusFilter')?.value || '';
+            const tipoFilter = document.getElementById('tplTipoFilter')?.value || '';
+            return (!search || t.nome.toLowerCase().includes(search)) &&
+                   (!canalFilter || t.canal_id === canalFilter) &&
+                   (!statusFilter || (t.ativo ? 'true' : 'false') === statusFilter) &&
+                   (!tipoFilter || t.tipo === tipoFilter);
+        });
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('templatesTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum template encontrado<\/td><\/tr>'; document.getElementById('templatesPagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(t => {
+            const canal = canaisCache.find(c => c.id === t.canal_id);
+            const statusClass = t.ativo ? 'status-ativo' : 'status-inativo';
+            const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
+            const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
+            const isWhatsApp = canal?.canal === 'whatsapp';
+            return `<tr>
+                <td><strong>${escapeHtml(t.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(t.titulo || '')}</span></td>
+                <td>${canal?.canal === 'whatsapp' ? '<i class="fab fa-whatsapp"></i>' : (canal?.canal === 'email' ? '<i class="fas fa-envelope"></i>' : '<i class="fas fa-sms"></i>')} ${escapeHtml(canal?.nome || '-')}<br><span style="font-size:0.6rem;">${escapeHtml(t.provedor || canal?.provedor || '')}</span></td>
+                <td>${tipoLabels[t.tipo] || t.tipo || '-'}</td>
+                <td><span class="badge" style="background:#2c7da020;">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></td>
+                <td><span class="status-badge ${statusClass}">${t.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${t.automatico ? '<span class="badge" style="background:#2a9d8f20; color:#2a9d8f;"><i class="fas fa-robot"></i> Auto</span>' : '<span class="badge" style="background:#e9c46a20; color:#e9c46a;"><i class="fas fa-user"></i> Manual</span>'}</td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewTemplate('${t.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editTemplate('${t.id}')"><i class="fas fa-edit"></i></button>
+                    ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
+                    <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('templatesPagination').innerHTML = pagHtml;
+    }
+    function goToPage(page) { currentPage = page; renderTemplates(); }
+
+    function updateStats() {
+        document.getElementById('totalTemplates').innerText = templatesCache.length;
+        document.getElementById('templatesAtivos').innerText = templatesCache.filter(t => t.ativo).length;
+        document.getElementById('templatesInativos').innerText = templatesCache.filter(t => t.tipo === 'cliente_inativo').length;
+        let whatsappCount = 0, emailCount = 0;
+        templatesCache.forEach(t => {
+            const canal = canaisCache.find(c => c.id === t.canal_id);
+            if (canal) {
+                if (canal.canal === 'whatsapp') whatsappCount++;
+                if (canal.canal === 'email') emailCount++;
+            }
+        });
+        document.getElementById('templatesWhatsApp').innerText = whatsappCount;
+        document.getElementById('templatesEmail').innerText = emailCount;
+    }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportTemplatesPDF() {
+        if (templatesCache.length === 0) { showToast('Não há templates para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Templates', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
+            doc.text(`Total de templates: ${templatesCache.length}`, 14, 46);
+            doc.text(`Templates ativos: ${templatesCache.filter(t => t.ativo).length}`, 14, 54);
+            doc.text(`Templates para clientes inativos: ${templatesCache.filter(t => t.tipo === 'cliente_inativo').length}`, 14, 62);
+            const colunas = [{ label: 'Nome', width: 40 }, { label: 'Canal', width: 30 }, { label: 'Tipo', width: 40 }, { label: 'Gatilho', width: 45 }, { label: 'Status', width: 25 }];
+            let y = 72;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0); y += 12;
+            const tipoLabels = { lembrete:'Lembrete', promocao:'Promoção', confirmacao:'Confirmação', cancelamento:'Cancelamento', notificacao:'Notificação', boas_vindas:'Boas Vindas', aniversario_pet:'Aniversário do Pet', aniversario_cliente:'Aniversário do Cliente', cliente_inativo:'Cliente Inativo', outro:'Outro' };
+            const gatilhoLabels = { agendamento_criado:'Novo Agendamento', agendamento_confirmado:'Agendamento Confirmado', agendamento_cancelado:'Agendamento Cancelado', lembrete_vencimento:'Lembrete Vencimento', aniversario_pet:'Aniv. do Pet', aniversario_cliente:'Aniv. do Cliente', cliente_inativo:'Cliente Inativo', promocao_especial:'Promoção', boas_vindas:'Boas Vindas', vacina_vencendo:'Vacina Vencendo', consulta_agendada:'Consulta' };
+            for (const t of templatesCache) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                const canal = canaisCache.find(c => c.id === t.canal_id);
+                doc.text((t.nome || '-').substring(0,25), x+2, y+4); x += 40;
+                doc.text(canal?.nome?.substring(0,20) || '-', x+2, y+4); x += 30;
+                doc.text(tipoLabels[t.tipo] || t.tipo || '-', x+2, y+4); x += 40;
+                doc.text(gatilhoLabels[t.gatilho] || t.gatilho || '-', x+2, y+4); x += 45;
+                doc.text(t.ativo ? 'Ativo' : 'Inativo', x+2, y+4);
+                y += 8; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`templates_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado com sucesso!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    // ==================== FILTROS ====================
+    function clearTemplateFilters() {
+        document.getElementById('searchTemplate').value = '';
+        document.getElementById('tplCanalFilter').value = '';
+        document.getElementById('tplStatusFilter').value = '';
+        document.getElementById('tplTipoFilter').value = '';
+        currentPage = 1;
+        renderTemplates();
+        showToast('Filtros limpos!', 'success');
+    }
+    function aplicarFiltroTipo(tipo) { document.getElementById('tplTipoFilter').value = tipo; currentPage = 1; renderTemplates(); }
+    function aplicarFiltroAtivo(ativo) { document.getElementById('tplStatusFilter').value = ativo; currentPage = 1; renderTemplates(); }
+    function aplicarFiltroCanal(canal) {
+        const canalObj = canaisCache.find(c => c.canal === canal);
+        if (canalObj) { document.getElementById('tplCanalFilter').value = canalObj.id; currentPage = 1; renderTemplates(); }
+    }
+
+    // ==================== VIEW FUNCTIONS ====================
+    window.viewTemplate = function(id) {
+        const t = templatesCache.find(t => t.id === id);
+        const canal = canaisCache.find(c => c.id === t?.canal_id);
+        if (!t) return;
+        const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
+        const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(t.nome)}</span></div>
+            <div class="info-row"><span class="info-label">Canal:</span><span class="info-value">${escapeHtml(canal?.nome || '-')} (${canal?.canal || '-'})</span></div>
+            <div class="info-row"><span class="info-label">Provedor:</span><span class="info-value">${escapeHtml(t.provedor || canal?.provedor || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${tipoLabels[t.tipo] || t.tipo || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Gatilho:</span><span class="info-value">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Título/Assunto:</span><span class="info-value">${escapeHtml(t.titulo || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Dias Antecedência:</span><span class="info-value">${t.dias_antecedencia || 0} dias</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${t.ativo ? '<span class="status-badge status-ativo">✅ Ativo</span>' : '<span class="status-badge status-inativo">⭕ Inativo</span>'}</span></div>
+            <div class="info-row"><span class="info-label">Automático:</span><span class="info-value">${t.automatico ? '✅ Sim' : '❌ Não'}</span></div>
+            <div class="info-row"><span class="info-label">Mensagem:</span><span class="info-value"><div class="preview-message" style="background:#f8fbfd; white-space:pre-wrap; text-align:left;">${escapeHtml(t.mensagem || '-')}</div></span></div>
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.editTemplate = function(id) {
+        const t = templatesCache.find(t => t.id === id);
+        if (t) { fillForm(t); editingId = id; document.getElementById('cancelTemplateBtn').style.display = 'inline-block'; document.getElementById('saveTemplateBtn').innerHTML = '<i class="fas fa-pen"></i> Atualizar Template'; document.getElementById('saveTemplateBtn').classList.remove('btn-primary'); document.getElementById('saveTemplateBtn').classList.add('btn-success'); document.querySelector('.tab-btn[data-tab="templates"]').click(); window.scrollTo({ top: 0 }); }
+    };
+    window.deleteTemplate = deleteTemplate;
+
+    // ==================== TESTE WHATSAPP ====================
+    function abrirWhatsappTeste(templateId) {
+        const template = templatesCache.find(t => t.id === templateId);
+        if (!template) { showToast('Template não encontrado!', 'error'); return; }
+        currentWhatsappTemplate = template;
+        const messageTextarea = document.getElementById('whatsappTestMessage');
+        const numeroInput = document.getElementById('whatsappTestNumber');
+        numeroInput.value = '';
+        let previewMsg = template.mensagem;
+        const previewExemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{empresa_nome}}':currentEmpresa?.emp_razao_social || 'PetShop Central', '{{empresa_telefone}}':currentEmpresa?.emp_whatsapp || '(34) 99782-4990' };
+        for (const [k,v] of Object.entries(previewExemplos)) previewMsg = previewMsg.split(k).join(v);
+        messageTextarea.value = previewMsg;
+        document.getElementById('whatsappTestModal').style.display = 'flex';
+    }
+    function fecharWhatsappModal() { document.getElementById('whatsappTestModal').style.display = 'none'; currentWhatsappTemplate = null; }
+    function formatarNumeroWhatsApp(numero) {
+        let limp = numero.replace(/\D/g, '');
+        if (limp.length === 10) limp = limp.substring(0,2) + '9' + limp.substring(2);
+        if (limp.length === 11 && !limp.startsWith('55')) limp = '55' + limp;
+        else if (limp.length === 11) limp = '55' + limp;
+        return limp;
+    }
+    function enviarWhatsappTeste() {
+        if (!currentWhatsappTemplate) { showToast('Nenhum template selecionado!', 'error'); fecharWhatsappModal(); return; }
+        let numero = document.getElementById('whatsappTestNumber').value;
+        if (!numero) { showToast('Digite um número de telefone!', 'error'); return; }
+        const numeroWhats = formatarNumeroWhatsApp(numero);
+        const mensagem = document.getElementById('whatsappTestMessage').value;
+        window.open(`https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagem)}`, '_blank');
+        showToast('✅ Abrindo WhatsApp! A mensagem foi preenchida.', 'success');
+        setTimeout(() => fecharWhatsappModal(), 2000);
+    }
+
+    // ==================== VARIÁVEIS ====================
+    function renderVariaveis() {
+        const search = document.getElementById('searchVariavel')?.value.toLowerCase() || '';
+        let variaveis = VARIAVEIS_DISPONIVEIS.filter(v => !search || v.nome.includes(search) || v.descricao.includes(search) || v.categoria.includes(search));
+        const categorias = {};
+        variaveis.forEach(v => { if (!categorias[v.categoria]) categorias[v.categoria] = []; categorias[v.categoria].push(v); });
+        let html = '';
+        for (const [cat, items] of Object.entries(categorias)) {
+            html += `<div style="grid-column:1/-1; margin-top:10px;"><h3 style="color:#1f5068; font-size:0.9rem; margin-bottom:10px; border-left:3px solid #2c7da0; padding-left:10px;">${cat}</h3><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:10px;">`;
+            items.forEach(v => {
+                html += `<div style="background:#f8fbfd; border-radius:12px; padding:12px; border:1px solid #e2edf2; cursor:pointer;" onclick="copiarVariavel('{{${v.nome}}}')">
+                            <code style="background:#2c7da0; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem;">{{${v.nome}}}</code>
+                            <p style="font-size:0.75rem; margin-top:5px; color:#4a6272;">${escapeHtml(v.descricao)}</p>
+                            <small style="color:#7a9eb0;">Ex: ${escapeHtml(v.exemplo)}</small>
+                         </div>`;
+            });
+            html += `</div></div>`;
+        }
+        document.getElementById('variaveisList').innerHTML = html || '<div style="text-align:center; padding:40px;">Nenhuma variável encontrada</div>';
+    }
+    window.copiarVariavel = function(variavel) { navigator.clipboard.writeText(variavel); showToast(`Variável ${variavel} copiada!`, 'success'); };
+
+    // ==================== SELECTS ====================
+    function atualizarSelectCanais() {
+        const options = canaisCache.filter(c => c.ativo).map(c => `<option value="${c.id}" data-canal="${c.canal}" data-provedor="${c.provedor || ''}">${escapeHtml(c.nome)} (${c.canal === 'whatsapp' ? 'WhatsApp' : (c.canal === 'email' ? 'E-mail' : 'SMS')})</option>`).join('');
+        document.getElementById('tplCanalId').innerHTML = '<option value="">Selecione um canal</option>' + options;
+        document.getElementById('tplCanalFilter').innerHTML = '<option value="">Todos canais</option>' + options;
+        document.getElementById('tplCanalId').onchange = atualizarProvedorPorCanal;
+    }
+
+    // ==================== DADOS EXEMPLO ====================
+    async function initSampleData() {
+        if (templatesCache.length === 0 && canaisCache.length > 0) {
+            const whatsappCanal = canaisCache.find(c => c.canal === 'whatsapp');
+            const emailCanal = canaisCache.find(c => c.canal === 'email');
+            const sampleTemplates = [];
+            if (whatsappCanal) {
+                sampleTemplates.push({
+                    nome: 'Lembrete Vacina WhatsApp',
+                    canal_id: whatsappCanal.id,
+                    provedor: whatsappCanal.provedor,
+                    tipo: 'lembrete',
+                    gatilho: 'lembrete_vencimento',
+                    titulo: '',
+                    dias_antecedencia: 7,
+                    ativo: true,
+                    automatico: true,
+                    mensagem: gerarTemplateProfissional('lembrete', 'whatsapp', 'lembrete_vencimento')
+                });
+            }
+            if (emailCanal) {
+                sampleTemplates.push({
+                    nome: 'Confirmação Agendamento E-mail',
+                    canal_id: emailCanal.id,
+                    provedor: emailCanal.provedor,
+                    tipo: 'confirmacao',
+                    gatilho: 'agendamento_confirmado',
+                    titulo: gerarTituloProfissional('confirmacao'),
+                    dias_antecedencia: 0,
+                    ativo: true,
+                    automatico: true,
+                    mensagem: gerarTemplateProfissional('confirmacao', 'email', 'agendamento_confirmado')
+                });
+                sampleTemplates.push({
+                    nome: 'Reativação de Cliente Inativo',
+                    canal_id: emailCanal.id,
+                    provedor: emailCanal.provedor,
+                    tipo: 'cliente_inativo',
+                    gatilho: 'cliente_inativo',
+                    titulo: gerarTituloProfissional('cliente_inativo'),
+                    dias_antecedencia: 0,
+                    ativo: true,
+                    automatico: true,
+                    mensagem: gerarTemplateProfissional('cliente_inativo', 'email', 'cliente_inativo')
+                });
+            }
+            for (const t of sampleTemplates) {
+                const docRef = await addDoc(collection(db, 'templates'), { ...t, empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString(), criado_por: currentUser.uid });
+                t.id = docRef.id;
+                templatesCache.push(t);
+            }
+            renderTemplates();
+        }
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            const isAdmin = await verificarAcessoAdmin(user);
+            if (!isAdmin) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('blockedContent').classList.remove('hidden');
+                document.getElementById('conteudoPrincipal').style.display = 'none';
+                return;
+            }
+            await carregarDadosEmpresa();
+            atualizarSelectCanais();
+            await initSampleData();
+            renderTemplates();
+            renderVariaveis();
+            updateStats();
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'expired') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveTemplateBtn').onclick = salvarTemplate;
+    document.getElementById('cancelTemplateBtn').onclick = cancelEdit;
+    document.getElementById('generateMessageBtn').onclick = gerarMensagemManual;
+    document.getElementById('searchTemplate').addEventListener('input', () => { currentPage = 1; renderTemplates(); });
+    document.getElementById('tplCanalFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    document.getElementById('tplStatusFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    document.getElementById('tplTipoFilter').addEventListener('change', () => { currentPage = 1; renderTemplates(); });
+    document.getElementById('clearTemplateFilters').onclick = clearTemplateFilters;
+    document.getElementById('exportTemplatesPdfBtn').onclick = exportTemplatesPDF;
+    document.getElementById('searchVariavel').addEventListener('input', () => renderVariaveis());
+    document.getElementById('tplMensagem').addEventListener('input', atualizarPreview);
+    document.getElementById('variablesBox').addEventListener('click', (e) => {
+        const tag = e.target.closest('.variable-tag');
+        if (tag) inserirVariavel(tag.getAttribute('data-var'));
+    });
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; if (e.target === document.getElementById('whatsappTestModal')) fecharWhatsappModal(); };
+    window.goToPage = goToPage;
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    window.logout = () => auth.signOut();
+    window.fecharModal = () => document.getElementById('viewModal').style.display = 'none';
+    window.fecharWhatsappModal = fecharWhatsappModal;
+    window.enviarWhatsappTeste = enviarWhatsappTeste;
+    window.abrirWhatsappTeste = abrirWhatsappTeste;
+
+    console.log('✅ Templates - Refatorado (uma empresa por usuário)');
+</script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Vacinas | Firebase + Firestore</title>
+    <!-- Bibliotecas para PDF e Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2edf2; padding-bottom: 10px; }
+        .tab-btn { background: none; border: none; padding: 10px 24px; font-weight: 600; cursor: pointer; border-radius: 40px; transition: 0.2s; color: #4a6272; }
+        .tab-btn.active { background: #2c7da0; color: white; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .status-aplicada { background: #2a9d8f20; color: #2a9d8f; }
+        .status-pendente { background: #e9c46a20; color: #e9c46a; }
+        .status-vencida { background: #e76f5120; color: #e76f51; }
+        .action-buttons { display: flex; gap: 6px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 10; }
+        .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } }
+    </style>
+</head>
+<body>
+<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
+    <a href="index.html">Dashboard</a> > 
+    <span>Vacinas</span>
+</div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-syringe"></i></div><h1>PerShop <span>Vacinas</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo de vacinas...</p></div>
+
+    <div id="conteudoPrincipal" style="display: none;">
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-syringe"></i></div></div><div class="stat-value" id="totalVacinas">0</div><div class="stat-label">Vacinas</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div><div class="stat-value" id="totalAplicacoes">0</div><div class="stat-label">Aplicações</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="totalEmDia">0</div><div class="stat-label">Em Dia</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div></div><div class="stat-value" id="totalAtrasadas">0</div><div class="stat-label">Atrasadas</div></div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="vacinas"><i class="fas fa-syringe"></i> Vacinas</button>
+            <button class="tab-btn" data-tab="aplicacoes"><i class="fas fa-paw"></i> Aplicações</button>
+        </div>
+
+        <!-- PAINEL VACINAS -->
+        <div id="vacinasPanel" class="panel">
+            <div class="form-card">
+                <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Cadastrar Vacina</h2><p>Registre uma nova vacina no sistema</p></div>
+                <div class="form-body">
+                    <div class="form-grid">
+                        <div class="input-group"><label class="required"><i class="fas fa-tag"></i> Nome</label><input type="text" id="vacNome" placeholder="Ex: V10, Antirrábica"></div>
+                        <div class="input-group"><label><i class="fas fa-align-left"></i> Descrição</label><textarea id="vacDescricao" rows="2"></textarea></div>
+                        <div class="input-group"><label><i class="fas fa-calendar-alt"></i> Intervalo (dias)</label><input type="number" id="vacIntervalo" placeholder="365"></div>
+                        <div class="input-group"><label><i class="fas fa-dollar-sign"></i> Preço (R$)</label><input type="text" id="vacPreco" placeholder="0,00"></div>
+                        <div class="form-actions"><button type="button" id="cancelVacinaBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button><button type="button" id="saveVacinaBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button></div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="table-header"><h3><i class="fas fa-list"></i> Vacinas</h3><div class="search-area"><input type="text" id="searchVacina" placeholder="🔍 Buscar..."><button id="exportVacinasPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
+                <div class="table-wrapper"><table id="vacinasTable"><thead><tr><th>Nome</th><th>Descrição</th><th>Intervalo</th><th>Preço</th><th>Ações</th></tr></thead><tbody id="vacinasTableBody"></tbody>}</div>
+                <div class="pagination" id="vacinasPagination"></div>
+            </div>
+        </div>
+
+        <!-- PAINEL APLICAÇÕES -->
+        <div id="aplicacoesPanel" class="panel" style="display:none;">
+            <div class="form-card">
+                <div class="form-header"><h2><i class="fas fa-paw"></i> Registrar Aplicação</h2><p>Registre aplicação de vacina em pet</p></div>
+                <div class="form-body">
+                    <div class="form-grid">
+                        <div class="input-group"><label class="required"><i class="fas fa-paw"></i> Pet</label><select id="vpePetId"><option value="">Selecione</option></select></div>
+                        <div class="input-group"><label class="required"><i class="fas fa-syringe"></i> Vacina</label><select id="vpeVacinaId"><option value="">Selecione</option></select></div>
+                        <div class="input-group"><label><i class="fas fa-user-md"></i> Profissional</label><select id="vpeProfissionalId"><option value="">Selecione</option></select></div>
+                        <div class="input-group"><label class="required"><i class="fas fa-calendar"></i> Data Aplicação</label><input type="datetime-local" id="vpeDataAplicacao"></div>
+                        <div class="input-group"><label><i class="fas fa-calendar-alt"></i> Próxima Dose</label><input type="datetime-local" id="vpeProximaDose"></div>
+                        <div class="input-group"><label><i class="fas fa-barcode"></i> Lote</label><input type="text" id="vpeLote" placeholder="Nº do lote"></div>
+                        <div class="input-group"><label><i class="fas fa-circle"></i> Status</label><select id="vpeStatus"><option value="aplicada">✅ Aplicada</option><option value="pendente">⏳ Pendente</option><option value="vencida">⚠️ Vencida</option></select></div>
+                        <div class="input-group" style="grid-column: span 2;"><label><i class="fas fa-sticky-note"></i> Observações</label><textarea id="vpeObs" rows="2"></textarea></div>
+                        <div class="form-actions"><button type="button" id="cancelAplicacaoBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button><button type="button" id="saveAplicacaoBtn" class="btn btn-primary"><i class="fas fa-save"></i> Registrar</button></div>
+                    </div>
+                </div>
+            </div>
+            <div class="table-card">
+                <div class="table-header"><h3><i class="fas fa-list"></i> Aplicações</h3><div class="search-area"><input type="text" id="searchAplicacao" placeholder="🔍 Buscar..."><select id="statusAplicacaoFilter"><option value="">Todos status</option><option value="aplicada">Aplicada</option><option value="pendente">Pendente</option><option value="vencida">Vencida</option></select><button id="clearFiltersBtn" class="btn btn-outline">Limpar</button><button id="exportAplicacoesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
+                <div class="table-wrapper"><table id="aplicacoesTable"><thead><tr><th>Pet</th><th>Vacina</th><th>Data Aplicação</th><th>Próxima Dose</th><th>Lote</th><th>Status</th><th>Ações</th></tr></thead><tbody id="aplicacoesTableBody"></tbody>}</div>
+                <div class="pagination" id="aplicacoesPagination"></div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">PerShop Enterprise - Módulo de Vacinas | Dados em tempo real com Firebase</div>
+</div>
+
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-syringe"></i> Detalhes</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<script type="module">
+    // ==================== IMPORTAÇÕES ====================
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatCurrency, formatarData, parseCurrency,
+        carregarEmpresaUsuario, configurarMascaraValor, verificarStatusEmpresa
+    } from './util.js';
+
+    // ==================== CONSTANTES ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingVacinaId = null, editingAplicacaoId = null;
+    let currentVacinaPage = 1, currentAplicacaoPage = 1;
+    const itemsPerPage = 10;
+    let vacinasCache = [];
+    let aplicacoesCache = [];
+    let petsCache = [];
+    let profissionaisCache = [];
+
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
+    async function carregarDadosEmpresa() {
+        if (!currentEmpresa) return;
+        const empresaId = currentEmpresa.id;
+        const vacinasSnap = await getDocs(query(collection(db, 'vacinas'), where('empresaId', '==', empresaId)));
+        vacinasCache = vacinasSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const aplicacoesSnap = await getDocs(query(collection(db, 'vacinas_pet'), where('empresaId', '==', empresaId)));
+        aplicacoesCache = aplicacoesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', empresaId)));
+        petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), where('empresaId', '==', empresaId)));
+        profissionaisCache = profissionaisSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    // ==================== CRUD VACINAS ====================
+    async function addVacina(data) {
+        const newDoc = { ...data, empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), criado_por: currentUser.uid };
+        const docRef = await addDoc(collection(db, 'vacinas'), newDoc);
+        newDoc.id = docRef.id;
+        vacinasCache.unshift(newDoc);
+        renderVacinas();
+        updateStats();
+        showToast('Vacina cadastrada!', 'success');
+    }
+    async function updateVacina(id, updates) {
+        await updateDoc(doc(db, 'vacinas', id), updates);
+        const idx = vacinasCache.findIndex(v => v.id === id);
+        if (idx !== -1) vacinasCache[idx] = { ...vacinasCache[idx], ...updates };
+        renderVacinas();
+        updateStats();
+        showToast('Vacina atualizada!', 'success');
+    }
+    async function deleteVacina(id) {
+        if (confirm('Excluir vacina?')) {
+            await deleteDoc(doc(db, 'vacinas', id));
+            vacinasCache = vacinasCache.filter(v => v.id !== id);
+            renderVacinas();
+            updateStats();
+            showToast('Vacina excluída!', 'success');
+        }
+    }
+    function getVacinaForm() { 
+        return { 
+            nome: document.getElementById('vacNome').value, 
+            descricao: document.getElementById('vacDescricao').value, 
+            intervaloDias: parseInt(document.getElementById('vacIntervalo').value) || 0, 
+            preco: parseCurrency(document.getElementById('vacPreco').value) 
+        }; 
+    }
+    function resetVacinaForm() {
+        document.getElementById('vacNome').value = '';
+        document.getElementById('vacDescricao').value = '';
+        document.getElementById('vacIntervalo').value = '';
+        document.getElementById('vacPreco').value = '';
+        editingVacinaId = null;
+        document.getElementById('cancelVacinaBtn').style.display = 'none';
+        const btn = document.getElementById('saveVacinaBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+    function fillVacinaForm(v) {
+        document.getElementById('vacNome').value = v.nome || '';
+        document.getElementById('vacDescricao').value = v.descricao || '';
+        document.getElementById('vacIntervalo').value = v.intervaloDias || 0;
+        document.getElementById('vacPreco').value = formatCurrency(v.preco || 0);
+    }
+    async function salvarVacina() {
+        if (!document.getElementById('vacNome').value.trim()) { showToast('Nome é obrigatório!', 'error'); return; }
+        const data = getVacinaForm();
+        if (editingVacinaId) await updateVacina(editingVacinaId, data);
+        else await addVacina(data);
+        resetVacinaForm();
+    }
+    window.editVacina = function(id) {
+        const v = vacinasCache.find(v => v.id === id);
+        if (v) { fillVacinaForm(v); editingVacinaId = id; document.getElementById('cancelVacinaBtn').style.display = 'inline-block'; const btn = document.getElementById('saveVacinaBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+    };
+    window.viewVacina = function(id) {
+        const v = vacinasCache.find(v => v.id === id);
+        if (!v) return;
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(v.nome)}</span></div>
+            <div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(v.descricao || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Intervalo:</span><span class="info-value">${v.intervaloDias || 0} dias</span></div>
+            <div class="info-row"><span class="info-label">Preço:</span><span class="info-value">R$ ${formatCurrency(v.preco || 0)}</span></div>
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.deleteVacina = deleteVacina;
+
+    // ==================== CRUD APLICAÇÕES ====================
+    async function addAplicacao(data) {
+        const newDoc = { ...data, empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), criado_por: currentUser.uid };
+        const docRef = await addDoc(collection(db, 'vacinas_pet'), newDoc);
+        newDoc.id = docRef.id;
+        aplicacoesCache.unshift(newDoc);
+        renderAplicacoes();
+        updateStats();
+        showToast('Aplicação registrada!', 'success');
+    }
+    async function updateAplicacao(id, updates) {
+        await updateDoc(doc(db, 'vacinas_pet', id), updates);
+        const idx = aplicacoesCache.findIndex(a => a.id === id);
+        if (idx !== -1) aplicacoesCache[idx] = { ...aplicacoesCache[idx], ...updates };
+        renderAplicacoes();
+        updateStats();
+        showToast('Aplicação atualizada!', 'success');
+    }
+    async function deleteAplicacao(id) {
+        if (confirm('Excluir aplicação?')) {
+            await deleteDoc(doc(db, 'vacinas_pet', id));
+            aplicacoesCache = aplicacoesCache.filter(a => a.id !== id);
+            renderAplicacoes();
+            updateStats();
+            showToast('Aplicação excluída!', 'success');
+        }
+    }
+    function getAplicacaoForm() {
+        return {
+            petId: document.getElementById('vpePetId').value,
+            vacinaId: document.getElementById('vpeVacinaId').value,
+            profissionalId: document.getElementById('vpeProfissionalId').value,
+            dataAplicacao: document.getElementById('vpeDataAplicacao').value,
+            proximaDose: document.getElementById('vpeProximaDose').value,
+            lote: document.getElementById('vpeLote').value,
+            status: document.getElementById('vpeStatus').value,
+            obs: document.getElementById('vpeObs').value
+        };
+    }
+    function resetAplicacaoForm() {
+        document.getElementById('vpePetId').value = '';
+        document.getElementById('vpeVacinaId').value = '';
+        document.getElementById('vpeProfissionalId').value = '';
+        document.getElementById('vpeDataAplicacao').value = '';
+        document.getElementById('vpeProximaDose').value = '';
+        document.getElementById('vpeLote').value = '';
+        document.getElementById('vpeStatus').value = 'aplicada';
+        document.getElementById('vpeObs').value = '';
+        editingAplicacaoId = null;
+        document.getElementById('cancelAplicacaoBtn').style.display = 'none';
+        const btn = document.getElementById('saveAplicacaoBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Registrar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+    function fillAplicacaoForm(a) {
+        document.getElementById('vpePetId').value = a.petId || '';
+        document.getElementById('vpeVacinaId').value = a.vacinaId || '';
+        document.getElementById('vpeProfissionalId').value = a.profissionalId || '';
+        document.getElementById('vpeDataAplicacao').value = a.dataAplicacao || '';
+        document.getElementById('vpeProximaDose').value = a.proximaDose || '';
+        document.getElementById('vpeLote').value = a.lote || '';
+        document.getElementById('vpeStatus').value = a.status || 'aplicada';
+        document.getElementById('vpeObs').value = a.obs || '';
+    }
+    async function salvarAplicacao() {
+        if (!document.getElementById('vpePetId').value) { showToast('Selecione o pet!', 'error'); return; }
+        if (!document.getElementById('vpeVacinaId').value) { showToast('Selecione a vacina!', 'error'); return; }
+        const data = getAplicacaoForm();
+        if (editingAplicacaoId) await updateAplicacao(editingAplicacaoId, data);
+        else await addAplicacao(data);
+        resetAplicacaoForm();
+    }
+    window.editAplicacao = function(id) {
+        const a = aplicacoesCache.find(a => a.id === id);
+        if (a) { fillAplicacaoForm(a); editingAplicacaoId = id; document.getElementById('cancelAplicacaoBtn').style.display = 'inline-block'; const btn = document.getElementById('saveAplicacaoBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+    };
+    window.viewAplicacao = function(id) {
+        const a = aplicacoesCache.find(a => a.id === id);
+        if (!a) return;
+        const pet = petsCache.find(p => p.id === a.petId);
+        const vac = vacinasCache.find(v => v.id === a.vacinaId);
+        const prof = profissionaisCache.find(p => p.id === a.profissionalId);
+        const statusClass = a.status === 'aplicada' ? 'status-aplicada' : (a.status === 'pendente' ? 'status-pendente' : 'status-vencida');
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Vacina:</span><span class="info-value">${escapeHtml(vac?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Profissional:</span><span class="info-value">${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Data Aplicação:</span><span class="info-value">${a.dataAplicacao ? new Date(a.dataAplicacao).toLocaleString() : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Próxima Dose:</span><span class="info-value">${a.proximaDose ? new Date(a.proximaDose).toLocaleString() : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Lote:</span><span class="info-value">${a.lote || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${a.status}</span></span></div>
+            ${a.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(a.obs)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.deleteAplicacao = deleteAplicacao;
+
+    // ==================== RENDER VACINAS ====================
+    function renderVacinas() {
+        let filtered = vacinasCache.filter(v => {
+            const search = document.getElementById('searchVacina')?.value.toLowerCase() || '';
+            return !search || v.nome.toLowerCase().includes(search);
+        });
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentVacinaPage > totalPages && totalPages > 0) currentVacinaPage = totalPages;
+        const paginated = filtered.slice((currentVacinaPage-1)*itemsPerPage, currentVacinaPage*itemsPerPage);
+        const tbody = document.getElementById('vacinasTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="5">Nenhuma vacina<\/td><\/tr>'; document.getElementById('vacinasPagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(v => `<tr>
+            <td><strong>${escapeHtml(v.nome)}</strong></td>
+            <td>${escapeHtml((v.descricao || '').substring(0,50))}</span></td>
+            <td>${v.intervaloDias || 0} dias</span></td>
+            <td>R$ ${formatCurrency(v.preco || 0)}</span></td>
+            <td class="action-buttons">
+                <button class="action-btn view" onclick="viewVacina('${v.id}')"><i class="fas fa-eye"></i></button>
+                <button class="action-btn edit" onclick="editVacina('${v.id}')"><i class="fas fa-edit"></i></button>
+                <button class="action-btn delete" onclick="deleteVacina('${v.id}')"><i class="fas fa-trash-alt"></i></button>
+            </div>
+        </tr>`).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToVacinaPage(1)" ' + (currentVacinaPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentVacinaPage?'active':''}" onclick="goToVacinaPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToVacinaPage(${totalPages})" ${currentVacinaPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('vacinasPagination').innerHTML = pagHtml;
+    }
+    function goToVacinaPage(page) { currentVacinaPage = page; renderVacinas(); }
+
+    // ==================== RENDER APLICAÇÕES ====================
+    function renderAplicacoes() {
+        let filtered = aplicacoesCache.filter(a => {
+            const search = document.getElementById('searchAplicacao')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('statusAplicacaoFilter')?.value || '';
+            const pet = petsCache.find(p => p.id === a.petId);
+            const vac = vacinasCache.find(v => v.id === a.vacinaId);
+            return (!search || (pet?.nome || '').toLowerCase().includes(search) || (vac?.nome || '').toLowerCase().includes(search)) &&
+                   (!statusFilter || a.status === statusFilter);
+        });
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentAplicacaoPage > totalPages && totalPages > 0) currentAplicacaoPage = totalPages;
+        const paginated = filtered.slice((currentAplicacaoPage-1)*itemsPerPage, currentAplicacaoPage*itemsPerPage);
+        const tbody = document.getElementById('aplicacoesTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhuma aplicação<\/td><\/tr>'; document.getElementById('aplicacoesPagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(a => {
+            const pet = petsCache.find(p => p.id === a.petId);
+            const vac = vacinasCache.find(v => v.id === a.vacinaId);
+            const statusClass = a.status === 'aplicada' ? 'status-aplicada' : (a.status === 'pendente' ? 'status-pendente' : 'status-vencida');
+            return `<tr>
+                <td><strong>${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</strong></td>
+                <td>${escapeHtml(vac?.nome || '-')}</td>
+                <td>${a.dataAplicacao ? new Date(a.dataAplicacao).toLocaleString() : '-'}</td>
+                <td>${a.proximaDose ? new Date(a.proximaDose).toLocaleString() : '-'}</td>
+                <td>${a.lote || '-'}</td>
+                <td><span class="status-badge ${statusClass}">${a.status}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewAplicacao('${a.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editAplicacao('${a.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteAplicacao('${a.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToAplicacaoPage(1)" ' + (currentAplicacaoPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentAplicacaoPage?'active':''}" onclick="goToAplicacaoPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToAplicacaoPage(${totalPages})" ${currentAplicacaoPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('aplicacoesPagination').innerHTML = pagHtml;
+    }
+    function goToAplicacaoPage(page) { currentAplicacaoPage = page; renderAplicacoes(); }
+    function clearFilters() { document.getElementById('searchAplicacao').value = ''; document.getElementById('statusAplicacaoFilter').value = ''; currentAplicacaoPage = 1; renderAplicacoes(); }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportVacinasPDF() {
+        if (vacinasCache.length === 0) { showToast('Não há vacinas para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Vacinas', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 38);
+            doc.text(`Total: ${vacinasCache.length} vacinas`, 14, 46);
+            const colunas = [{ label: 'Nome', width: 50 }, { label: 'Descrição', width: 60 }, { label: 'Intervalo', width: 30 }, { label: 'Preço', width: 30 }];
+            let y = 55;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0); y += 12;
+            for (const v of vacinasCache) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                doc.text((v.nome || '-').substring(0,30), x+2, y+4); x += 50;
+                doc.text((v.descricao || '-').substring(0,45), x+2, y+4); x += 60;
+                doc.text(`${v.intervaloDias || 0} dias`, x+2, y+4); x += 30;
+                doc.text(`R$ ${formatCurrency(v.preco || 0)}`, x+2, y+4);
+                y += 8; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`vacinas_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+    async function exportAplicacoesPDF() {
+        if (aplicacoesCache.length === 0) { showToast('Não há aplicações para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Aplicações', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 38);
+            doc.text(`Total: ${aplicacoesCache.length} aplicações`, 14, 46);
+            const colunas = [{ label: 'Pet', width: 40 }, { label: 'Vacina', width: 50 }, { label: 'Data', width: 50 }, { label: 'Próx. Dose', width: 50 }, { label: 'Status', width: 30 }];
+            let y = 55;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0); y += 12;
+            for (const a of aplicacoesCache) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                const pet = petsCache.find(p => p.id === a.petId);
+                const vac = vacinasCache.find(v => v.id === a.vacinaId);
+                doc.text((pet?.nome || pet?.pet_nome || '-').substring(0,25), x+2, y+4); x += 40;
+                doc.text((vac?.nome || '-').substring(0,30), x+2, y+4); x += 50;
+                doc.text(a.dataAplicacao ? new Date(a.dataAplicacao).toLocaleString() : '-', x+2, y+4); x += 50;
+                doc.text(a.proximaDose ? new Date(a.proximaDose).toLocaleString() : '-', x+2, y+4); x += 50;
+                doc.text(a.status || '-', x+2, y+4);
+                y += 8; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`aplicacoes_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    // ==================== UPDATE STATS ====================
+    function updateStats() {
+        document.getElementById('totalVacinas').innerText = vacinasCache.length;
+        document.getElementById('totalAplicacoes').innerText = aplicacoesCache.length;
+        document.getElementById('totalEmDia').innerText = aplicacoesCache.filter(a => a.status === 'aplicada').length;
+        document.getElementById('totalAtrasadas').innerText = aplicacoesCache.filter(a => a.status === 'vencida').length;
+    }
+
+    // ==================== SELECTS ====================
+    function atualizarSelects() {
+        const petSelect = document.getElementById('vpePetId');
+        const vacinaSelect = document.getElementById('vpeVacinaId');
+        const profissionalSelect = document.getElementById('vpeProfissionalId');
+        petSelect.innerHTML = '<option value="">Selecione</option>' + petsCache.map(p => `<option value="${p.id}">${escapeHtml(p.nome || p.pet_nome)}</option>`).join('');
+        vacinaSelect.innerHTML = '<option value="">Selecione</option>' + vacinasCache.map(v => `<option value="${v.id}">${escapeHtml(v.nome)}</option>`).join('');
+        profissionalSelect.innerHTML = '<option value="">Selecione</option>' + profissionaisCache.map(p => `<option value="${p.id}">${escapeHtml(p.prf_nome || p.nome)}</option>`).join('');
+    }
+
+    // ==================== MÁSCARAS ====================
+    function applyMasks() {
+        configurarMascaraValor('vacPreco');
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
+            await carregarDadosEmpresa();
+            renderVacinas();
+            renderAplicacoes();
+            updateStats();
+            atualizarSelects();
+            applyMasks();
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveVacinaBtn').onclick = salvarVacina;
+    document.getElementById('cancelVacinaBtn').onclick = resetVacinaForm;
+    document.getElementById('saveAplicacaoBtn').onclick = salvarAplicacao;
+    document.getElementById('cancelAplicacaoBtn').onclick = resetAplicacaoForm;
+    document.getElementById('searchVacina').addEventListener('input', () => { currentVacinaPage = 1; renderVacinas(); });
+    document.getElementById('searchAplicacao').addEventListener('input', () => { currentAplicacaoPage = 1; renderAplicacoes(); });
+    document.getElementById('statusAplicacaoFilter').addEventListener('change', () => { currentAplicacaoPage = 1; renderAplicacoes(); });
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+    document.getElementById('exportVacinasPdfBtn').onclick = exportVacinasPDF;
+    document.getElementById('exportAplicacoesPdfBtn').onclick = exportAplicacoesPDF;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
+    window.goToVacinaPage = goToVacinaPage;
+    window.goToAplicacaoPage = goToAplicacaoPage;
+    window.fecharModal = () => document.getElementById('viewModal').style.display = 'none';
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+
+    // TABS
+    function setupTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.onclick = () => {
+                const tab = btn.dataset.tab;
+                document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+                document.getElementById(`${tab}Panel`).style.display = 'block';
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                if (tab === 'aplicacoes') { atualizarSelects(); renderAplicacoes(); }
+                else { renderVacinas(); }
+            };
+        });
+    }
+    setupTabs();
+
+    console.log('✅ Vacinas - Refatorado (uma empresa por usuário)');
+</script>
+</body>
+</html>

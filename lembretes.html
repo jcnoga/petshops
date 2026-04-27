@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Lembretes | Firebase + Firestore</title>
+    <!-- Bibliotecas para PDF e Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ========== ESTILOS (mesmos do original) ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
+        .btn-danger { background: #e76f51; color: white; }
+        .btn-warning { background: #e9c46a; color: #1f5068; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; cursor: pointer; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
+        .filters-card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 30px; }
+        .filter-row { display: flex; gap: 15px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .filter-group input, .filter-group select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; cursor: pointer; }
+        .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .chart-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .chart-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; color: #1f5068; }
+        .chart-container { position: relative; height: 250px; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .status-pendente { background: #e9c46a20; color: #e9c46a; }
+        .status-enviado { background: #2a9d8f20; color: #2a9d8f; }
+        .status-cancelado { background: #e76f5120; color: #e76f51; }
+        .prioridade-alta { border-left: 3px solid #e76f51; }
+        .prioridade-media { border-left: 3px solid #e9c46a; }
+        .prioridade-baixa { border-left: 3px solid #2a9d8f; }
+        .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .action-btn.send:hover { background: #2c7da0; color: white; }
+        .action-btn.whatsapp:hover { background: #25D366; color: white; }
+        .action-btn.email:hover { background: #D44638; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 550px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; max-width: 60%; word-break: break-word; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .toast-warning { background: #e9c46a; color: #1f5068; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .dias-restantes { font-size: 0.7rem; padding: 2px 6px; border-radius: 20px; display: inline-block; }
+        .dias-urgente { background: #e76f5120; color: #e76f51; }
+        .dias-normal { background: #2c7da020; color: #2c7da0; }
+        .dias-atrasado { background: #e76f5120; color: #e76f51; font-weight: bold; }
+        .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 10; }
+        .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .filter-row { flex-direction: column; } .search-area input { width: 100%; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="breadcrumb">
+        <a href="index.html">Dashboard</a> > 
+        <a href="javascript:void(0)">Saúde</a> > 
+        <span>Lembretes</span>
+    </div>
+
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-bell"></i></div><h1>PerShop <span>Lembretes</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
+        <div class="config-bar">
+            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
+            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </div>
+
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+
+    <div class="stats-grid">
+        <div class="stat-card" onclick="aplicarFiltroStatus('')">
+            <div class="stat-header"><div class="stat-icon"><i class="fas fa-bell"></i></div></div>
+            <div class="stat-value" id="totalLembretes">0</div>
+            <div class="stat-label">Total de Lembretes</div>
+        </div>
+        <div class="stat-card" onclick="aplicarFiltroStatus('pendente')">
+            <div class="stat-header"><div class="stat-icon"><i class="fas fa-clock"></i></div></div>
+            <div class="stat-value" id="lembretesPendentes">0</div>
+            <div class="stat-label">Pendentes</div>
+        </div>
+        <div class="stat-card" onclick="aplicarFiltroPeriodo('atrasados')">
+            <div class="stat-header"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div></div>
+            <div class="stat-value" id="lembretesAtrasados">0</div>
+            <div class="stat-label">Atrasados</div>
+        </div>
+        <div class="stat-card" onclick="aplicarFiltroPeriodo('7dias')">
+            <div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-week"></i></div></div>
+            <div class="stat-value" id="proximos7Dias">0</div>
+            <div class="stat-label">Próximos 7 dias</div>
+        </div>
+    </div>
+
+    <div class="filters-card">
+        <div class="filter-row">
+            <div class="filter-group"><label><i class="fas fa-dog"></i> Pet</label><select id="petFilter"><option value="">Todos os pets</option></select></div>
+            <div class="filter-group"><label><i class="fas fa-tag"></i> Tipo</label><select id="tipoFilter"><option value="">Todos</option><option value="vacina">💉 Vacina</option><option value="consulta">🩺 Consulta</option><option value="banho">🛁 Banho/Tosa</option><option value="aniversario">🎂 Aniversário</option><option value="vermifugo">💊 Vermífugo</option><option value="outros">📌 Outros</option></select></div>
+            <div class="filter-group"><label><i class="fas fa-circle"></i> Status</label><select id="statusFilter"><option value="">Todos</option><option value="pendente">⏳ Pendente</option><option value="enviado">✅ Enviado</option><option value="cancelado">❌ Cancelado</option></select></div>
+            <div class="filter-group"><label><i class="fas fa-chart-line"></i> Período</label><select id="periodoFilter"><option value="">Todos</option><option value="hoje">📅 Hoje</option><option value="7dias">📆 Próximos 7 dias</option><option value="30dias">📅 Próximos 30 dias</option><option value="atrasados">⚠️ Atrasados</option></select></div>
+            <div class="filter-group"><label><i class="fas fa-flag"></i> Prioridade</label><select id="prioridadeFilter"><option value="">Todas</option><option value="alta">🔴 Alta</option><option value="media">🟡 Média</option><option value="baixa">🟢 Baixa</option></select></div>
+            <div class="filter-group"><button id="clearFiltersBtn" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar Filtros</button></div>
+            <div class="filter-group"><button id="exportPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-bar"></i> Lembretes por Mês</div><div class="chart-container"><canvas id="lembretesChart"></canvas></div></div>
+        <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-pie"></i> Distribuição por Tipo</div><div class="chart-container"><canvas id="tipoChart"></canvas></div></div>
+    </div>
+
+    <div class="form-card">
+        <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Novo Lembrete</h2><p>Registre lembretes para pets (vacinas, consultas, etc.)</p></div>
+        <div class="form-body">
+            <div class="form-grid">
+                <div class="input-group"><label class="required"><i class="fas fa-dog"></i> Pet</label><select id="lemPetId"><option value="">Selecione um pet</option></select></div>
+                <div class="input-group"><label class="required"><i class="fas fa-tag"></i> Tipo</label><select id="lemTipo"><option value="">Selecione</option><option value="vacina">💉 Vacina</option><option value="consulta">🩺 Consulta</option><option value="banho">🛁 Banho/Tosa</option><option value="aniversario">🎂 Aniversário</option><option value="vermifugo">💊 Vermífugo</option><option value="outros">📌 Outros</option></select></div>
+                <div class="input-group"><label class="required"><i class="fas fa-heading"></i> Título</label><input type="text" id="lemTitulo" placeholder="Ex: Vacina Antirrábica"></div>
+                <div class="input-group"><label><i class="fas fa-align-left"></i> Descrição</label><textarea id="lemDescricao" rows="2" placeholder="Informações adicionais..."></textarea></div>
+                <div class="input-group"><label class="required"><i class="fas fa-calendar-alt"></i> Data de Vencimento</label><input type="date" id="lemDataVencimento"></div>
+                <div class="input-group"><label><i class="fas fa-flag"></i> Prioridade</label><select id="lemPrioridade"><option value="media">🟡 Média</option><option value="alta">🔴 Alta</option><option value="baixa">🟢 Baixa</option></select></div>
+                <div class="input-group"><label><i class="fas fa-repeat"></i> Recorrência</label><select id="lemRecorrencia"><option value="unico">📅 Único</option><option value="semanal">📆 Semanal</option><option value="mensal">📅 Mensal</option><option value="anual">📅 Anual</option></select></div>
+                <div class="input-group"><label><i class="fas fa-bell"></i> Dias de Antecedência</label><input type="number" id="lemDiasAntecedencia" value="7" min="0" max="30" placeholder="Dias antes para lembrar"></div>
+                <div class="input-group"><label><i class="fas fa-envelope"></i> Notificações</label><div style="display: flex; gap: 15px; padding: 8px 0;"><label><input type="checkbox" id="lemEnviarEmail"> E-mail</label><label><input type="checkbox" id="lemEnviarWhatsapp"> WhatsApp</label></div></div>
+                <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button><button type="button" id="saveLembreteBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-header"><h3><i class="fas fa-list"></i> Lista de Lembretes</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar por pet, título..."></div></div>
+        <div class="table-wrapper"><table id="lembretesTable"><thead><tr><th>Pet</th><th>Título</th><th>Tipo</th><th>Vencimento</th><th>Dias</th><th>Prioridade</th><th>Status</th><th>Ações</th></tr></thead><tbody id="lembretesTableBody"></tbody>}</div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+    <div class="footer">PerShop Enterprise - Módulo de Lembretes | Dados em tempo real com Firebase</div>
+</div>
+
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-bell"></i> Detalhes do Lembrete</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<script type="module">
+    // ==================== IMPORTAÇÕES ====================
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    
+    // Importa funções compartilhadas do util.js
+    import { 
+        escapeHtml, showToast, formatarData, carregarEmpresaUsuario, verificarStatusEmpresa
+    } from './util.js';
+
+    // ==================== CONSTANTES ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingId = null;
+    let currentPage = 1;
+    let itemsPerPage = 10;
+    let lembretesCache = [];
+    let petsCache = [];
+    let clientesCache = [];
+    let lembretesChart = null;
+    let tipoChart = null;
+
+    // ==================== FUNÇÕES ESPECÍFICAS DO MÓDULO ====================
+    function formatarDataLocal(dataStr) { return formatarData(dataStr); }
+
+    function calcularDiasAteVencimento(dataVencimento) {
+        if (!dataVencimento) return null;
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const vencimento = new Date(dataVencimento); vencimento.setHours(0,0,0,0);
+        return Math.ceil((vencimento - hoje) / (1000*60*60*24));
+    }
+
+    function formatarDiasRestantes(dias) {
+        if (dias === null) return '-';
+        if (dias < 0) return `<span class="dias-restantes dias-atrasado">Atrasado (${Math.abs(dias)} dias)</span>`;
+        if (dias === 0) return `<span class="dias-restantes dias-urgente">Hoje!</span>`;
+        if (dias <= 3) return `<span class="dias-restantes dias-urgente">${dias} dia(s)</span>`;
+        return `<span class="dias-restantes dias-normal">${dias} dias</span>`;
+    }
+
+    function getTipoIcon(tipo) {
+        const icones = { vacina: '💉', consulta: '🩺', banho: '🛁', aniversario: '🎂', vermifugo: '💊', outros: '📌' };
+        return icones[tipo] || '📌';
+    }
+
+    function getPrioridadeIcon(prioridade) {
+        const icones = { alta: '🔴', media: '🟡', baixa: '🟢' };
+        return icones[prioridade] || '🟡';
+    }
+
+    function getPetNome(petId) {
+        const pet = petsCache.find(p => p.id === petId);
+        return pet ? pet.nome || pet.pet_nome || petId.substring(0,8) : 'Pet não encontrado';
+    }
+
+    function getPetTelefone(petId) {
+        const pet = petsCache.find(p => p.id === petId);
+        if (!pet) return null;
+        const cliente = clientesCache.find(c => c.id === pet.clienteId);
+        return cliente?.cli_telefone || cliente?.telefone;
+    }
+
+    function getPetEmail(petId) {
+        const pet = petsCache.find(p => p.id === petId);
+        if (!pet) return null;
+        const cliente = clientesCache.find(c => c.id === pet.clienteId);
+        return cliente?.cli_email || cliente?.email;
+    }
+
+    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
+    async function carregarDadosApoio() {
+        if (!currentEmpresa) return;
+        const empresaId = currentEmpresa.id;
+        const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', empresaId)));
+        petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const clientesSnap = await getDocs(query(collection(db, 'clientes'), where('empresaId', '==', empresaId)));
+        clientesCache = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const lembretesSnap = await getDocs(query(collection(db, 'lembretes'), where('empresaId', '==', empresaId)));
+        lembretesCache = lembretesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    // ==================== CRUD ====================
+    async function addLembrete(data) {
+        const hoje = new Date().toISOString().split('T')[0];
+        if (data.data_vencimento < hoje && !confirm('A data de vencimento é anterior a hoje. Continuar?')) return false;
+        const newLembrete = {
+            ...data,
+            empresaId: currentEmpresa.id,
+            status: 'pendente',
+            data_envio: null,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString()
+        };
+        const docRef = await addDoc(collection(db, 'lembretes'), newLembrete);
+        newLembrete.id = docRef.id;
+        lembretesCache.unshift(newLembrete);
+        renderLembretes();
+        updateStats();
+        updateCharts();
+        if (data.recorrencia !== 'unico') gerarLembreteRecorrente(newLembrete);
+        showToast('Lembrete adicionado com sucesso!', 'success');
+        return true;
+    }
+
+    async function gerarLembreteRecorrente(lembreteOriginal) {
+        let proximaData = new Date(lembreteOriginal.data_vencimento);
+        switch (lembreteOriginal.recorrencia) {
+            case 'semanal': proximaData.setDate(proximaData.getDate() + 7); break;
+            case 'mensal': proximaData.setMonth(proximaData.getMonth() + 1); break;
+            case 'anual': proximaData.setFullYear(proximaData.getFullYear() + 1); break;
+            default: return;
+        }
+        const novaDataStr = proximaData.toISOString().split('T')[0];
+        const existe = lembretesCache.some(l => l.pet_id === lembreteOriginal.pet_id && l.tipo === lembreteOriginal.tipo && l.data_vencimento === novaDataStr);
+        if (!existe) {
+            const novoLembrete = { ...lembreteOriginal, id: undefined, data_vencimento: novaDataStr, status: 'pendente', lembrete_original_id: lembreteOriginal.id, criado_em: new Date().toISOString() };
+            delete novoLembrete.id;
+            const docRef = await addDoc(collection(db, 'lembretes'), novoLembrete);
+            novoLembrete.id = docRef.id;
+            lembretesCache.unshift(novoLembrete);
+            renderLembretes();
+            updateStats();
+            updateCharts();
+        }
+    }
+
+    async function updateLembrete(id, updates) {
+        await updateDoc(doc(db, 'lembretes', id), { ...updates, atualizado_em: new Date().toISOString() });
+        const idx = lembretesCache.findIndex(l => l.id === id);
+        if (idx !== -1) lembretesCache[idx] = { ...lembretesCache[idx], ...updates };
+        renderLembretes();
+        updateStats();
+        updateCharts();
+        showToast('Lembrete atualizado!', 'success');
+    }
+
+    async function deleteLembrete(id) {
+        if (confirm('Excluir lembrete? Esta ação não pode ser desfeita.')) {
+            await deleteDoc(doc(db, 'lembretes', id));
+            lembretesCache = lembretesCache.filter(l => l.id !== id);
+            renderLembretes();
+            updateStats();
+            updateCharts();
+            showToast('Lembrete excluído!', 'success');
+        }
+    }
+
+    async function marcarComoEnviado(id) {
+        await updateLembrete(id, { status: 'enviado', data_envio: new Date().toISOString() });
+        showToast('Lembrete marcado como enviado!', 'success');
+    }
+
+    // ==================== FUNÇÕES DE ENVIO ====================
+    function formatarTelefoneWhatsApp(telefone) {
+        let numero = telefone.replace(/\D/g, '');
+        if (numero.length === 10) numero = '55' + numero;
+        else if (numero.length === 11 && !numero.startsWith('55')) numero = '55' + numero;
+        return numero;
+    }
+
+    function enviarWhatsApp(id) {
+        const lembrete = lembretesCache.find(l => l.id === id);
+        if (!lembrete) { showToast('Lembrete não encontrado!', 'error'); return; }
+        const telefone = getPetTelefone(lembrete.pet_id);
+        if (!telefone) { showToast('Telefone do tutor não cadastrado!', 'error'); return; }
+        const tipoTexto = lembrete.tipo === 'vacina' ? '💉 Vacina' : (lembrete.tipo === 'consulta' ? '🩺 Consulta' : (lembrete.tipo === 'banho' ? '🛁 Banho/Tosa' : (lembrete.tipo === 'aniversario' ? '🎂 Aniversário' : '📌 Outros')));
+        const dataVencimento = new Date(lembrete.data_vencimento).toLocaleDateString('pt-BR');
+        const diasRestantes = calcularDiasAteVencimento(lembrete.data_vencimento);
+        const petNome = getPetNome(lembrete.pet_id);
+        const clienteNome = clientesCache.find(c => c.id === petNome?.clienteId)?.cli_nome || 'Tutor';
+        let mensagem = `🐾 *LEMBRETE IMPORTANTE* 🐾\n\nOlá ${clienteNome}! 📌 ${lembrete.titulo}\n🐕 Pet: ${petNome}\n📋 Tipo: ${tipoTexto}\n📅 Vencimento: ${dataVencimento}\n`;
+        if (diasRestantes !== null) {
+            if (diasRestantes < 0) mensagem += `⚠️ ATRASADO em ${Math.abs(diasRestantes)} dias!\n`;
+            else if (diasRestantes === 0) mensagem += `⚠️ VENCE HOJE!\n`;
+            else mensagem += `⏰ Faltam: ${diasRestantes} dia(s)\n`;
+        }
+        if (lembrete.descricao) mensagem += `\n📝 ${lembrete.descricao}\n`;
+        mensagem += `\n🔔 Não esqueça de agendar!`;
+        const numeroWhatsApp = formatarTelefoneWhatsApp(telefone);
+        window.open(`https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`, '_blank');
+        marcarComoEnviado(id);
+    }
+
+    function enviarEmail(id) {
+        const lembrete = lembretesCache.find(l => l.id === id);
+        if (!lembrete) { showToast('Lembrete não encontrado!', 'error'); return; }
+        const email = getPetEmail(lembrete.pet_id);
+        if (!email) { showToast('E-mail do tutor não cadastrado!', 'error'); return; }
+        const petNome = getPetNome(lembrete.pet_id);
+        const clienteNome = clientesCache.find(c => c.id === petNome?.clienteId)?.cli_nome || 'Tutor';
+        const assunto = `🔔 Lembrete: ${lembrete.titulo} - ${petNome}`;
+        const corpo = `Olá ${clienteNome},\n\nEste é um lembrete sobre ${petNome}:\n📌 ${lembrete.titulo}\n📅 Data: ${lembrete.data_vencimento}\n\n${lembrete.descricao || ''}\n\n🔔 Não esqueça de agendar.`;
+        window.open(`mailto:${email}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`, '_blank');
+        marcarComoEnviado(id);
+    }
+
+    // ==================== FORMULÁRIO ====================
+    function carregarPetsNoSelect() {
+        const selectPet = document.getElementById('lemPetId');
+        const filterPet = document.getElementById('petFilter');
+        const options = petsCache.map(p => `<option value="${p.id}">${escapeHtml(p.nome || p.pet_nome)} (${escapeHtml(p.raca || '-')})</option>`).join('');
+        selectPet.innerHTML = '<option value="">Selecione um pet</option>' + options;
+        filterPet.innerHTML = '<option value="">Todos os pets</option>' + options;
+    }
+
+    function getFormData() {
+        return {
+            pet_id: document.getElementById('lemPetId').value,
+            tipo: document.getElementById('lemTipo').value,
+            titulo: document.getElementById('lemTitulo').value,
+            descricao: document.getElementById('lemDescricao').value,
+            data_vencimento: document.getElementById('lemDataVencimento').value,
+            prioridade: document.getElementById('lemPrioridade').value,
+            recorrencia: document.getElementById('lemRecorrencia').value,
+            dias_antecedencia: parseInt(document.getElementById('lemDiasAntecedencia').value) || 7,
+            enviar_email: document.getElementById('lemEnviarEmail').checked,
+            enviar_whatsapp: document.getElementById('lemEnviarWhatsapp').checked
+        };
+    }
+
+    function resetForm() {
+        document.getElementById('lemPetId').value = '';
+        document.getElementById('lemTipo').value = '';
+        document.getElementById('lemTitulo').value = '';
+        document.getElementById('lemDescricao').value = '';
+        document.getElementById('lemDataVencimento').value = '';
+        document.getElementById('lemPrioridade').value = 'media';
+        document.getElementById('lemRecorrencia').value = 'unico';
+        document.getElementById('lemDiasAntecedencia').value = '7';
+        document.getElementById('lemEnviarEmail').checked = false;
+        document.getElementById('lemEnviarWhatsapp').checked = false;
+        editingId = null;
+        document.getElementById('cancelEditBtn').style.display = 'none';
+        const btn = document.getElementById('saveLembreteBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+
+    function fillForm(l) {
+        document.getElementById('lemPetId').value = l.pet_id || '';
+        document.getElementById('lemTipo').value = l.tipo || '';
+        document.getElementById('lemTitulo').value = l.titulo || '';
+        document.getElementById('lemDescricao').value = l.descricao || '';
+        document.getElementById('lemDataVencimento').value = l.data_vencimento || '';
+        document.getElementById('lemPrioridade').value = l.prioridade || 'media';
+        document.getElementById('lemRecorrencia').value = l.recorrencia || 'unico';
+        document.getElementById('lemDiasAntecedencia').value = l.dias_antecedencia || 7;
+        document.getElementById('lemEnviarEmail').checked = l.enviar_email || false;
+        document.getElementById('lemEnviarWhatsapp').checked = l.enviar_whatsapp || false;
+    }
+
+    async function salvarLembrete() {
+        const petId = document.getElementById('lemPetId').value;
+        if (!petId) { showToast('Selecione um pet!', 'error'); return; }
+        const tipo = document.getElementById('lemTipo').value;
+        if (!tipo) { showToast('Selecione o tipo!', 'error'); return; }
+        const titulo = document.getElementById('lemTitulo').value.trim();
+        if (!titulo) { showToast('Título obrigatório!', 'error'); return; }
+        const dataVencimento = document.getElementById('lemDataVencimento').value;
+        if (!dataVencimento) { showToast('Data de vencimento obrigatória!', 'error'); return; }
+        const cincoAnosAtras = new Date(); cincoAnosAtras.setFullYear(cincoAnosAtras.getFullYear()-5);
+        if (new Date(dataVencimento) < cincoAnosAtras && !confirm('Data muito antiga (mais de 5 anos). Confirmar?')) return;
+        const data = getFormData();
+        if (editingId) await updateLembrete(editingId, data);
+        else await addLembrete(data);
+        resetForm();
+    }
+
+    function cancelEdit() { resetForm(); }
+
+    // ==================== EDIT E VIEW (globais) ====================
+    window.editLembrete = function(id) {
+        const l = lembretesCache.find(l => l.id === id);
+        if (l) { fillForm(l); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveLembreteBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+    };
+    window.viewLembrete = function(id) {
+        const l = lembretesCache.find(l => l.id === id);
+        if (!l) return;
+        const dias = calcularDiasAteVencimento(l.data_vencimento);
+        const statusClass = l.status === 'enviado' ? 'status-enviado' : (l.status === 'cancelado' ? 'status-cancelado' : 'status-pendente');
+        const petNome = getPetNome(l.pet_id);
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(petNome)}</span></div>
+            <div class="info-row"><span class="info-label">Título:</span><span class="info-value">${escapeHtml(l.titulo)}</span></div>
+            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${getTipoIcon(l.tipo)} ${escapeHtml(l.tipo)}</span></div>
+            <div class="info-row"><span class="info-label">Descrição:</span><span class="info-value">${escapeHtml(l.descricao || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Vencimento:</span><span class="info-value">${formatarData(l.data_vencimento)}</span></div>
+            <div class="info-row"><span class="info-label">Dias restantes:</span><span class="info-value">${dias !== null ? (dias < 0 ? `Atrasado (${Math.abs(dias)} dias)` : `${dias} dias`) : '-'}</span></div>
+            <div class="info-row"><span class="info-label">Prioridade:</span><span class="info-value">${getPrioridadeIcon(l.prioridade)} ${l.prioridade}</span></div>
+            <div class="info-row"><span class="info-label">Recorrência:</span><span class="info-value">${l.recorrencia === 'unico' ? 'Único' : (l.recorrencia === 'semanal' ? 'Semanal' : (l.recorrencia === 'mensal' ? 'Mensal' : 'Anual'))}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${l.status === 'enviado' ? '✅ Enviado' : (l.status === 'cancelado' ? '❌ Cancelado' : '⏳ Pendente')}</span></span></div>
+            <div class="info-row"><span class="info-label">Notificações:</span><span class="info-value">${l.enviar_email ? '📧 Email ' : ''}${l.enviar_whatsapp ? '📱 WhatsApp' : ''}</span></div>
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.deleteLembrete = deleteLembrete;
+    window.marcarComoEnviado = marcarComoEnviado;
+    window.enviarWhatsApp = enviarWhatsApp;
+    window.enviarEmail = enviarEmail;
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+
+    // ==================== FILTROS ====================
+    function getFiltros() {
+        return {
+            search: document.getElementById('searchInput')?.value.toLowerCase() || '',
+            petId: document.getElementById('petFilter')?.value || '',
+            tipo: document.getElementById('tipoFilter')?.value || '',
+            status: document.getElementById('statusFilter')?.value || '',
+            periodo: document.getElementById('periodoFilter')?.value || '',
+            prioridade: document.getElementById('prioridadeFilter')?.value || ''
+        };
+    }
+
+    function aplicarFiltros(data) {
+        let filtered = [...data];
+        const { search, petId, tipo, status, periodo, prioridade } = getFiltros();
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const dataAtual = hoje.toISOString().split('T')[0];
+        if (petId) filtered = filtered.filter(l => l.pet_id === petId);
+        if (tipo) filtered = filtered.filter(l => l.tipo === tipo);
+        if (status) filtered = filtered.filter(l => l.status === status);
+        if (prioridade) filtered = filtered.filter(l => l.prioridade === prioridade);
+        if (periodo) {
+            const dataLimite = new Date();
+            if (periodo === 'hoje') filtered = filtered.filter(l => l.data_vencimento === dataAtual);
+            else if (periodo === '7dias') { dataLimite.setDate(hoje.getDate()+7); const limiteStr = dataLimite.toISOString().split('T')[0]; filtered = filtered.filter(l => l.data_vencimento >= dataAtual && l.data_vencimento <= limiteStr); }
+            else if (periodo === '30dias') { dataLimite.setDate(hoje.getDate()+30); const limiteStr = dataLimite.toISOString().split('T')[0]; filtered = filtered.filter(l => l.data_vencimento >= dataAtual && l.data_vencimento <= limiteStr); }
+            else if (periodo === 'atrasados') filtered = filtered.filter(l => l.data_vencimento < dataAtual && l.status === 'pendente');
+        }
+        if (search) {
+            filtered = filtered.filter(l => (l.titulo || '').toLowerCase().includes(search) || (l.descricao || '').toLowerCase().includes(search) || getPetNome(l.pet_id).toLowerCase().includes(search));
+        }
+        filtered.sort((a,b) => new Date(a.data_vencimento) - new Date(b.data_vencimento));
+        return filtered;
+    }
+
+    function aplicarFiltroStatus(status) { document.getElementById('statusFilter').value = status; aplicarFiltrosEAtualizar(); }
+    function aplicarFiltroPeriodo(periodo) { document.getElementById('periodoFilter').value = periodo; aplicarFiltrosEAtualizar(); }
+    function aplicarFiltrosEAtualizar() { currentPage = 1; renderLembretes(); updateStats(); updateCharts(); }
+    function clearFilters() {
+        document.getElementById('searchInput').value = ''; document.getElementById('petFilter').value = ''; document.getElementById('tipoFilter').value = ''; document.getElementById('statusFilter').value = ''; document.getElementById('periodoFilter').value = ''; document.getElementById('prioridadeFilter').value = '';
+        aplicarFiltrosEAtualizar();
+        showToast('Filtros limpos!', 'success');
+    }
+
+    // ==================== RENDER ====================
+    async function renderLembretes() {
+        const filtered = aplicarFiltros(lembretesCache);
+        const totalPages = Math.ceil(filtered.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('lembretesTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px;">Nenhum lembrete encontrado<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        tbody.innerHTML = paginated.map(l => {
+            const dias = calcularDiasAteVencimento(l.data_vencimento);
+            const statusClass = l.status === 'enviado' ? 'status-enviado' : (l.status === 'cancelado' ? 'status-cancelado' : 'status-pendente');
+            const prioridadeClass = l.prioridade === 'alta' ? 'prioridade-alta' : (l.prioridade === 'media' ? 'prioridade-media' : 'prioridade-baixa');
+            const petNome = getPetNome(l.pet_id);
+            const temWhatsApp = getPetTelefone(l.pet_id);
+            const temEmail = getPetEmail(l.pet_id);
+            return `<tr class="${prioridadeClass}">
+                <td><strong>${escapeHtml(petNome)}</strong></td>
+                <td><strong>${escapeHtml(l.titulo)}</strong><br><span style="font-size:0.7rem; color:#7a9eb0;">${escapeHtml(l.descricao?.substring(0,50) || '')}</span></td>
+                <td>${getTipoIcon(l.tipo)} ${escapeHtml(l.tipo)}</span></td>
+                <td style="white-space:nowrap;">${formatarData(l.data_vencimento)}</span></td>
+                <td>${formatarDiasRestantes(dias)}</span></td>
+                <td>${getPrioridadeIcon(l.prioridade)} ${l.prioridade === 'alta' ? 'Alta' : (l.prioridade === 'media' ? 'Média' : 'Baixa')}</span></td>
+                <td><span class="status-badge ${statusClass}">${l.status === 'enviado' ? '✅ Enviado' : (l.status === 'cancelado' ? '❌ Cancelado' : '⏳ Pendente')}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewLembrete('${l.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editLembrete('${l.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn whatsapp" onclick="enviarWhatsApp('${l.id}')" ${!temWhatsApp ? 'disabled style="opacity:0.5;"' : ''}><i class="fab fa-whatsapp"></i></button>
+                    <button class="action-btn email" onclick="enviarEmail('${l.id}')" ${!temEmail ? 'disabled style="opacity:0.5;"' : ''}><i class="fas fa-envelope"></i></button>
+                    ${l.status === 'pendente' ? `<button class="action-btn send" onclick="marcarComoEnviado('${l.id}')"><i class="fas fa-paper-plane"></i></button>` : ''}
+                    <button class="action-btn delete" onclick="deleteLembrete('${l.id}')"><i class="fas fa-trash-alt"></i></button>
+                 </div>
+            </tr>`;
+        }).join('');
+        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+
+    function goToPage(page) { currentPage = page; renderLembretes(); }
+
+    function updateStats() {
+        document.getElementById('totalLembretes').innerText = lembretesCache.length;
+        document.getElementById('lembretesPendentes').innerText = lembretesCache.filter(l => l.status === 'pendente').length;
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('lembretesAtrasados').innerText = lembretesCache.filter(l => l.status === 'pendente' && l.data_vencimento < hoje).length;
+        const dataLimite = new Date(); dataLimite.setDate(dataLimite.getDate()+7);
+        const limiteStr = dataLimite.toISOString().split('T')[0];
+        document.getElementById('proximos7Dias').innerText = lembretesCache.filter(l => l.status === 'pendente' && l.data_vencimento >= hoje && l.data_vencimento <= limiteStr).length;
+    }
+
+    function updateCharts() {
+        const filtered = aplicarFiltros(lembretesCache);
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const lembretesPorMes = new Array(12).fill(0);
+        filtered.forEach(l => { if(l.data_vencimento) lembretesPorMes[new Date(l.data_vencimento).getMonth()]++; });
+        if(lembretesChart) lembretesChart.destroy();
+        const ctx1 = document.getElementById('lembretesChart').getContext('2d');
+        lembretesChart = new Chart(ctx1, { type: 'bar', data: { labels: meses, datasets: [{ label: 'Lembretes', data: lembretesPorMes, backgroundColor: '#2c7da0', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: true } });
+        const tipos = {};
+        filtered.forEach(l => { if(l.tipo) tipos[l.tipo === 'vacina' ? 'Vacina' : (l.tipo === 'consulta' ? 'Consulta' : (l.tipo === 'banho' ? 'Banho/Tosa' : (l.tipo === 'aniversario' ? 'Aniversário' : (l.tipo === 'vermifugo' ? 'Vermífugo' : 'Outros'))))] = (tipos[l.tipo] || 0) + 1; });
+        if(tipoChart) tipoChart.destroy();
+        const ctx2 = document.getElementById('tipoChart').getContext('2d');
+        tipoChart = new Chart(ctx2, { type: 'doughnut', data: { labels: Object.keys(tipos), datasets: [{ data: Object.values(tipos), backgroundColor: ['#2c7da0','#2a9d8f','#e9c46a','#e76f51','#61a5c2','#f4a261'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: true } });
+    }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportarPDF() {
+        const filtered = aplicarFiltros(lembretesCache);
+        if (filtered.length === 0) { showToast('Não há dados para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Lembretes', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
+            const pendentes = filtered.filter(l => l.status === 'pendente').length;
+            const enviados = filtered.filter(l => l.status === 'enviado').length;
+            doc.text(`Total: ${filtered.length} lembretes | Pendentes: ${pendentes} | Enviados: ${enviados}`, 14, 46);
+            const colunas = [{ label: 'Pet', width: 40 }, { label: 'Título', width: 45 }, { label: 'Tipo', width: 25 }, { label: 'Vencimento', width: 35 }, { label: 'Dias', width: 25 }, { label: 'Status', width: 30 }];
+            let y = 56;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0); y += 12;
+            for (const l of filtered) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                const petNome = getPetNome(l.pet_id);
+                const dias = calcularDiasAteVencimento(l.data_vencimento);
+                const diasText = dias !== null ? (dias < 0 ? `Atrasado (${Math.abs(dias)})` : `${dias} dias`) : '-';
+                doc.text(petNome.substring(0,25), x+2, y+4); x += 40;
+                doc.text(l.titulo.substring(0,30), x+2, y+4); x += 45;
+                doc.text(l.tipo || '-', x+2, y+4); x += 25;
+                doc.text(formatarData(l.data_vencimento), x+2, y+4); x += 35;
+                doc.text(diasText, x+2, y+4); x += 25;
+                doc.text(l.status === 'pendente' ? 'Pendente' : (l.status === 'enviado' ? 'Enviado' : 'Cancelado'), x+2, y+4);
+                y += 8; x = 14;
+            }
+            for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`lembretes_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado com sucesso!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Exibir alerta de trial
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
+            await carregarDadosApoio();
+            carregarPetsNoSelect();
+            renderLembretes();
+            updateStats();
+            updateCharts();
+            // Cada 24h recarregar dados (opcional)
+            setInterval(async () => { await carregarDadosApoio(); renderLembretes(); updateStats(); updateCharts(); }, 24*60*60*1000);
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveLembreteBtn').onclick = salvarLembrete;
+    document.getElementById('cancelEditBtn').onclick = cancelEdit;
+    document.getElementById('searchInput').addEventListener('input', () => aplicarFiltrosEAtualizar());
+    document.getElementById('petFilter').addEventListener('change', () => aplicarFiltrosEAtualizar());
+    document.getElementById('tipoFilter').addEventListener('change', () => aplicarFiltrosEAtualizar());
+    document.getElementById('statusFilter').addEventListener('change', () => aplicarFiltrosEAtualizar());
+    document.getElementById('periodoFilter').addEventListener('change', () => aplicarFiltrosEAtualizar());
+    document.getElementById('prioridadeFilter').addEventListener('change', () => aplicarFiltrosEAtualizar());
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+    document.getElementById('exportPdfBtn').onclick = exportarPDF;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = fecharModal;
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
+    window.goToPage = goToPage;
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    window.aplicarFiltroStatus = aplicarFiltroStatus;
+    window.aplicarFiltroPeriodo = aplicarFiltroPeriodo;
+    console.log('✅ Lembretes - Refatorado (uma empresa por usuário)');
+</script>
+</body>
+</html>

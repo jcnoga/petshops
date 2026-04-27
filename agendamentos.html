@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Módulo de Agendamentos | Firebase + Firestore</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
+        .logo h1 { font-size: 1.5rem; color: #1f5068; }
+        .logo span { font-weight: 400; color: #61a5c2; }
+        .empresa-info { background: #e6f0f5; padding: 8px 16px; border-radius: 40px; font-size: 0.8rem; font-weight: 600; color: #1f5068; }
+        .config-bar { display: flex; gap: 12px; align-items: center; }
+        .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #2c7da0; color: white; }
+        .btn-success { background: #2a9d8f; color: white; }
+        .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+        .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
+        .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
+        .form-header p { opacity: 0.8; font-size: 0.75rem; }
+        .form-body { padding: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
+        .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+        .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { font-size: 1.1rem; color: #1f5068; }
+        .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
+        .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
+        .status-agendado { background: #2c7da020; color: #2c7da0; }
+        .status-confirmado { background: #2a9d8f20; color: #2a9d8f; }
+        .status-realizado { background: #2a9d8f20; color: #2a9d8f; }
+        .status-cancelado { background: #e76f5120; color: #e76f51; }
+        .action-buttons { display: flex; gap: 6px; }
+        .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
+        .action-btn:hover { transform: scale(1.05); }
+        .action-btn.edit:hover { background: #2c7da0; color: white; }
+        .action-btn.delete:hover { background: #e76f51; color: white; }
+        .action-btn.view:hover { background: #2a9d8f; color: white; }
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; }
+        .page-btn { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; transition: all 0.2s; }
+        .page-btn:hover, .page-btn.active { background: #2c7da0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 28px; max-width: 550px; width: 90%; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 18px 22px; background: linear-gradient(135deg, #1f5068, #2c7da0); color: white; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; }
+        .info-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #eef2f5; flex-wrap: wrap; }
+        .info-label { font-weight: 600; color: #1f5068; min-width: 120px; }
+        .info-value { text-align: right; color: #4a6272; flex: 1; word-break: break-word; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; border-radius: 40px; color: white; font-weight: 500; font-size: 0.85rem; z-index: 1000; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: #2a9d8f; }
+        .toast-error { background: #e76f51; }
+        .toast-info { background: #2c7da0; }
+        .conflito-alert { background: #fff3e0; border-left: 4px solid #e9c46a; padding: 10px; margin-top: 10px; border-radius: 8px; display: none; align-items: center; gap: 8px; }
+        .conflito-alert i { color: #e9c46a; }
+        .footer { text-align: center; padding: 20px; font-size: 0.7rem; color: #7a9eb0; }
+        .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
+        .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .loading-screen { text-align: center; padding: 60px; }
+        .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .search-area input { width: 100%; } }
+    </style>
+</head>
+<body>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Agendamentos</span></div>
+<div class="container">
+    <div class="header">
+        <div class="logo"><div class="logo-icon"><i class="fas fa-calendar-check"></i></div><h1>PerShop <span>Agendamentos</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando...</div>
+        <div class="config-bar"><span class="badge"><i class="fas fa-fire"></i> Firebase Online</span><button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button></div>
+    </div>
+    <div id="trialAlert" class="trial-alert" style="display: none;"></div>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-calendar-week"></i></div></div><div class="stat-value" id="totalAgendamentos">0</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-clock"></i></div></div><div class="stat-value" id="totalHoje">0</div><div class="stat-label">Hoje</div></div>
+        <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-hourglass-half"></i></div></div><div class="stat-value" id="totalPendentes">0</div><div class="stat-label">Pendentes</div></div>
+        <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="totalRealizados">0</div><div class="stat-label">Realizados</div></div>
+    </div>
+    <div class="form-card">
+        <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Novo Agendamento</h2><p>Preencha os campos para agendar um serviço</p></div>
+        <div class="form-body">
+            <div class="form-grid">
+                <div class="form-section"><i class="fas fa-user-friends"></i><h3>Dados do Cliente e Pet</h3></div>
+                <div class="input-group"><label class="required">Cliente</label><select id="ageClienteId"><option value="">Selecione</option></select></div>
+                <div class="input-group"><label class="required">Pet</label><select id="agePetId"><option value="">Selecione</option></select></div>
+                <div class="input-group"><label>Profissional</label><select id="ageProfissionalId"><option value="">Selecione</option></select></div>
+                <div class="input-group"><label class="required">Data/Hora</label><input type="datetime-local" id="ageData"></div>
+                <div class="input-group"><label class="required">Serviço</label><select id="ageServicoId"><option value="">Selecione um serviço</option></select></div>
+                <div class="input-group"><label>Valor (R$)</label><input type="text" id="ageValor" placeholder="0,00"></div>
+                <div class="input-group"><label>Status</label><select id="ageStatus"><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select></div>
+                <div id="conflitoHorarioBox" class="conflito-alert"><i class="fas fa-exclamation-triangle"></i> <span id="conflitoMensagem"></span></div>
+                <div class="input-group" style="grid-column: span 2;"><label>Observações</label><textarea id="ageObs" rows="2"></textarea></div>
+                <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;">Cancelar</button><button type="button" id="saveAgendamentoBtn" class="btn btn-primary">Salvar</button></div>
+            </div>
+        </div>
+    </div>
+    <div class="table-card">
+        <div class="table-header"><h3>Agendamentos</h3><div class="search-area"><input type="text" id="searchInput" placeholder="Buscar..."><select id="statusFilter"><option value="">Todos status</option><option value="agendado">Agendado</option><option value="confirmado">Confirmado</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></select><button id="clearFiltersBtn" class="btn btn-outline">Limpar</button><button id="exportPdfBtn" class="btn btn-primary">Exportar PDF</button></div></div>
+        <div class="table-wrapper"><table id="agendamentosTable"><thead><tr><th>Cliente</th><th>Pet</th><th>Serviço</th><th>Profissional</th><th>Data/Hora</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody id="agendamentosTableBody"></tbody></table></div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+    <div class="footer">PerShop Enterprise - Módulo de Agendamentos | Dados em tempo real com Firebase</div>
+</div>
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Detalhes</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+
+<script type="module">
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { escapeHtml, showToast, formatCurrency, parseCurrency, formatarDataHora, carregarEmpresaUsuario, verificarStatusEmpresa, configurarMascaraValor } from './util.js';
+
+    // ==================== ESTADO GLOBAL ====================
+    let currentUser = null;
+    let currentEmpresa = null;
+    let editingId = null;
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    
+    let clientesCache = [];
+    let petsCache = [];
+    let profissionaisCache = [];
+    let servicosCache = [];
+    let agendamentosCache = [];
+
+    // ==================== FUNÇÕES DE CONFLITO DE HORÁRIO (AGORA COM DURAÇÃO) ====================
+    function getServicoDuracao(servicoId) {
+        const servico = servicosCache.find(s => s.id === servicoId);
+        return servico?.duracao || 60; // padrão 60 minutos se não houver duração
+    }
+
+    function getServicoNome(servicoId) {
+        const servico = servicosCache.find(s => s.id === servicoId);
+        return servico?.nome || '';
+    }
+
+    function getServicoPreco(servicoId) {
+        const servico = servicosCache.find(s => s.id === servicoId);
+        return servico?.preco || 0;
+    }
+
+    // Verifica se dois intervalos de tempo se sobrepõem
+    function horariosConflitam(inicio1, fim1, inicio2, fim2) {
+        return (inicio1 < fim2 && fim1 > inicio2);
+    }
+
+    async function verificarConflitoHorario(dataHoraInicio, profissionalId, servicoId, agendamentoIdIgnorar = null) {
+        if (!dataHoraInicio || !profissionalId || !servicoId) return [];
+        
+        const duracao = getServicoDuracao(servicoId);
+        const inicio = new Date(dataHoraInicio);
+        const fim = new Date(inicio.getTime() + duracao * 60000);
+        
+        // Filtra apenas agendamentos do mesmo profissional e empresa
+        const agendamentos = agendamentosCache.filter(a => 
+            a.profissionalId === profissionalId && 
+            a.id !== agendamentoIdIgnorar &&
+            a.status !== 'cancelado' // ignora cancelados
+        );
+        
+        const conflitos = [];
+        for (const a of agendamentos) {
+            const aInicio = new Date(a.data);
+            const aDuracao = getServicoDuracao(a.servicoId);
+            const aFim = new Date(aInicio.getTime() + aDuracao * 60000);
+            if (horariosConflitam(inicio, fim, aInicio, aFim)) {
+                conflitos.push(a);
+            }
+        }
+        return conflitos;
+    }
+
+    function exibirConflito(conflitos, servicoNome) {
+        const box = document.getElementById('conflitoHorarioBox');
+        const msgSpan = document.getElementById('conflitoMensagem');
+        if (conflitos && conflitos.length > 0) {
+            const nomes = conflitos.map(c => {
+                const serv = servicosCache.find(s => s.id === c.servicoId);
+                return serv?.nome || 'serviço';
+            }).join(', ');
+            msgSpan.innerHTML = `⚠️ CONFLITO! O profissional já possui agendamento neste horário (${nomes}). Duração do serviço: ${getServicoDuracao(servicoNome)} min.`;
+            box.style.display = 'flex';
+            return true;
+        } else {
+            box.style.display = 'none';
+            return false;
+        }
+    }
+
+    // ==================== CARREGAR DADOS ====================
+    async function loadAgendamentos() {
+        if (!currentEmpresa) return [];
+        const q = query(collection(db, 'agendamentos'), where('empresaId', '==', currentEmpresa.id));
+        const snapshot = await getDocs(q);
+        agendamentosCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return agendamentosCache;
+    }
+
+    async function carregarDadosApoio() {
+        if (!currentEmpresa) return;
+        const empresaId = currentEmpresa.id;
+        
+        const clientesSnap = await getDocs(query(collection(db, 'clientes'), where('empresaId', '==', empresaId)));
+        clientesCache = clientesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const petsSnap = await getDocs(query(collection(db, 'pets'), where('empresaId', '==', empresaId)));
+        petsCache = petsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const profissionaisSnap = await getDocs(query(collection(db, 'profissionais'), where('empresaId', '==', empresaId)));
+        profissionaisCache = profissionaisSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        const servicosSnap = await getDocs(query(collection(db, 'servicos'), where('empresaId', '==', empresaId)));
+        servicosCache = servicosSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        await loadAgendamentos();
+        atualizarSelects();
+    }
+
+    function atualizarSelects() {
+        const clienteSelect = document.getElementById('ageClienteId');
+        clienteSelect.innerHTML = '<option value="">Selecione</option>' + clientesCache.map(c => `<option value="${c.id}">${escapeHtml(c.cli_nome || c.nome)}</option>`).join('');
+        clienteSelect.onchange = () => atualizarPetsPorCliente(clienteSelect.value);
+        
+        const profSelect = document.getElementById('ageProfissionalId');
+        profSelect.innerHTML = '<option value="">Selecione</option>' + profissionaisCache.map(p => `<option value="${p.id}">${escapeHtml(p.prf_nome || p.nome)}</option>`).join('');
+        
+        const servicoSelect = document.getElementById('ageServicoId');
+        servicoSelect.innerHTML = '<option value="">Selecione</option>' + servicosCache.filter(s => s.ativo !== false).map(s => `<option value="${s.id}" data-preco="${s.preco || 0}" data-duracao="${s.duracao || 60}">${escapeHtml(s.nome)} - ${formatCurrency(s.preco || 0)} (${s.duracao || 60} min)</option>`).join('');
+        servicoSelect.onchange = () => {
+            const preco = getServicoPreco(servicoSelect.value);
+            document.getElementById('ageValor').value = formatCurrency(preco);
+            verificarConflitoListener(); // reavalia conflito ao mudar serviço
+        };
+    }
+
+    function atualizarPetsPorCliente(clienteId) {
+        const petSelect = document.getElementById('agePetId');
+        const petsFiltrados = petsCache.filter(p => p.clienteId === clienteId);
+        petSelect.innerHTML = '<option value="">Selecione</option>' + petsFiltrados.map(p => `<option value="${p.id}">${escapeHtml(p.nome || p.pet_nome)}</option>`).join('');
+    }
+
+    // ==================== CRUD ====================
+    async function addAgendamento(data) {
+        const newAgendamento = {
+            ...data,
+            empresaId: currentEmpresa.id,
+            criado_em: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        const docRef = await addDoc(collection(db, 'agendamentos'), newAgendamento);
+        await loadAgendamentos();
+        await renderAgendamentos();
+        updateStats();
+        showToast('Agendamento adicionado!', 'success');
+    }
+
+    async function updateAgendamento(id, updates) {
+        await updateDoc(doc(db, 'agendamentos', id), { ...updates, updatedAt: new Date().toISOString() });
+        await loadAgendamentos();
+        await renderAgendamentos();
+        updateStats();
+        showToast('Atualizado!', 'success');
+    }
+
+    async function deleteAgendamento(id) {
+        if (!confirm('Excluir agendamento?')) return;
+        await deleteDoc(doc(db, 'agendamentos', id));
+        await loadAgendamentos();
+        await renderAgendamentos();
+        updateStats();
+        showToast('Excluído!', 'success');
+    }
+
+    // ==================== FORMULÁRIO ====================
+    function getFormData() {
+        return {
+            clienteId: document.getElementById('ageClienteId').value,
+            petId: document.getElementById('agePetId').value,
+            profissionalId: document.getElementById('ageProfissionalId').value,
+            servicoId: document.getElementById('ageServicoId').value,
+            servico: getServicoNome(document.getElementById('ageServicoId').value),
+            data: document.getElementById('ageData').value,
+            valor: parseCurrency(document.getElementById('ageValor').value),
+            status: document.getElementById('ageStatus').value,
+            obs: document.getElementById('ageObs').value
+        };
+    }
+
+    async function validarFormulario() {
+        let valido = true;
+        const clienteId = document.getElementById('ageClienteId').value;
+        const petId = document.getElementById('agePetId').value;
+        const profissionalId = document.getElementById('ageProfissionalId').value;
+        const servicoId = document.getElementById('ageServicoId').value;
+        const data = document.getElementById('ageData').value;
+        
+        if (!clienteId) { showToast('Selecione um cliente!', 'error'); valido = false; }
+        if (!petId) { showToast('Selecione um pet!', 'error'); valido = false; }
+        if (!profissionalId) { showToast('Selecione um profissional!', 'error'); valido = false; }
+        if (!servicoId) { showToast('Selecione um serviço!', 'error'); valido = false; }
+        if (!data) { showToast('Selecione data e horário!', 'error'); valido = false; }
+        
+        if (valido && profissionalId && data && servicoId) {
+            const conflitos = await verificarConflitoHorario(data, profissionalId, servicoId, editingId);
+            if (conflitos.length > 0) {
+                exibirConflito(conflitos, servicoId);
+                showToast('Conflito de horário!', 'error');
+                valido = false;
+            }
+        }
+        return valido;
+    }
+
+    function resetForm() {
+        document.getElementById('ageClienteId').value = '';
+        document.getElementById('agePetId').innerHTML = '<option value="">Selecione</option>';
+        document.getElementById('ageProfissionalId').value = '';
+        document.getElementById('ageServicoId').value = '';
+        document.getElementById('ageData').value = '';
+        document.getElementById('ageValor').value = '';
+        document.getElementById('ageStatus').value = 'agendado';
+        document.getElementById('ageObs').value = '';
+        document.getElementById('conflitoHorarioBox').style.display = 'none';
+        editingId = null;
+        document.getElementById('cancelEditBtn').style.display = 'none';
+        const btn = document.getElementById('saveAgendamentoBtn');
+        btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+        btn.classList.remove('btn-success');
+        btn.classList.add('btn-primary');
+    }
+
+    function fillForm(a) {
+        document.getElementById('ageClienteId').value = a.clienteId || '';
+        atualizarPetsPorCliente(a.clienteId);
+        setTimeout(() => { document.getElementById('agePetId').value = a.petId || ''; }, 100);
+        document.getElementById('ageProfissionalId').value = a.profissionalId || '';
+        document.getElementById('ageServicoId').value = a.servicoId || '';
+        document.getElementById('ageData').value = a.data || '';
+        document.getElementById('ageValor').value = formatCurrency(a.valor || 0);
+        document.getElementById('ageStatus').value = a.status || 'agendado';
+        document.getElementById('ageObs').value = a.obs || '';
+    }
+
+    async function salvarAgendamento() {
+        if (!await validarFormulario()) return;
+        const formData = getFormData();
+        if (editingId) {
+            await updateAgendamento(editingId, formData);
+        } else {
+            await addAgendamento(formData);
+        }
+        resetForm();
+    }
+
+    function cancelEdit() { resetForm(); }
+
+    async function verificarConflitoListener() {
+        const profissionalId = document.getElementById('ageProfissionalId').value;
+        const servicoId = document.getElementById('ageServicoId').value;
+        const data = document.getElementById('ageData').value;
+        if (profissionalId && data && servicoId) {
+            const conflitos = await verificarConflitoHorario(data, profissionalId, servicoId, editingId);
+            exibirConflito(conflitos, servicoId);
+        } else {
+            document.getElementById('conflitoHorarioBox').style.display = 'none';
+        }
+    }
+
+    // ==================== RENDER ====================
+    async function renderAgendamentos() {
+        let ags = [...agendamentosCache];
+        const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        const statusFilter = document.getElementById('statusFilter')?.value || '';
+        
+        if (search) {
+            ags = ags.filter(a => {
+                const cli = clientesCache.find(c => c.id === a.clienteId);
+                const pet = petsCache.find(p => p.id === a.petId);
+                return (cli?.cli_nome || '').toLowerCase().includes(search) || (pet?.nome || '').toLowerCase().includes(search);
+            });
+        }
+        if (statusFilter) ags = ags.filter(a => a.status === statusFilter);
+        
+        // Ordenar por data
+        ags.sort((a,b) => new Date(a.data) - new Date(b.data));
+        
+        const totalPages = Math.ceil(ags.length / itemsPerPage);
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        const paginated = ags.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        const tbody = document.getElementById('agendamentosTableBody');
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="8">Nenhum agendamento</td></tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        
+        tbody.innerHTML = paginated.map(a => {
+            const cliente = clientesCache.find(c => c.id === a.clienteId);
+            const pet = petsCache.find(p => p.id === a.petId);
+            const prof = profissionaisCache.find(p => p.id === a.profissionalId);
+            const serv = servicosCache.find(s => s.id === a.servicoId);
+            const servicoNome = serv?.nome || a.servico || '-';
+            const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
+            return `<tr>
+                <td>${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</td>
+                <td>${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</td>
+                <td>${escapeHtml(servicoNome)}</td>
+                <td>${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</td>
+                <td>${a.data ? new Date(a.data).toLocaleString() : '-'}</td>
+                <td>R$ ${formatCurrency(a.valor || 0)}</td>
+                <td><span class="status-badge ${statusClass}">${a.status}</span></td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewAgendamento('${a.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editAgendamento('${a.id}')"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn delete" onclick="deleteAgendamento('${a.id}')"><i class="fas fa-trash-alt"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+        let pagHtml = '';
+        for (let i = 1; i <= totalPages; i++) { pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`; }
+        document.getElementById('pagination').innerHTML = pagHtml;
+    }
+
+    function goToPage(page) { currentPage = page; renderAgendamentos(); }
+
+    async function updateStats() {
+        const ags = agendamentosCache;
+        document.getElementById('totalAgendamentos').innerText = ags.length;
+        const hoje = new Date().toDateString();
+        const hojeCount = ags.filter(a => a.data && new Date(a.data).toDateString() === hoje).length;
+        document.getElementById('totalHoje').innerText = hojeCount;
+        const pendentes = ags.filter(a => a.status === 'agendado' || a.status === 'confirmado').length;
+        document.getElementById('totalPendentes').innerText = pendentes;
+        const realizados = ags.filter(a => a.status === 'realizado').length;
+        document.getElementById('totalRealizados').innerText = realizados;
+    }
+
+    function clearFilters() { document.getElementById('searchInput').value = ''; document.getElementById('statusFilter').value = ''; currentPage = 1; renderAgendamentos(); }
+
+    // ==================== EXPORTAR PDF ====================
+    async function exportarPDF() {
+        const agendamentos = agendamentosCache;
+        if (agendamentos.length === 0) { showToast('Não há agendamentos para exportar!', 'error'); return; }
+        showToast('Gerando PDF...', 'info');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Agendamentos', 14, 20);
+            doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
+            doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 38);
+            doc.text(`Total: ${agendamentos.length} agendamentos`, 14, 46);
+            const colunas = [{ label: 'Cliente', width: 40 }, { label: 'Pet', width: 35 }, { label: 'Serviço', width: 40 }, { label: 'Data', width: 40 }, { label: 'Status', width: 25 }];
+            let y = 55;
+            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
+            let x = 14;
+            colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
+            doc.setTextColor(0,0,0);
+            y += 12;
+            for (const a of agendamentos) {
+                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
+                const cliente = clientesCache.find(c => c.id === a.clienteId);
+                const pet = petsCache.find(p => p.id === a.petId);
+                doc.text((cliente?.cli_nome || cliente?.nome || '-').substring(0,25), x+2, y+4); x += 40;
+                doc.text((pet?.nome || pet?.pet_nome || '-').substring(0,20), x+2, y+4); x += 35;
+                doc.text((a.servico || '-').substring(0,25), x+2, y+4); x += 40;
+                doc.text(a.data ? new Date(a.data).toLocaleString() : '-', x+2, y+4); x += 40;
+                doc.text(a.status || '-', x+2, y+4);
+                y += 7; x = 14;
+            }
+            for (let i = 1; i <= doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
+            doc.save(`agendamentos_${new Date().toISOString().split('T')[0]}.pdf`);
+            showToast('PDF gerado!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+    }
+
+    function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+
+    // ==================== EDIT E VIEW ====================
+    window.editAgendamento = async function(id) {
+        const a = agendamentosCache.find(a => a.id === id);
+        if (a) {
+            fillForm(a);
+            editingId = id;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            const btn = document.getElementById('saveAgendamentoBtn');
+            btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            window.scrollTo({ top: 0 });
+            setTimeout(async () => {
+                await verificarConflitoListener();
+            }, 200);
+        }
+    };
+
+    window.viewAgendamento = async function(id) {
+        const a = agendamentosCache.find(a => a.id === id);
+        if (!a) return;
+        const cliente = clientesCache.find(c => c.id === a.clienteId);
+        const pet = petsCache.find(p => p.id === a.petId);
+        const prof = profissionaisCache.find(p => p.id === a.profissionalId);
+        const serv = servicosCache.find(s => s.id === a.servicoId);
+        const servicoNome = serv?.nome || a.servico || '-';
+        const statusClass = a.status === 'agendado' ? 'status-agendado' : (a.status === 'confirmado' ? 'status-confirmado' : (a.status === 'realizado' ? 'status-realizado' : 'status-cancelado'));
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Cliente:</span><span class="info-value">${escapeHtml(cliente?.cli_nome || cliente?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Pet:</span><span class="info-value">${escapeHtml(pet?.nome || pet?.pet_nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Profissional:</span><span class="info-value">${escapeHtml(prof?.prf_nome || prof?.nome || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Serviço:</span><span class="info-value">${escapeHtml(servicoNome)}</span></div>
+            <div class="info-row"><span class="info-label">Data/Hora:</span><span class="info-value">${formatarDataHora(a.data)}</span></div>
+            <div class="info-row"><span class="info-label">Valor:</span><span class="info-value">R$ ${formatCurrency(a.valor || 0)}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value"><span class="status-badge ${statusClass}">${a.status}</span></span></div>
+            ${a.obs ? `<div class="info-row"><span class="info-label">Observações:</span><span class="info-value">${escapeHtml(a.obs)}</span></div>` : ''}
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+
+    window.deleteAgendamento = deleteAgendamento;
+
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert warning';
+            } else if (statusInfo.status === 'expirado') {
+                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Período de teste EXPIRADO! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert expired';
+            } else if (statusInfo.status === 'trial') {
+                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.className = 'trial-alert';
+            } else if (statusInfo.status === 'ativo') {
+                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                trialDiv.style.display = 'flex';
+                trialDiv.style.background = '#e0f2e9';
+                trialDiv.style.borderLeftColor = '#2a9d8f';
+            } else {
+                trialDiv.style.display = 'none';
+            }
+            
+            await carregarDadosApoio();
+            await renderAgendamentos();
+            updateStats();
+            
+            // Eventos de validação de conflito
+            const profissionalSelect = document.getElementById('ageProfissionalId');
+            const dataInput = document.getElementById('ageData');
+            const servicoSelect = document.getElementById('ageServicoId');
+            profissionalSelect.addEventListener('change', verificarConflitoListener);
+            dataInput.addEventListener('change', verificarConflitoListener);
+            servicoSelect.addEventListener('change', verificarConflitoListener);
+            
+            configurarMascaraValor('ageValor');
+        } else {
+            window.location.href = 'login.html';
+        }
+    });
+
+    // ==================== EVENTOS DOM ====================
+    document.getElementById('saveAgendamentoBtn').onclick = salvarAgendamento;
+    document.getElementById('cancelEditBtn').onclick = cancelEdit;
+    document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderAgendamentos(); });
+    document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; renderAgendamentos(); });
+    document.getElementById('clearFiltersBtn').onclick = clearFilters;
+    document.getElementById('exportPdfBtn').onclick = exportarPDF;
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) fecharModal(); };
+    window.goToPage = goToPage;
+    window.solicitarLiberacao = () => {
+        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
+        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
+        showToast('Abrindo cliente de e-mail...', 'info');
+    };
+    
+    console.log('✅ Agendamentos refatorado - Conflito de horário corrigido com duração do serviço');
+</script>
+</body>
+</html>

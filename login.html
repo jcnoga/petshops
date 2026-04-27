@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PerShop - Login do Sistema | Firebase Auth</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .auth-container { display: flex; justify-content: center; align-items: center; width: 100%; min-height: 100vh; }
+        .auth-card { background: white; border-radius: 32px; padding: 40px; width: 100%; max-width: 450px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); transition: all 0.3s; }
+        .auth-logo { text-align: center; margin-bottom: 30px; }
+        .auth-logo-icon { width: 60px; height: 60px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px; }
+        .auth-logo-icon i { font-size: 2rem; color: white; }
+        .auth-logo h1 { font-size: 1.8rem; color: #1f5068; }
+        .auth-logo p { color: #7a9eb0; font-size: 0.8rem; }
+        .auth-title { font-size: 1.3rem; margin-bottom: 25px; color: #1f5068; text-align: center; font-weight: 600; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.75rem; font-weight: 600; color: #4a6272; text-transform: uppercase; margin-bottom: 5px; }
+        .input-group input, .input-group select { width: 100%; padding: 12px 16px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.9rem; transition: all 0.2s; background: white; }
+        .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
+        .auth-footer { text-align: center; margin-top: 20px; font-size: 0.8rem; color: #7a9eb0; }
+        .auth-footer a { color: #2c7da0; text-decoration: none; font-weight: 600; }
+        .auth-footer a:hover { text-decoration: underline; }
+        .error-message { background: #e76f5120; color: #e76f51; padding: 10px; border-radius: 12px; font-size: 0.8rem; margin-bottom: 20px; text-align: center; display: none; }
+        .success-message { background: #2a9d8f20; color: #2a9d8f; padding: 10px; border-radius: 12px; font-size: 0.8rem; margin-bottom: 20px; text-align: center; display: none; }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #2c7da0; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+<div class="auth-container">
+    <!-- TELA DE LOGIN -->
+    <div id="loginContainer" class="auth-card">
+        <div class="auth-logo">
+            <div class="auth-logo-icon"><i class="fas fa-paw"></i></div>
+            <h1>PerShop</h1>
+            <p>Sistema de Gestão PetShop</p>
+        </div>
+        <div class="auth-title">Entrar na conta</div>
+        <div id="loginError" class="error-message"></div>
+        <div class="input-group"><label><i class="fas fa-envelope"></i> E-mail</label><input type="email" id="loginEmail" placeholder="seu@email.com"></div>
+        <div class="input-group"><label><i class="fas fa-lock"></i> Senha</label><input type="password" id="loginSenha" placeholder="********"></div>
+        <button class="btn btn-primary" onclick="fazerLogin()" id="loginBtn"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+        <div class="auth-footer">Não tem conta? <a href="#" onclick="mostrarCadastro()">Cadastre-se</a></div>
+    </div>
+
+    <!-- TELA DE CADASTRO -->
+    <div id="cadastroContainer" class="auth-card" style="display: none;">
+        <div class="auth-logo">
+            <div class="auth-logo-icon"><i class="fas fa-paw"></i></div>
+            <h1>PerShop</h1>
+            <p>Criar nova conta</p>
+        </div>
+        <div class="auth-title">Cadastro de Usuário</div>
+        <div id="cadastroError" class="error-message"></div>
+        <div id="cadastroSuccess" class="success-message"></div>
+        <div class="input-group"><label><i class="fas fa-user"></i> Nome Completo</label><input type="text" id="cadNome" placeholder="Digite seu nome completo"></div>
+        <div class="input-group"><label><i class="fas fa-envelope"></i> E-mail</label><input type="email" id="cadEmail" placeholder="seu@email.com"></div>
+        <div class="input-group"><label><i class="fas fa-phone"></i> Telefone</label><input type="text" id="cadTelefone" placeholder="(00) 00000-0000"></div>
+        <div class="input-group"><label><i class="fas fa-lock"></i> Senha</label><input type="password" id="cadSenha" placeholder="********"></div>
+        <div class="input-group"><label><i class="fas fa-lock"></i> Confirmar Senha</label><input type="password" id="cadConfirmarSenha" placeholder="********"></div>
+        <button class="btn btn-primary" onclick="fazerCadastro()" id="cadastroBtn"><i class="fas fa-user-plus"></i> Cadastrar</button>
+        <div class="auth-footer">Já tem conta? <a href="#" onclick="mostrarLogin()">Faça login</a></div>
+    </div>
+</div>
+
+<script type="module">
+    import { auth, db } from './firebase-config.js';
+    import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { doc, setDoc, getDoc, addDoc, collection, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { aplicarMascaraTelefone } from './util.js';
+
+    function showMessage(elementId, message, isSuccess = false) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        element.textContent = message;
+        element.style.display = 'block';
+        if (isSuccess) {
+            element.style.background = '#2a9d8f20';
+            element.style.color = '#2a9d8f';
+        } else {
+            element.style.background = '#e76f5120';
+            element.style.color = '#e76f51';
+        }
+        setTimeout(() => { element.style.display = 'none'; }, 5000);
+    }
+
+    // ==================== LOGIN ====================
+    window.fazerLogin = async function() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const senha = document.getElementById('loginSenha').value;
+        const loginBtn = document.getElementById('loginBtn');
+
+        if (!email || !senha) {
+            showMessage('loginError', 'Preencha todos os campos!');
+            return;
+        }
+
+        loginBtn.innerHTML = '<span class="loading"></span> Entrando...';
+        loginBtn.disabled = true;
+
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, senha);
+            const user = userCredential.user;
+
+            const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+            if (!userDoc.exists()) {
+                showMessage('loginError', 'Usuário não possui perfil no sistema. Contate o administrador.');
+                await auth.signOut();
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+                loginBtn.disabled = false;
+                return;
+            }
+
+            const userData = userDoc.data();
+            if (!userData.ativo && userData.ativo !== undefined) {
+                showMessage('loginError', 'Usuário desativado. Contate o administrador.');
+                await auth.signOut();
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+                loginBtn.disabled = false;
+                return;
+            }
+
+            showMessage('loginError', 'Login realizado com sucesso! Redirecionando...', true);
+            setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+
+        } catch (error) {
+            let msg = 'Erro ao fazer login.';
+            if (error.code === 'auth/user-not-found') msg = 'E-mail não cadastrado.';
+            else if (error.code === 'auth/wrong-password') msg = 'Senha inválida.';
+            else if (error.code === 'auth/invalid-email') msg = 'E-mail inválido.';
+            else if (error.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Tente mais tarde.';
+            showMessage('loginError', msg);
+            console.error(error);
+        } finally {
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+            loginBtn.disabled = false;
+        }
+    };
+
+    // ==================== CADASTRO ====================
+    window.fazerCadastro = async function() {
+        const nome = document.getElementById('cadNome').value.trim();
+        const email = document.getElementById('cadEmail').value.trim();
+        const telefone = document.getElementById('cadTelefone').value;
+        const senha = document.getElementById('cadSenha').value;
+        const confirmar = document.getElementById('cadConfirmarSenha').value;
+        const cadastroBtn = document.getElementById('cadastroBtn');
+
+        if (!nome || !email || !telefone || !senha) {
+            showMessage('cadastroError', 'Preencha todos os campos obrigatórios!');
+            return;
+        }
+        if (senha !== confirmar) {
+            showMessage('cadastroError', 'Senhas não conferem!');
+            return;
+        }
+        if (senha.length < 6) {
+            showMessage('cadastroError', 'Senha deve ter no mínimo 6 caracteres!');
+            return;
+        }
+
+        cadastroBtn.innerHTML = '<span class="loading"></span> Cadastrando...';
+        cadastroBtn.disabled = true;
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+            const user = userCredential.user;
+
+            // Criar empresa padrão
+            const novaEmpresa = {
+                emp_razao_social: `${nome} PetShop`,
+                emp_nome_fantasia: nome,
+                emp_cnpj: '',
+                emp_whatsapp: '',
+                emp_status: 'ativo',
+                emp_data_expiracao: new Date(Date.now() + 365 * 86400000).toISOString(),
+                emp_criado_em: new Date().toISOString()
+            };
+            const empresaRef = await addDoc(collection(db, 'empresas'), novaEmpresa);
+            const empresaId = empresaRef.id;
+
+            // Criar usuário no Firestore com perfil ADMIN (primeiro usuário)
+            const usuarioData = {
+                nome: nome,
+                email: email,
+                telefone: telefone,
+                perfil: 'admin',      // <-- ADMINISTRADOR para ter acesso total
+                ativo: true,
+                empresaId: empresaId,
+                criado_em: new Date().toISOString(),
+                uid: user.uid
+            };
+            await setDoc(doc(db, 'usuarios', user.uid), usuarioData);
+
+            showMessage('cadastroSuccess', 'Cadastro realizado com sucesso! Faça login.', true);
+            setTimeout(() => {
+                mostrarLogin();
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginSenha').value = '';
+            }, 2000);
+
+        } catch (error) {
+            let msg = 'Erro ao cadastrar.';
+            if (error.code === 'auth/email-already-in-use') msg = 'Este e-mail já está em uso.';
+            else if (error.code === 'auth/invalid-email') msg = 'E-mail inválido.';
+            else if (error.code === 'auth/weak-password') msg = 'Senha muito fraca (mínimo 6 caracteres).';
+            showMessage('cadastroError', msg);
+            console.error(error);
+        } finally {
+            cadastroBtn.innerHTML = '<i class="fas fa-user-plus"></i> Cadastrar';
+            cadastroBtn.disabled = false;
+        }
+    };
+
+    function mostrarLogin() {
+        document.getElementById('loginContainer').style.display = 'block';
+        document.getElementById('cadastroContainer').style.display = 'none';
+        document.getElementById('loginError').style.display = 'none';
+        document.getElementById('loginEmail').value = '';
+        document.getElementById('loginSenha').value = '';
+    }
+    window.mostrarLogin = mostrarLogin;
+
+    function mostrarCadastro() {
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('cadastroContainer').style.display = 'block';
+        document.getElementById('cadastroError').style.display = 'none';
+        document.getElementById('cadastroSuccess').style.display = 'none';
+        document.getElementById('cadNome').value = '';
+        document.getElementById('cadEmail').value = '';
+        document.getElementById('cadTelefone').value = '';
+        document.getElementById('cadSenha').value = '';
+        document.getElementById('cadConfirmarSenha').value = '';
+    }
+    window.mostrarCadastro = mostrarCadastro;
+
+    // Se já estiver logado, redirecionar para o dashboard
+    import { onAuthStateChanged } from './firebase-config.js';
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+            if (userDoc.exists()) {
+                window.location.href = 'index.html';
+            } else {
+                await auth.signOut();
+            }
+        }
+    });
+
+    // Máscara de telefone
+    const campoTelefone = document.getElementById('cadTelefone');
+    if (campoTelefone) {
+        campoTelefone.addEventListener('input', (e) => {
+            e.target.value = aplicarMascaraTelefone(e.target.value);
+        });
+    }
+
+    // Tecla Enter
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            if (document.getElementById('loginContainer').style.display !== 'none') {
+                fazerLogin();
+            } else if (document.getElementById('cadastroContainer').style.display !== 'none') {
+                fazerCadastro();
+            }
+        }
+    });
+</script>
+</body>
+</html>
