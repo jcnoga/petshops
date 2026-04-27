@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>PerShop - Movimento de Estoque | Firebase + Firestore</title>
-    <!-- Bibliotecas para PDF e Chart.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mantidos do original - omitidos por brevidade. Inclua os mesmos estilos do seu arquivo) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
         .logo h1 { font-size: 1.5rem; color: #1f5068; }
@@ -31,7 +30,7 @@
         .btn-danger { background: #e76f51; color: white; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -43,23 +42,22 @@
         .filter-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
         .filter-group input, .filter-group select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.85rem; cursor: pointer; }
         .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .chart-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        .chart-card { background: white; border-radius: 24px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .chart-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 15px; color: #1f5068; }
         .chart-container { position: relative; height: 250px; }
-        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
         .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
         .form-header p { opacity: 0.8; font-size: 0.75rem; }
         .form-body { padding: 25px; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
-        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
         .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
         .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
         .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
-        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .table-header h3 { font-size: 1.1rem; color: #1f5068; }
         .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -101,11 +99,9 @@
         .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
         .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
-        .card-loading { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; border-radius: 24px; z-index: 10; }
-        .card-loading i { font-size: 1.5rem; color: #2c7da0; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
         .loading-screen { text-align: center; padding: 60px; }
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
         .breadcrumb a { color: #2c7da0; text-decoration: none; }
         .breadcrumb a:hover { text-decoration: underline; }
@@ -113,86 +109,72 @@
     </style>
 </head>
 <body>
-<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
-    <a href="index.html">Dashboard</a> > 
-    <span>Movimento Estoque</span>
-</div>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <span>Movimentos de Estoque</span></div>
 <div class="container">
     <div class="header">
-        <div class="logo"><div class="logo-icon"><i class="fas fa-exchange-alt"></i></div><h1>PerShop <span>Movimento Estoque</span></h1></div>
-        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando empresa...</div>
-        <div class="config-bar">
-            <span class="badge" id="dbStatus"><i class="fas fa-fire"></i> Firebase Online</span>
-            <button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button>
-        </div>
+        <div class="logo"><div class="logo-icon"><i class="fas fa-exchange-alt"></i></div><h1>PerShop <span>Movimentos Estoque</span></h1></div>
+        <div class="empresa-info" id="empresaInfo"><i class="fas fa-building"></i> Carregando...</div>
+        <div class="config-bar"><span class="badge"><i class="fas fa-fire"></i> Firebase Online</span><button id="logoutBtn" class="btn btn-outline"><i class="fas fa-sign-out-alt"></i> Sair</button></div>
     </div>
-
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
     <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo...</p></div>
-
     <div id="conteudoPrincipal" style="display: none;">
+        <!-- ESTATÍSTICAS -->
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div></div><div class="stat-value" id="totalEntradas">0</div><div class="stat-label">Entradas</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div></div><div class="stat-value" id="totalSaidas">0</div><div class="stat-label">Saídas</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-cubes"></i></div></div><div class="stat-value" id="totalMovimentacoes">0</div><div class="stat-label">Movimentações</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-chart-line"></i></div></div><div class="stat-value" id="saldoEstoque">R$ 0</div><div class="stat-label">Saldo Estoque</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div><div class="stat-value" id="totalEntradas">0</div><div class="stat-label">Entradas</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div><div class="stat-value" id="totalSaidas">0</div><div class="stat-label">Saídas</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-cubes"></i></div><div class="stat-value" id="totalMovimentacoes">0</div><div class="stat-label">Movimentações</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div class="stat-value" id="saldoEstoque">R$ 0</div><div class="stat-label">Saldo Estoque</div></div>
         </div>
-
+        <!-- FILTROS -->
         <div class="filters-card">
             <div class="filter-row">
-                <div class="filter-group"><label><i class="fas fa-calendar-alt"></i> Data Início</label><input type="date" id="dataInicio"></div>
-                <div class="filter-group"><label><i class="fas fa-calendar-alt"></i> Data Fim</label><input type="date" id="dataFim"></div>
-                <div class="filter-group"><label><i class="fas fa-tag"></i> Tipo</label><select id="tipoFilter"><option value="">Todos</option><option value="entrada">📥 Entradas</option><option value="saida">📤 Saídas</option><option value="ajuste">⚙️ Ajustes</option></select></div>
-                <div class="filter-group"><label><i class="fas fa-box"></i> Produto</label><select id="produtoFilter"><option value="">Todos</option></select></div>
-                <div class="filter-group"><button id="aplicarFiltrosBtn" class="btn btn-primary"><i class="fas fa-search"></i> Aplicar</button></div>
-                <div class="filter-group"><button id="clearFiltersBtn" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button></div>
-                <div class="filter-group"><button id="exportPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div>
+                <div class="filter-group"><label>Data Início</label><input type="date" id="dataInicio"></div>
+                <div class="filter-group"><label>Data Fim</label><input type="date" id="dataFim"></div>
+                <div class="filter-group"><label>Tipo</label><select id="tipoFilter"><option value="">Todos</option><option value="entrada">📥 Entradas</option><option value="saida">📤 Saídas</option><option value="ajuste">⚙️ Ajustes</option></select></div>
+                <div class="filter-group"><label>Produto</label><select id="produtoFilter"><option value="">Todos</option></select></div>
+                <div class="filter-group"><button id="aplicarFiltrosBtn" class="btn btn-primary">Aplicar</button></div>
+                <div class="filter-group"><button id="clearFiltersBtn" class="btn btn-outline">Limpar</button></div>
+                <div class="filter-group"><button id="exportPdfBtn" class="btn btn-primary">Exportar PDF</button></div>
             </div>
         </div>
-
+        <!-- GRÁFICOS -->
         <div class="chart-row">
-            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-line"></i> Movimentações por Mês</div><div class="chart-container"><canvas id="movimentacoesChart"></canvas></div></div>
-            <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-pie"></i> Distribuição por Tipo</div><div class="chart-container"><canvas id="tipoChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Movimentações por Mês</div><div class="chart-container"><canvas id="movimentacoesChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-title">Distribuição por Tipo</div><div class="chart-container"><canvas id="tipoChart"></canvas></div></div>
         </div>
-
+        <!-- FORMULÁRIO -->
         <div class="form-card">
-            <div class="form-header"><h2><i class="fas fa-plus-circle"></i> Nova Movimentação</h2><p>Registre entrada, saída ou ajuste de estoque</p></div>
+            <div class="form-header"><h2>Registrar Movimentação</h2></div>
             <div class="form-body">
                 <div class="form-grid">
-                    <div class="input-group"><label class="required"><i class="fas fa-box"></i> Produto</label><select id="movProdutoId"><option value="">Selecione</option></select></div>
-                    <div class="input-group"><label class="required"><i class="fas fa-exchange-alt"></i> Tipo</label><select id="movTipo"><option value="">Selecione</option><option value="entrada">📥 Entrada</option><option value="saida">📤 Saída</option><option value="ajuste">⚙️ Ajuste</option></select></div>
-                    <div class="input-group"><label class="required"><i class="fas fa-cubes"></i> Quantidade</label><input type="number" id="movQuantidade" placeholder="0" min="1"></div>
-                    <div class="input-group"><label><i class="fas fa-user"></i> Responsável</label><input type="text" id="movResponsavel" placeholder="Nome do responsável"></div>
-                    <div class="input-group" style="grid-column: span 2;"><label><i class="fas fa-sticky-note"></i> Motivo</label><textarea id="movMotivo" placeholder="Ex: Compra NF 12345, Venda, Ajuste de inventário..." rows="2"></textarea></div>
-                    <div id="estoqueInfo" class="info-message" style="display: none; padding: 8px; border-radius: 12px; background: #2c7da020; color: #2c7da0; font-size: 0.75rem;"></div>
-                    <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-times"></i> Cancelar</button><button type="button" id="saveMovimentoBtn" class="btn btn-primary"><i class="fas fa-save"></i> Registrar</button></div>
+                    <div class="input-group"><label class="required">Produto</label><select id="movProdutoId"><option value="">Selecione</option></select></div>
+                    <div class="input-group"><label class="required">Tipo</label><select id="movTipo"><option value="">Selecione</option><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="ajuste">Ajuste</option></select></div>
+                    <div class="input-group"><label class="required">Quantidade</label><input type="number" id="movQuantidade" min="1"></div>
+                    <div class="input-group"><label>Responsável</label><input type="text" id="movResponsavel" placeholder="Quem realizou?"></div>
+                    <div class="input-group" style="grid-column: span 2;"><label>Motivo</label><textarea id="movMotivo" rows="2" placeholder="Ex: Compra NF 123, Venda, Ajuste de inventário"></textarea></div>
+                    <div id="estoqueInfo" class="info-message" style="display:none; padding:8px; border-radius:12px; background:#2c7da020; color:#2c7da0; font-size:0.75rem;"></div>
+                    <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display:none;">Cancelar</button><button type="button" id="saveMovimentoBtn" class="btn btn-primary">Registrar</button></div>
                 </div>
             </div>
         </div>
-
+        <!-- TABELA -->
         <div class="table-card">
-            <div class="table-header"><h3><i class="fas fa-list"></i> Histórico de Movimentações</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar por produto, responsável ou motivo..."></div></div>
-            <div class="table-wrapper"><table id="movimentosTable"><thead><tr><th>Data/Hora</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="movimentosTableBody"></tbody>}</div>
+            <div class="table-header"><h3>Histórico de Movimentações</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar..."></div></div>
+            <div class="table-wrapper"><table id="movimentosTable"><thead><tr><th>Data/Hora</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="movimentosTableBody"></tbody></table></div>
             <div class="pagination" id="pagination"></div>
         </div>
     </div>
-    <div class="footer">PerShop Enterprise - Movimento de Estoque | Dados em tempo real com Firebase</div>
+    <div class="footer">PerShop Enterprise - Movimento de Estoque</div>
 </div>
-
-<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-exchange-alt"></i> Detalhes da Movimentação</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
+<div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Detalhes da Movimentação</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { escapeHtml, showToast, formatCurrency, formatarDataHora, carregarEmpresaUsuario, verificarStatusEmpresa } from './util.js';
 
-    // Importa funções compartilhadas do util.js
-    import { 
-        escapeHtml, showToast, formatCurrency, formatarDataHora, carregarEmpresaUsuario,
-        verificarStatusEmpresa
-    } from './util.js';
-
-    // ==================== CONSTANTES ====================
+    // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
     let currentEmpresa = null;
     let editingId = null;
@@ -202,131 +184,120 @@
     let produtosCache = [];
     let movimentacoesChart = null;
     let tipoChart = null;
+    let unsubscribeMovimentos = null;
+    let unsubscribeProdutos = null;
 
-    // ==================== CARREGAR DADOS DO FIRESTORE (FILTRADOS POR EMPRESA) ====================
-    async function carregarDadosEmpresa() {
+    // ==================== AUXILIAR: CONSTRAINTS ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
+    }
+
+    // ==================== LISTENERS (TEMPO REAL) ====================
+    async function iniciarListeners() {
+        if (unsubscribeMovimentos) unsubscribeMovimentos();
+        if (unsubscribeProdutos) unsubscribeProdutos();
         if (!currentEmpresa) return;
-        const empresaId = currentEmpresa.id;
-        const produtosSnap = await getDocs(query(collection(db, 'produtos'), where('empresaId', '==', empresaId)));
-        produtosCache = produtosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const movimentosSnap = await getDocs(query(collection(db, 'movimentos'), where('empresaId', '==', empresaId)));
-        movimentosCache = movimentosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    }
 
-    // ==================== CRUD ====================
-    async function addMovimento(data) {
-        // Atualizar estoque do produto
-        const prodIdx = produtosCache.findIndex(p => p.id === data.produtoId);
-        if (prodIdx === -1) throw new Error('Produto não encontrado');
-        let novoEstoque = produtosCache[prodIdx].estoque || 0;
-        if (data.tipo === 'entrada') novoEstoque += data.quantidade;
-        else if (data.tipo === 'saida') novoEstoque = Math.max(0, novoEstoque - data.quantidade);
-        else if (data.tipo === 'ajuste') novoEstoque = data.quantidade;
-        
-        // Salvar movimento no Firestore
-        const novoMovimento = {
-            ...data,
-            empresaId: currentEmpresa.id,
-            data: new Date().toISOString(),
-            criado_em: new Date().toISOString(),
-            criado_por: currentUser.uid,
-            estornado: false,
-            movimento_original_id: null
-        };
-        const docRef = await addDoc(collection(db, 'movimentos'), novoMovimento);
-        novoMovimento.id = docRef.id;
-        movimentosCache.unshift(novoMovimento);
-        
-        // Atualizar estoque no Firestore e no cache
-        await updateDoc(doc(db, 'produtos', data.produtoId), { estoque: novoEstoque });
-        produtosCache[prodIdx].estoque = novoEstoque;
-        
-        renderMovimentos();
-        updateStats();
-        updateCharts();
-        atualizarSelects();
-        showToast('Movimentação registrada com sucesso!', 'success');
-    }
+        const constraints = getConstraints();
 
-    async function updateMovimento(id, updates) {
-        const oldMov = movimentosCache.find(m => m.id === id);
-        if (!oldMov) return;
-        const oldProdIdx = produtosCache.findIndex(p => p.id === oldMov.produtoId);
-        if (oldProdIdx !== -1) {
-            // Reverter estoque antigo
-            if (oldMov.tipo === 'entrada') produtosCache[oldProdIdx].estoque = Math.max(0, (produtosCache[oldProdIdx].estoque || 0) - oldMov.quantidade);
-            else if (oldMov.tipo === 'saida') produtosCache[oldProdIdx].estoque = (produtosCache[oldProdIdx].estoque || 0) + oldMov.quantidade;
-            else if (oldMov.tipo === 'ajuste') produtosCache[oldProdIdx].estoque = oldMov.estoque_anterior || 0;
-            await updateDoc(doc(db, 'produtos', oldMov.produtoId), { estoque: produtosCache[oldProdIdx].estoque });
-        }
-        
-        // Aplicar novo estoque
-        const newProdIdx = produtosCache.findIndex(p => p.id === updates.produtoId);
-        if (newProdIdx !== -1) {
-            let novoEstoque = produtosCache[newProdIdx].estoque || 0;
-            if (updates.tipo === 'entrada') novoEstoque += updates.quantidade;
-            else if (updates.tipo === 'saida') novoEstoque = Math.max(0, novoEstoque - updates.quantidade);
-            else if (updates.tipo === 'ajuste') novoEstoque = updates.quantidade;
-            produtosCache[newProdIdx].estoque = novoEstoque;
-            await updateDoc(doc(db, 'produtos', updates.produtoId), { estoque: novoEstoque });
-        }
-        
-        // Atualizar movimento
-        await updateDoc(doc(db, 'movimentos', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = movimentosCache.findIndex(m => m.id === id);
-        if (idx !== -1) movimentosCache[idx] = { ...movimentosCache[idx], ...updates };
-        
-        renderMovimentos();
-        updateStats();
-        updateCharts();
-        atualizarSelects();
-        showToast('Movimentação atualizada!', 'success');
-    }
+        // Produtos
+        const produtosQuery = query(collection(db, 'produtos'), ...constraints);
+        unsubscribeProdutos = onSnapshot(produtosQuery, (snapshot) => {
+            produtosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            atualizarSelects();
+            renderMovimentos();   // recarrega tabela com nomes atualizados
+            updateStats();
+            updateCharts();
+        }, (error) => console.error('Erro snapshot produtos:', error));
 
-    async function deleteMovimento(id) {
-        if (confirm('Excluir movimentação? O estoque será reajustado.')) {
-            const mov = movimentosCache.find(m => m.id === id);
-            if (mov && !mov.estornado) {
-                const prodIdx = produtosCache.findIndex(p => p.id === mov.produtoId);
-                if (prodIdx !== -1) {
-                    if (mov.tipo === 'entrada') produtosCache[prodIdx].estoque = Math.max(0, (produtosCache[prodIdx].estoque || 0) - mov.quantidade);
-                    else if (mov.tipo === 'saida') produtosCache[prodIdx].estoque = (produtosCache[prodIdx].estoque || 0) + mov.quantidade;
-                    await updateDoc(doc(db, 'produtos', mov.produtoId), { estoque: produtosCache[prodIdx].estoque });
-                }
-            }
-            await deleteDoc(doc(db, 'movimentos', id));
-            movimentosCache = movimentosCache.filter(m => m.id !== id);
+        // Movimentos
+        const movimentosQuery = query(collection(db, 'movimentos'), ...constraints);
+        unsubscribeMovimentos = onSnapshot(movimentosQuery, (snapshot) => {
+            movimentosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             renderMovimentos();
             updateStats();
             updateCharts();
-            atualizarSelects();
-            showToast('Movimentação excluída!', 'success');
-        }
+        }, (error) => console.error('Erro snapshot movimentos:', error));
     }
 
+    // ==================== TRANSAÇÃO PARA REGISTRAR MOVIMENTO ====================
+    async function registrarMovimento(produtoId, tipo, quantidade, responsavel, motivo) {
+        if (!produtoId || quantidade <= 0) throw new Error('Dados inválidos.');
+        const produtoRef = doc(db, 'produtos', produtoId);
+
+        await runTransaction(db, async (transaction) => {
+            const produtoDoc = await transaction.get(produtoRef);
+            if (!produtoDoc.exists()) throw new Error('Produto não encontrado.');
+            let novoEstoque = produtoDoc.data().estoque || 0;
+
+            if (tipo === 'entrada') {
+                novoEstoque += quantidade;
+            } else if (tipo === 'saida') {
+                if (novoEstoque < quantidade) throw new Error(`Estoque insuficiente! Disponível: ${novoEstoque}`);
+                novoEstoque -= quantidade;
+            } else if (tipo === 'ajuste') {
+                novoEstoque = quantidade;
+            } else {
+                throw new Error('Tipo inválido.');
+            }
+
+            transaction.update(produtoRef, { estoque: novoEstoque, atualizado_em: new Date().toISOString() });
+
+            const movimento = {
+                produtoId, tipo, quantidade,
+                responsavel: responsavel || 'Sistema',
+                motivo: motivo || '',
+                data: new Date().toISOString(),
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid,
+                estornado: false,
+                movimento_original_id: null
+            };
+            const movRef = doc(collection(db, 'movimentos'));
+            transaction.set(movRef, movimento);
+        });
+        showToast('Movimentação registrada!', 'success');
+    }
+
+    // ==================== ESTORNAR MOVIMENTO ====================
     async function estornarMovimento(id) {
+        const movimento = movimentosCache.find(m => m.id === id);
+        if (!movimento) throw new Error('Movimentação não encontrada.');
+        if (movimento.estornado) throw new Error('Já estornada.');
+        if (movimento.tipo === 'ajuste') throw new Error('Estorno de ajuste não suportado. Faça um novo ajuste.');
+
+        await runTransaction(db, async (transaction) => {
+            const movRef = doc(db, 'movimentos', id);
+            const movDoc = await transaction.get(movRef);
+            if (!movDoc.exists()) throw new Error('Movimentação não existe.');
+            if (movDoc.data().estornado) throw new Error('Já estornada.');
+
+            const produtoRef = doc(db, 'produtos', movimento.produtoId);
+            const produtoDoc = await transaction.get(produtoRef);
+            if (!produtoDoc.exists()) throw new Error('Produto não encontrado.');
+            let novoEstoque = produtoDoc.data().estoque || 0;
+
+            if (movimento.tipo === 'entrada') {
+                novoEstoque -= movimento.quantidade;
+                if (novoEstoque < 0) novoEstoque = 0;
+            } else if (movimento.tipo === 'saida') {
+                novoEstoque += movimento.quantidade;
+            }
+            transaction.update(produtoRef, { estoque: novoEstoque, atualizado_em: new Date().toISOString() });
+            transaction.update(movRef, { estornado: true, data_estorno: new Date().toISOString() });
+        });
+        showToast('Movimentação estornada!', 'success');
+    }
+
+    // ==================== EXCLUIR MOVIMENTO ====================
+    async function deleteMovimento(id) {
         const mov = movimentosCache.find(m => m.id === id);
-        if (!mov) { showToast('Movimentação não encontrada!', 'error'); return; }
-        if (mov.estornado) { showToast('Esta movimentação já foi estornada!', 'warning'); return; }
-        if (!confirm(`Deseja estornar esta movimentação?\n\nProduto: ${mov.produtoId}\nTipo: ${mov.tipo}\nQuantidade: ${mov.quantidade}\n\nO estoque será revertido.`)) return;
-        
-        const tipoEstorno = mov.tipo === 'entrada' ? 'saida' : (mov.tipo === 'saida' ? 'entrada' : 'ajuste');
-        const movEstorno = {
-            produtoId: mov.produtoId,
-            tipo: tipoEstorno,
-            quantidade: mov.quantidade,
-            responsavel: 'Sistema (Estorno)',
-            motivo: `Estorno da movimentação ${mov.id} - ${mov.motivo || ''}`,
-            estornado: false,
-            movimento_original_id: mov.id
-        };
-        await addMovimento(movEstorno);
-        
-        await updateDoc(doc(db, 'movimentos', id), { estornado: true, data_estorno: new Date().toISOString() });
-        const idx = movimentosCache.findIndex(m => m.id === id);
-        if (idx !== -1) movimentosCache[idx].estornado = true;
-        
-        showToast('Movimentação estornada com sucesso!', 'success');
+        if (!mov) return;
+        if (!mov.estornado && !confirm('Esta movimentação NÃO está estornada. Excluir pode deixar o estoque inconsistente. Deseja continuar?')) return;
+        await deleteDoc(doc(db, 'movimentos', id));
+        showToast('Movimentação excluída!', 'success');
     }
 
     // ==================== FORMULÁRIO ====================
@@ -367,10 +338,7 @@
         if (produto) {
             const estoqueAtual = produto.estoque || 0;
             const estoqueMin = produto.estoqueMin || 0;
-            const statusClass = estoqueAtual <= estoqueMin && estoqueMin > 0 ? 'warning' : 'info';
-            document.getElementById('estoqueInfo').innerHTML = `📊 Estoque atual: <strong>${estoqueAtual}</strong> unidades | Estoque mínimo: ${estoqueMin}`;
-            document.getElementById('estoqueInfo').style.background = statusClass === 'warning' ? '#e76f5120' : '#2c7da020';
-            document.getElementById('estoqueInfo').style.color = statusClass === 'warning' ? '#e76f51' : '#2c7da0';
+            document.getElementById('estoqueInfo').innerHTML = `📊 Estoque atual: <strong>${estoqueAtual}</strong> | Mínimo: ${estoqueMin}`;
             document.getElementById('estoqueInfo').style.display = 'block';
         } else {
             document.getElementById('estoqueInfo').style.display = 'none';
@@ -383,23 +351,31 @@
         if (!tipo) { showToast('Selecione o tipo!', 'error'); return; }
         const quantidade = parseInt(document.getElementById('movQuantidade').value);
         if (!quantidade || quantidade <= 0) { showToast('Quantidade inválida!', 'error'); return; }
-        
-        if (tipo === 'saida') {
-            const produto = produtosCache.find(p => p.id === produtoId);
-            const estoqueAtual = produto?.estoque || 0;
-            if (estoqueAtual < quantidade) { showToast(`Estoque insuficiente! Disponível: ${estoqueAtual} unidades`, 'error'); return; }
-        }
         const data = getFormData();
-        if (editingId) await updateMovimento(editingId, data);
-        else await addMovimento(data);
-        resetForm();
+        try {
+            await registrarMovimento(data.produtoId, data.tipo, data.quantidade, data.responsavel, data.motivo);
+            resetForm();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
     }
     function cancelEdit() { resetForm(); }
 
-    // ==================== EDIT, VIEW E ESTORNO (globais) ====================
+    // ==================== FUNÇÕES GLOBAIS ====================
     window.editMovimento = function(id) {
         const m = movimentosCache.find(m => m.id === id);
-        if (m) { fillForm(m); editingId = id; document.getElementById('cancelEditBtn').style.display = 'inline-block'; const btn = document.getElementById('saveMovimentoBtn'); btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar'; btn.classList.remove('btn-primary'); btn.classList.add('btn-success'); window.scrollTo({ top: 0 }); }
+        if (m && !m.estornado) {
+            fillForm(m);
+            editingId = id;
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            const btn = document.getElementById('saveMovimentoBtn');
+            btn.innerHTML = '<i class="fas fa-pen"></i> Atualizar';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-success');
+            window.scrollTo({ top: 0 });
+        } else if (m && m.estornado) {
+            showToast('Movimentações estornadas não podem ser editadas.', 'warning');
+        }
     };
     window.viewMovimento = function(id) {
         const m = movimentosCache.find(m => m.id === id);
@@ -407,10 +383,10 @@
         const prod = produtosCache.find(p => p.id === m.produtoId);
         const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
         const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
-        const estornadoBadge = m.estornado ? '<span class="badge" style="background:#e76f5120; color:#e76f51; margin-left:8px;"><i class="fas fa-undo-alt"></i> Estornado</span>' : '';
+        const estornadoBadge = m.estornado ? '<span class="badge" style="background:#e76f5120; color:#e76f51;"><i class="fas fa-undo-alt"></i> Estornado</span>' : '';
         document.getElementById('modalBody').innerHTML = `
             <div class="info-row"><span class="info-label">Produto:</span><span class="info-value">${escapeHtml(prod?.nome || '-')}</span></div>
-            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value"><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span>${estornadoBadge}</span></div>
+            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value"><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span> ${estornadoBadge}</span></div>
             <div class="info-row"><span class="info-label">Quantidade:</span><span class="info-value">${m.quantidade}</span></div>
             <div class="info-row"><span class="info-label">Responsável:</span><span class="info-value">${escapeHtml(m.responsavel || '-')}</span></div>
             <div class="info-row"><span class="info-label">Motivo:</span><span class="info-value">${escapeHtml(m.motivo || '-')}</span></div>
@@ -420,10 +396,16 @@
         document.getElementById('viewModal').style.display = 'flex';
     };
     window.deleteMovimento = deleteMovimento;
-    window.estornarMovimento = estornarMovimento;
+    window.estornarMovimento = async (id) => {
+        try {
+            await estornarMovimento(id);
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    };
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
 
-    // ==================== FILTROS ====================
+    // ==================== FILTROS E RENDER ====================
     function getFiltros() {
         return {
             search: document.getElementById('searchInput')?.value.toLowerCase() || '',
@@ -457,15 +439,13 @@
         aplicarFiltrosEAtualizar();
         showToast('Filtros limpos!', 'success');
     }
-
-    // ==================== RENDER ====================
     function renderMovimentos() {
         const filtered = aplicarFiltros(movimentosCache);
         const totalPages = Math.ceil(filtered.length / itemsPerPage);
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('movimentosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhuma movimentação encontrada<\/td><\/tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma movimentação</td></tr>'; document.getElementById('pagination').innerHTML = ''; return; }
         tbody.innerHTML = paginated.map(m => {
             const prod = produtosCache.find(p => p.id === m.produtoId);
             const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
@@ -477,18 +457,17 @@
                 <td><span class="type-badge ${tipoClass}">${tipoIcon} ${m.tipo}</span></td>
                 <td>${m.quantidade}</td>
                 <td>${escapeHtml(m.responsavel || '-')}</td>
-                <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(m.motivo || '')}">${escapeHtml(m.motivo || '-')}</td>
+                <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(m.motivo || '')}">${escapeHtml(m.motivo || '-')}</td>
                 <td class="action-buttons">
                     <button class="action-btn view" onclick="viewMovimento('${m.id}')"><i class="fas fa-eye"></i></button>
                     ${!m.estornado ? `<button class="action-btn edit" onclick="editMovimento('${m.id}')"><i class="fas fa-edit"></i></button>` : ''}
                     ${!m.estornado ? `<button class="action-btn revert" onclick="estornarMovimento('${m.id}')"><i class="fas fa-undo-alt"></i></button>` : ''}
                     <button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button>
                 </td>
-             </tr>`;
+            </tr>`;
         }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
+        let pagHtml = '';
         for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
         document.getElementById('pagination').innerHTML = pagHtml;
     }
     function goToPage(page) { currentPage = page; renderMovimentos(); }
@@ -514,22 +493,22 @@
             if (m.tipo === 'entrada') entradasMensais[mes] += m.quantidade;
             else if (m.tipo === 'saida') saidasMensais[mes] += m.quantidade;
         });
-        if(movimentacoesChart) movimentacoesChart.destroy();
+        if (movimentacoesChart) movimentacoesChart.destroy();
         const ctx1 = document.getElementById('movimentacoesChart').getContext('2d');
         movimentacoesChart = new Chart(ctx1, {
             type: 'bar', data: { labels: meses, datasets: [
                 { label: 'Entradas', data: entradasMensais, backgroundColor: '#2a9d8f', borderRadius: 8 },
                 { label: 'Saídas', data: saidasMensais, backgroundColor: '#e76f51', borderRadius: 8 }
-            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} unidades` } } } }
+            ] }, options: { responsive: true, maintainAspectRatio: true }
         });
         const entradaTotal = filtered.filter(m=>m.tipo==='entrada').reduce((s,m)=> s+m.quantidade,0);
         const saidaTotal = filtered.filter(m=>m.tipo==='saida').reduce((s,m)=> s+m.quantidade,0);
         const ajusteTotal = filtered.filter(m=>m.tipo==='ajuste').reduce((s,m)=> s+m.quantidade,0);
-        if(tipoChart) tipoChart.destroy();
+        if (tipoChart) tipoChart.destroy();
         const ctx2 = document.getElementById('tipoChart').getContext('2d');
         tipoChart = new Chart(ctx2, {
-            type: 'doughnut', data: { labels: ['Entradas', 'Saídas', 'Ajustes'], datasets: [{ data: [entradaTotal, saidaTotal, ajusteTotal], backgroundColor: ['#2a9d8f', '#e76f51', '#e9c46a'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} unidades` } } } }
+            type: 'doughnut', data: { labels: ['Entradas', 'Saídas', 'Ajustes'], datasets: [{ data: [entradaTotal, saidaTotal, ajusteTotal], backgroundColor: ['#2a9d8f', '#e76f51', '#e9c46a'] }] },
+            options: { responsive: true, maintainAspectRatio: true }
         });
     }
 
@@ -546,7 +525,7 @@
     // ==================== EXPORTAR PDF ====================
     async function exportarPDF() {
         const filtered = aplicarFiltros(movimentosCache);
-        if (filtered.length === 0) { showToast('Não há dados para exportar!', 'error'); return; }
+        if (filtered.length === 0) { showToast('Sem dados para exportar', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -580,8 +559,8 @@
             }
             for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
             doc.save(`movimento_estoque_${new Date().toISOString().split('T')[0]}.pdf`);
-            showToast('PDF gerado com sucesso!', 'success');
-        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+            showToast('PDF gerado!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF', 'error'); }
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
@@ -589,38 +568,22 @@
         if (user) {
             currentUser = user;
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            
-            // Exibir alerta de trial
-            const statusInfo = verificarStatusEmpresa(currentEmpresa);
-            const trialDiv = document.getElementById('trialAlert');
-            if (statusInfo.status === 'trial_urgente') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert warning';
-            } else if (statusInfo.status === 'expirado') {
-                trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> <strong>Período de teste EXPIRADO!</strong> O sistema está bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert expired';
-            } else if (statusInfo.status === 'trial') {
-                trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Período de teste: <strong>${statusInfo.diasRestantes}</strong> dias restantes.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.className = 'trial-alert';
-            } else if (statusInfo.status === 'ativo') {
-                trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada! Sem restrições de acesso.</div>`;
-                trialDiv.style.display = 'flex';
-                trialDiv.style.background = '#e0f2e9';
-                trialDiv.style.borderLeftColor = '#2a9d8f';
+            if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                else trialDiv.style.display = 'none';
             } else {
-                trialDiv.style.display = 'none';
+                document.getElementById('trialAlert').style.display = 'none';
             }
-            
-            await carregarDadosEmpresa();
-            renderMovimentos();
-            updateStats();
-            updateCharts();
-            atualizarSelects();
+
+            await iniciarListeners();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {
@@ -641,11 +604,11 @@
     window.goToPage = goToPage;
     window.solicitarLiberacao = () => {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
+        const corpo = encodeURIComponent(`Solicito liberação da empresa:\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\nAguardo retorno.`);
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
+        showToast('Abrindo e-mail...', 'info');
     };
-    console.log('✅ Movimento Estoque - Refatorado (uma empresa por usuário)');
+    console.log('✅ Movimento Estoque refatorado - Transações, tempo real e superadmin OK');
 </script>
 </body>
 </html>
