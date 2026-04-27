@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        /* (mesmos estilos do original - omitidos por brevidade) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; }
@@ -29,7 +30,6 @@
         .form-header p { opacity: 0.8; font-size: 0.75rem; }
         .form-body { padding: 25px; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
-        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
         .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
@@ -44,6 +44,7 @@
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
         .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
         .hidden { display: none !important; }
+        .empresa-selector { margin-bottom: 20px; background: #f8fbfd; padding: 15px; border-radius: 16px; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -64,22 +65,17 @@
     </div>
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
-
-    <div id="loadingScreen" class="loading-screen">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Carregando configuração da empresa...</p>
-    </div>
-
-    <div id="blockedContent" class="acesso-bloqueado hidden">
-        <i class="fas fa-lock"></i>
-        <h2>⛔ Acesso Restrito</h2>
-        <p>Você não tem permissão para acessar esta área.</p>
-        <p>O módulo de <strong>Empresa</strong> é exclusivo para <strong>Administradores</strong>.</p>
-        <button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar ao Dashboard</button>
-        <button class="btn btn-outline" onclick="logout()" style="margin-left:10px;">Sair</button>
-    </div>
-
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando configuração da empresa...</p></div>
+    <div id="blockedContent" class="acesso-bloqueado hidden"><i class="fas fa-lock"></i><h2>Acesso Restrito</h2><p>Você não tem permissão para acessar esta área.</p><button class="btn btn-primary" onclick="window.location.href='index.html'">Voltar</button><button class="btn btn-outline" onclick="logout()">Sair</button></div>
+    
     <div id="conteudoPrincipal" style="display: none;">
+        <!-- Seletor de empresa (visível apenas para superadmin) -->
+        <div id="empresaSelectorDiv" class="empresa-selector" style="display: none;">
+            <label><i class="fas fa-building"></i> Selecionar empresa</label>
+            <select id="empresaSelecionada" class="form-control"></select>
+            <small>Superadmin pode editar qualquer empresa</small>
+        </div>
+
         <div class="form-card">
             <div class="form-header">
                 <h2><i class="fas fa-edit"></i> Dados da Empresa</h2>
@@ -94,12 +90,13 @@
                     <div class="input-group"><label><i class="fas fa-mail-bulk"></i> CEP</label><input type="text" id="empCep" placeholder="00000-000"></div>
                     <div class="input-group"><label><i class="fas fa-city"></i> Cidade</label><input type="text" id="empCidade" placeholder="Cidade"></div>
                     <div class="input-group"><label><i class="fas fa-map-marker-alt"></i> Estado</label>
-                        <select id="empEstado"><option value="">Selecione</option><option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option></select>
+                        <select id="empEstado">
+                            <option value="">Selecione</option><option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option><option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option><option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option><option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option><option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option><option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option><option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option><option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option><option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                        </select>
                     </div>
                     <div class="input-group"><label><i class="fas fa-phone"></i> Telefone</label><input type="text" id="empTelefone" placeholder="(00) 0000-0000"></div>
                     <div class="input-group"><label class="required"><i class="fab fa-whatsapp"></i> WhatsApp</label><input type="text" id="empWhatsapp" placeholder="(00) 00000-0000"></div>
-                    <div class="input-group">
-                        <label><i class="fas fa-hourglass-half"></i> Inatividade do Cliente (dias)</label>
+                    <div class="input-group"><label><i class="fas fa-hourglass-half"></i> Inatividade do Cliente (dias)</label>
                         <select id="empClienteInativo">
                             <option value="">Selecione</option>
                             <option value="30">30 dias (1 mês)</option>
@@ -108,8 +105,17 @@
                             <option value="75">75 dias (2.5 meses)</option>
                             <option value="90">90 dias (3 meses)</option>
                         </select>
-                        <div style="font-size:0.7rem; color:#7a9eb0; margin-top:4px;">⚠️ Define após quantos dias sem compras/agendamentos o cliente será marcado como inativo e receberá alertas</div>
+                        <div style="font-size:0.7rem; color:#7a9eb0; margin-top:4px;">⚠️ Define após quantos dias sem compras/agendamentos o cliente será marcado como inativo</div>
                     </div>
+                    <div class="input-group"><label><i class="fas fa-circle"></i> Status da Empresa</label>
+                        <select id="empStatus">
+                            <option value="ativo">✅ Ativo</option>
+                            <option value="inativo">⭕ Inativo</option>
+                            <option value="suspenso">⚠️ Suspenso</option>
+                        </select>
+                        <small>Status geral da empresa (ativo permite acesso)</small>
+                    </div>
+                    <div class="input-group"><label><i class="fas fa-calendar"></i> Data de Expiração (opcional)</label><input type="date" id="empDataExpiracao" placeholder="AAAA-MM-DD"></div>
                     <div class="form-actions">
                         <button type="button" id="saveEmpresaBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Alterações</button>
                     </div>
@@ -122,50 +128,75 @@
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { doc, getDoc, updateDoc, collection, query, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
-        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin,
+        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin,
         aplicarMascaraCNPJ, aplicarMascaraTelefone, aplicarMascaraCEP,
         verificarStatusEmpresa
     } from './util.js';
 
     let currentUser = null;
-    let currentEmpresa = null;
+    let currentEmpresa = null;      // empresa atualmente selecionada (editando)
     let isAdminUser = false;
+    let isSuperAdmin = false;
+    let empresasList = [];           // lista de todas as empresas (para superadmin)
+    let unsubscribeEmpresa = null;   // listener da empresa atual
 
-    async function carregarEmpresa() {
-        if (!currentUser) return null;
-        const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
-        if (!userDoc.exists()) return null;
-        const userData = userDoc.data();
-        const empresaId = userData.empresaId;
-        if (!empresaId) return null;
-        const empresaDoc = await getDoc(doc(db, 'empresas', empresaId));
-        if (!empresaDoc.exists()) return null;
-        return { id: empresaDoc.id, ...empresaDoc.data() };
-    }
+    // Mapeamento entre os IDs dos campos HTML e os nomes dos campos no Firestore
+    // Caso algum campo tenha sido alterado no banco, altere aqui.
+    const FIELD_MAPPING = {
+        emp_razao_social: 'emp_razao_social',
+        emp_nome_fantasia: 'emp_nome_fantasia',
+        emp_cnpj: 'emp_cnpj',
+        emp_endereco: 'emp_endereco',
+        emp_cep: 'emp_cep',
+        emp_cidade: 'emp_cidade',
+        emp_estado: 'emp_estado',
+        emp_telefone: 'emp_telefone',
+        emp_whatsapp: 'emp_whatsapp',
+        emp_cliente_inativo: 'emp_cliente_inativo',
+        emp_status: 'emp_status',
+        emp_data_expiracao: 'emp_data_expiracao'
+    };
 
-    async function updateEmpresa(id, updates) {
-        await updateDoc(doc(db, 'empresas', id), { ...updates, emp_atualizado_em: new Date().toISOString() });
-        showToast('Empresa atualizada com sucesso!', 'success');
-        await recarregarDados();
-    }
-
-    function getFormData() {
-        return {
-            emp_razao_social: document.getElementById('empRazaoSocial').value,
-            emp_nome_fantasia: document.getElementById('empNomeFantasia').value,
-            emp_cnpj: document.getElementById('empCnpj').value,
-            emp_endereco: document.getElementById('empEndereco').value,
-            emp_cep: document.getElementById('empCep').value,
-            emp_cidade: document.getElementById('empCidade').value,
-            emp_estado: document.getElementById('empEstado').value,
-            emp_telefone: document.getElementById('empTelefone').value,
-            emp_whatsapp: document.getElementById('empWhatsapp').value,
-            emp_cliente_inativo: document.getElementById('empClienteInativo').value || null
+    // Carrega lista de empresas (apenas para superadmin)
+    async function carregarTodasEmpresas() {
+        if (!isSuperAdmin) return;
+        const snapshot = await getDocs(collection(db, 'empresas'));
+        empresasList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const select = document.getElementById('empresaSelecionada');
+        select.innerHTML = '<option value="">Selecione uma empresa</option>' + 
+            empresasList.map(e => `<option value="${e.id}">${escapeHtml(e.emp_razao_social || e.emp_nome_fantasia || 'Sem nome')}</option>`).join('');
+        select.style.display = 'block';
+        document.getElementById('empresaSelectorDiv').style.display = 'block';
+        select.onchange = () => {
+            const empresaId = select.value;
+            if (empresaId) {
+                const empresa = empresasList.find(e => e.id === empresaId);
+                if (empresa) carregarEmpresaParaEdicao(empresa);
+            }
         };
     }
 
+    // Carrega os dados da empresa específica e inicia listener em tempo real
+    function carregarEmpresaParaEdicao(empresa) {
+        if (unsubscribeEmpresa) unsubscribeEmpresa();
+        currentEmpresa = { id: empresa.id, ...empresa };
+        // Listener em tempo real para atualizações concorrentes
+        const empresaRef = doc(db, 'empresas', currentEmpresa.id);
+        unsubscribeEmpresa = onSnapshot(empresaRef, (docSnap) => {
+            if (docSnap.exists()) {
+                currentEmpresa = { id: docSnap.id, ...docSnap.data() };
+                fillForm(currentEmpresa);
+                atualizarTrialAlert();
+                document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            }
+        }, (error) => console.error('Erro no snapshot empresa:', error));
+        fillForm(empresa);
+        atualizarTrialAlert();
+    }
+
+    // Preenche o formulário com os dados da empresa
     function fillForm(empresa) {
         document.getElementById('empRazaoSocial').value = empresa.emp_razao_social || '';
         document.getElementById('empNomeFantasia').value = empresa.emp_nome_fantasia || '';
@@ -177,18 +208,49 @@
         document.getElementById('empTelefone').value = empresa.emp_telefone || '';
         document.getElementById('empWhatsapp').value = empresa.emp_whatsapp || '';
         document.getElementById('empClienteInativo').value = empresa.emp_cliente_inativo || '';
+        document.getElementById('empStatus').value = empresa.emp_status || 'ativo';
+        document.getElementById('empDataExpiracao').value = empresa.emp_data_expiracao ? empresa.emp_data_expiracao.split('T')[0] : '';
+    }
+
+    // Obtém os dados do formulário usando o mapeamento de campos
+    function getFormData() {
+        const data = {};
+        for (const [fieldId, firestoreField] of Object.entries(FIELD_MAPPING)) {
+            const element = document.getElementById(fieldId);
+            if (element) {
+                data[firestoreField] = element.value;
+            }
+        }
+        return data;
     }
 
     async function salvarEmpresa() {
-        if (!isAdminUser) { showToast('Apenas administradores podem editar a empresa.', 'error'); return; }
-        if (!document.getElementById('empRazaoSocial').value.trim()) { showToast('Razão Social obrigatória!', 'error'); return; }
-        if (!document.getElementById('empCnpj').value.trim()) { showToast('CNPJ obrigatório!', 'error'); return; }
-        if (!document.getElementById('empWhatsapp').value.trim()) { showToast('WhatsApp obrigatório!', 'error'); return; }
-        const data = getFormData();
-        if (currentEmpresa && currentEmpresa.id) {
-            await updateEmpresa(currentEmpresa.id, data);
-        } else {
-            showToast('Nenhuma empresa encontrada para atualizar.', 'error');
+        if (!currentEmpresa || !currentEmpresa.id) {
+            showToast('Nenhuma empresa selecionada para editar.', 'error');
+            return;
+        }
+        if (!isAdminUser && !isSuperAdmin) {
+            showToast('Apenas administradores podem editar a empresa.', 'error');
+            return;
+        }
+        // Validações básicas
+        const razao = document.getElementById('empRazaoSocial').value.trim();
+        if (!razao) { showToast('Razão Social é obrigatória!', 'error'); return; }
+        const cnpj = document.getElementById('empCnpj').value.trim();
+        if (!cnpj) { showToast('CNPJ é obrigatório!', 'error'); return; }
+        const whatsapp = document.getElementById('empWhatsapp').value.trim();
+        if (!whatsapp) { showToast('WhatsApp é obrigatório!', 'error'); return; }
+
+        const updates = getFormData();
+        updates.emp_atualizado_em = new Date().toISOString();
+
+        try {
+            await updateDoc(doc(db, 'empresas', currentEmpresa.id), updates);
+            showToast('Empresa atualizada com sucesso!', 'success');
+            // O listener onSnapshot atualizará a UI automaticamente
+        } catch (error) {
+            console.error('Erro ao salvar empresa:', error);
+            showToast('Erro ao salvar: ' + error.message, 'error');
         }
     }
 
@@ -213,7 +275,9 @@
             alertDiv.style.display = 'flex';
             alertDiv.style.background = '#e0f2e9';
             alertDiv.style.borderLeftColor = '#2a9d8f';
-        } else { alertDiv.style.display = 'none'; }
+        } else {
+            alertDiv.style.display = 'none';
+        }
     }
 
     window.solicitarLiberacao = function() {
@@ -222,15 +286,6 @@
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
         showToast('Abrindo cliente de e-mail...', 'info');
     };
-
-    async function recarregarDados() {
-        currentEmpresa = await carregarEmpresa();
-        if (currentEmpresa) {
-            fillForm(currentEmpresa);
-            atualizarTrialAlert();
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-        }
-    }
 
     function applyMasks() {
         const cnpj = document.getElementById('empCnpj');
@@ -243,24 +298,42 @@
         whats.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
     }
 
+    async function carregarEmpresaInicial(user) {
+        // Se superadmin, ele pode escolher qualquer empresa
+        if (isSuperAdmin) {
+            await carregarTodasEmpresas();
+            if (empresasList.length > 0) {
+                // Se houver empresas, seleciona a primeira por padrão
+                carregarEmpresaParaEdicao(empresasList[0]);
+                document.getElementById('empresaSelecionada').value = empresasList[0].id;
+            } else {
+                showToast('Nenhuma empresa encontrada no sistema.', 'error');
+            }
+        } else {
+            // Usuário normal: carrega sua própria empresa via carregarEmpresaUsuario
+            const empresa = await carregarEmpresaUsuario(user);
+            if (empresa && !empresa.globalAdmin) {
+                carregarEmpresaParaEdicao(empresa);
+            } else {
+                showToast('Nenhuma empresa associada a este usuário.', 'error');
+            }
+        }
+    }
+
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             isAdminUser = await verificarAcessoAdmin(user);
-            if (!isAdminUser) {
+            isSuperAdmin = await verificarSuperAdmin(user);
+            
+            if (!isAdminUser && !isSuperAdmin) {
                 document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('blockedContent').classList.remove('hidden');
                 document.getElementById('conteudoPrincipal').style.display = 'none';
                 return;
             }
-            currentEmpresa = await carregarEmpresa();
-            if (currentEmpresa) {
-                fillForm(currentEmpresa);
-                atualizarTrialAlert();
-                document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            } else {
-                showToast('Erro ao carregar dados da empresa.', 'error');
-            }
+            
+            await carregarEmpresaInicial(user);
             applyMasks();
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -271,8 +344,8 @@
 
     document.getElementById('saveEmpresaBtn').onclick = salvarEmpresa;
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
-    window.solicitarLiberacao = solicitarLiberacao;
     window.logout = () => auth.signOut();
+    window.solicitarLiberacao = solicitarLiberacao;
 </script>
 </body>
 </html>
