@@ -172,7 +172,7 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Detalhes do Cliente</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { auth, db, onAuthStateChanged, onSnapshot } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { escapeHtml, showToast, formatCurrency, formatarData, validarEmail, validarTelefone, carregarEmpresaUsuario, verificarStatusEmpresa, aplicarMascaraTelefone } from './util.js';
 
