@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Permissões | Firebase + Firestore</title>
+    <title>PerShop - Módulo de Permissões | Firebase + Firestore (Refatorado)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original, mantidos) ========== */
+        /* ========== ESTILOS (mesmos do original) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -50,76 +50,22 @@
         .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
         .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
-        
-        /* Permissões em Checklist */
-        .permissions-container {
-            background: #f8fbfd;
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .permissions-module {
-            margin-bottom: 20px;
-            border: 1px solid #e2edf2;
-            border-radius: 16px;
-            overflow: hidden;
-        }
-        .module-header {
-            background: #f0f4f8;
-            padding: 12px 20px;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: 600;
-            color: #1f5068;
-        }
+        .permissions-container { background: #f8fbfd; border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+        .permissions-module { margin-bottom: 20px; border: 1px solid #e2edf2; border-radius: 16px; overflow: hidden; }
+        .module-header { background: #f0f4f8; padding: 12px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: #1f5068; }
         .module-header:hover { background: #e8ecf0; }
         .module-header i { transition: transform 0.2s; }
         .module-header.open i { transform: rotate(90deg); }
-        .module-body {
-            padding: 15px 20px;
-            display: none;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 12px;
-        }
+        .module-body { padding: 15px 20px; display: none; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .module-body.open { display: grid; }
-        .permission-check {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            background: white;
-            border-radius: 12px;
-            border: 1px solid #e2edf2;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+        .permission-check { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: white; border-radius: 12px; border: 1px solid #e2edf2; cursor: pointer; transition: all 0.2s; }
         .permission-check:hover { background: #e8f4f8; border-color: #2c7da0; }
         .permission-check input { width: 18px; height: 18px; cursor: pointer; accent-color: #2c7da0; margin: 0; }
         .permission-check label { cursor: pointer; font-size: 0.8rem; color: #4a6272; margin: 0; text-transform: none; font-weight: normal; flex: 1; }
         .permission-check input:checked + label { color: #2c7da0; font-weight: 500; }
-        
-        .module-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .module-actions button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #7a9eb0;
-            font-size: 0.7rem;
-            padding: 4px 8px;
-            border-radius: 20px;
-            transition: all 0.2s;
-        }
-        .module-actions button:hover {
-            background: #e2edf2;
-            color: #2c7da0;
-        }
-        
+        .module-actions { display: flex; gap: 10px; align-items: center; }
+        .module-actions button { background: none; border: none; cursor: pointer; color: #7a9eb0; font-size: 0.7rem; padding: 4px 8px; border-radius: 20px; transition: all 0.2s; }
+        .module-actions button:hover { background: #e2edf2; color: #2c7da0; }
         .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
         .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .table-header h3 { font-size: 1.1rem; color: #1f5068; }
@@ -185,11 +131,7 @@
     </div>
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
-
-    <div id="loadingScreen" class="loading-screen">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Carregando módulo de permissões...</p>
-    </div>
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo de permissões...</p></div>
 
     <div id="blockedContent" class="acesso-bloqueado hidden">
         <i class="fas fa-lock"></i>
@@ -212,30 +154,23 @@
             <div class="form-body">
                 <div class="form-grid">
                     <div class="input-group"><label class="required"><i class="fas fa-user"></i> Usuário</label><select id="permUsuarioId"><option value="">Carregando usuários...</option></select></div>
-                    
-                    <div class="permissao-search">
-                        <input type="text" id="permissaoSearch" placeholder="🔍 Buscar permissão...">
-                    </div>
-                    
-                    <div class="permissions-container" id="permissionsContainer">
-                        <div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>
-                    </div>
-                    
+                    <div class="permissao-search"><input type="text" id="permissaoSearch" placeholder="🔍 Buscar permissão..."></div>
+                    <div class="permissions-container" id="permissionsContainer"><div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div></div>
                     <div class="form-actions">
                         <button type="button" id="copyPermissoesBtn" class="btn btn-outline" style="display: none;"><i class="fas fa-copy"></i> Copiar de Outro Usuário</button>
                         <button type="button" id="savePermissaoBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Permissões</button>
+                        <button type="button" id="refreshPermissoesBtn" class="btn btn-outline"><i class="fas fa-sync-alt"></i> Atualizar</button>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="table-card">
-            <div class="table-header"><h3><i class="fas fa-list"></i> Permissões por Usuário</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar usuário..."></div></div>
+            <div class="table-header"><h3><i class="fas fa-list"></i> Permissões por Usuário</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar usuário..."><button id="clearSearchBtn" class="btn btn-outline">Limpar</button><button id="refreshTableBtn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Atualizar</button></div></div>
             <div class="table-wrapper"><table id="permissoesTable"><thead><tr><th>Usuário</th><th>Permissões</th><th>Ações</th></tr></thead><tbody id="permissoesTableBody"></tbody>}</div>
             <div class="pagination" id="pagination"></div>
         </div>
     </div>
-    
     <div class="footer">PerShop Enterprise - Módulo de Permissões | Gestão de acesso por checklist</div>
 </div>
 
@@ -255,14 +190,14 @@
 </div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
-        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
-        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin,
-        verificarStatusEmpresa
+        escapeHtml, showToast, carregarEmpresaUsuario, verificarAcessoAdmin, 
+        verificarSuperAdmin, verificarStatusEmpresa 
     } from './util.js';
 
     // ==================== CONFIGURAÇÃO DOS MÓDULOS E PERMISSÕES ====================
@@ -287,291 +222,149 @@
     let usuarioSelecionadoId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
-    let usuariosCache = [];
-    let permissoesCache = [];
+    let lastVisibleDoc = null;
+    let totalUsuariosComPermissoes = 0;
+    let isLoading = false;
     
-    // Listeners
-    let unsubscribeUsuarios = null;
-    let unsubscribePermissoes = null;
+    // Cache da página atual (usuários + suas permissões agregadas)
+    let usuariosComPermissoesCache = [];
+    let usuariosCacheFull = [];      // todos os usuários (apenas para select, não para tabela)
+    let permissoesCache = [];        // todas as permissões (apenas para construir checklist)
+    let isLoadingPermissoes = false;
 
-    // ==================== AUXILIAR: CONSTRAINTS PARA SUPERADMIN ====================
+    // ==================== CONSTRAINTS ====================
     function getConstraints() {
         if (currentEmpresa && currentEmpresa.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== LISTENERS EM TEMPO REAL ====================
-    function iniciarListeners() {
-        if (unsubscribeUsuarios) unsubscribeUsuarios();
-        if (unsubscribePermissoes) unsubscribePermissoes();
-        if (!currentEmpresa) return;
-
+    // ==================== CARREGAR USUÁRIOS PARA SELECT ====================
+    async function carregarUsuariosParaSelect() {
         const constraints = getConstraints();
-        
-        // Usuários
-        const usuariosQuery = query(collection(db, 'usuarios'), ...constraints);
-        unsubscribeUsuarios = onSnapshot(usuariosQuery, (snapshot) => {
-            usuariosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            atualizarSelectUsuarios();
-            renderPermissoes();
-            updateStats();
-        }, (error) => console.error('Erro snapshot usuarios:', error));
-        
-        // Permissões
-        const permissoesQuery = query(collection(db, 'permissoes'), ...constraints);
-        unsubscribePermissoes = onSnapshot(permissoesQuery, (snapshot) => {
-            permissoesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            if (usuarioSelecionadoId) gerarChecklistPermissoes();
-            renderPermissoes();
-            updateStats();
-        }, (error) => console.error('Erro snapshot permissoes:', error));
+        const q = query(collection(db, 'usuarios'), ...constraints, orderBy('nome', 'asc'), limit(200));
+        const snap = await getDocs(q);
+        usuariosCacheFull = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const select = document.getElementById('permUsuarioId');
+        select.innerHTML = '<option value="">Selecione um usuário</option>' + 
+            usuariosCacheFull.map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
     }
 
-    // ==================== GERAR CHECKLIST DE PERMISSÕES ====================
-    function gerarChecklistPermissoes() {
-        const container = document.getElementById('permissionsContainer');
-        if (!container) return;
-        
-        const searchTerm = document.getElementById('permissaoSearch')?.value.toLowerCase() || '';
-        
-        if (!usuarioSelecionadoId) {
-            container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
-            return;
-        }
-        
-        const permissoesDoUsuario = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
-        const permissoesMap = new Map();
-        permissoesDoUsuario.forEach(p => { permissoesMap.set(p.permissao, true); });
-        
-        let html = '';
-        let totalModulos = 0;
-        
-        MODULOS_PERMISSOES.forEach(modulo => {
-            const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
-            const moduloNomeLower = modulo.nome.toLowerCase();
-            const moduloMatch = moduloNomeLower.includes(searchTerm);
-            const permissoesFiltradas = modulo.permissoes.filter(perm => moduloMatch || perm.toLowerCase().includes(searchTerm));
-            if (permissoesFiltradas.length === 0 && searchTerm && !moduloMatch) return;
-            totalModulos++;
-            html += `
-                <div class="permissions-module">
-                    <div class="module-header" onclick="toggleModule('${moduloId}')">
-                        <span><i class="fas ${modulo.icone}"></i> ${modulo.nome}</span>
-                        <div class="module-actions">
-                            <button onclick="event.stopPropagation(); marcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Marcar todos"><i class="fas fa-check-double"></i> Todos</button>
-                            <button onclick="event.stopPropagation(); desmarcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Desmarcar todos"><i class="fas fa-times"></i> Nenhum</button>
-                            <i class="fas fa-chevron-right" id="icon_${moduloId}"></i>
-                        </div>
-                    </div>
-                    <div class="module-body" id="body_${moduloId}">
-            `;
-            modulo.permissoes.forEach(perm => {
-                const permKey = `${modulo.nome.toLowerCase()}.${perm.toLowerCase()}`;
-                const permNome = perm.charAt(0).toUpperCase() + perm.slice(1);
-                const checked = permissoesMap.has(permKey) ? 'checked' : '';
-                html += `
-                    <label class="permission-check" data-permissao="${permKey}">
-                        <input type="checkbox" name="permissao" value="${permKey}" ${checked} onchange="marcarPermissao(this)">
-                        <label>${permNome}</label>
-                    </label>
-                `;
-            });
-            html += `</div></div>`;
-        });
-        
-        if (totalModulos === 0 && searchTerm) {
-            container.innerHTML = '<div style="text-align:center; padding:40px;">🔍 Nenhuma permissão encontrada para esta busca</div>';
-        } else {
-            container.innerHTML = html;
-            // Abrir todos os módulos por padrão (opcional)
-            MODULOS_PERMISSOES.forEach(modulo => {
-                const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
-                const body = document.getElementById(`body_${moduloId}`);
-                const icon = document.getElementById(`icon_${moduloId}`);
-                if (body && body.children.length > 0 && !body.classList.contains('open')) {
-                    body.classList.add('open');
-                    if (icon) icon.style.transform = 'rotate(90deg)';
-                }
-            });
+    // ==================== PAGINAÇÃO DA TABELA (Usuários + Permissões Agregadas) ====================
+    async function carregarPaginaPermissoes(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            const constraints = getConstraints();
+            // Primeiro busca os usuários com paginação
+            let usuariosQ = query(collection(db, 'usuarios'), ...constraints, orderBy('nome', 'asc'), limit(itemsPerPage));
+            if (lastVisibleDoc) usuariosQ = query(usuariosQ, startAfter(lastVisibleDoc));
+            const usuariosSnap = await getDocs(usuariosQ);
+            const usuariosPagina = usuariosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            if (reset) {
+                usuariosComPermissoesCache = [];
+                lastVisibleDoc = usuariosSnap.docs[usuariosSnap.docs.length - 1];
+            } else {
+                usuariosComPermissoesCache = [...usuariosComPermissoesCache, ...usuariosPagina];
+                lastVisibleDoc = usuariosSnap.docs[usuariosSnap.docs.length - 1];
+            }
+            
+            // Para cada usuário da página, buscar suas permissões (uma query por usuário, mas são poucos, max 10)
+            const permissoesPorUsuario = {};
+            for (const user of usuariosPagina) {
+                const permQ = query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', user.id));
+                const permSnap = await getDocs(permQ);
+                permissoesPorUsuario[user.id] = permSnap.docs.map(d => d.data().permissao);
+            }
+            
+            // Montar cache final
+            if (reset) {
+                usuariosComPermissoesCache = usuariosPagina.map(u => ({
+                    ...u,
+                    permissoes: permissoesPorUsuario[u.id] || []
+                }));
+            } else {
+                const novos = usuariosPagina.map(u => ({
+                    ...u,
+                    permissoes: permissoesPorUsuario[u.id] || []
+                }));
+                usuariosComPermissoesCache = [...usuariosComPermissoesCache, ...novos];
+            }
+            
+            // Contagem total de usuários (para paginação)
+            const totalUsuariosSnap = await getCountFromServer(query(collection(db, 'usuarios'), ...constraints));
+            totalUsuariosComPermissoes = totalUsuariosSnap.data().count;
+            
+            // Aplicar filtro de busca textual (nome/email)
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = usuariosComPermissoesCache;
+            if (searchTerm) {
+                filtered = filtered.filter(u => 
+                    (u.nome || '').toLowerCase().includes(searchTerm) || 
+                    (u.email || '').toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            renderTabelaPermissoes(filtered);
+            atualizarPaginacao();
+        } catch (error) {
+            console.error("Erro ao carregar permissões:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
         }
     }
     
-    window.toggleModule = function(moduleId) {
-        const body = document.getElementById(`body_${moduleId}`);
-        const icon = document.getElementById(`icon_${moduleId}`);
-        if (body) {
-            if (body.classList.contains('open')) {
-                body.classList.remove('open');
-                if (icon) icon.style.transform = 'rotate(0deg)';
-            } else {
-                body.classList.add('open');
-                if (icon) icon.style.transform = 'rotate(90deg)';
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalUsuariosComPermissoes / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+    
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaPermissoes(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            // Se voltar, recarrega do início (simplificado)
+            await carregarPaginaPermissoes(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaPermissoes(false);
+                currentPage++;
             }
         }
-    };
-    window.marcarPermissao = function(checkbox) { /* apenas registro */ };
-    window.marcarTodosModulo = function(moduleId, moduloNome) {
-        const body = document.getElementById(`body_${moduleId}`);
-        if (body) {
-            const checkboxes = body.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = true);
-            showToast(`${moduloNome}: todas as permissões marcadas`, 'info');
-        }
-    };
-    window.desmarcarTodosModulo = function(moduleId, moduloNome) {
-        const body = document.getElementById(`body_${moduleId}`);
-        if (body) {
-            const checkboxes = body.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = false);
-            showToast(`${moduloNome}: todas as permissões desmarcadas`, 'info');
-        }
-    };
-
-    // ==================== SALVAR PERMISSÕES ====================
-    async function salvarPermissoes() {
-        if (!usuarioSelecionadoId) { showToast('Selecione um usuário primeiro!', 'error'); return; }
-        if (!confirm('Confirmar alterações nas permissões?')) return;
-        
-        const checkboxes = document.querySelectorAll('input[name="permissao"]');
-        const permissoesSelecionadas = [];
-        checkboxes.forEach(cb => { if (cb.checked) permissoesSelecionadas.push(cb.value); });
-        
-        // Remover permissões antigas deste usuário
-        const permissoesAntigas = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
-        for (const p of permissoesAntigas) {
-            await deleteDoc(doc(db, 'permissoes', p.id));
-        }
-        
-        // Adicionar novas permissões
-        const novasPermissoes = [];
-        for (const perm of permissoesSelecionadas) {
-            const novoDoc = {
-                usuarioId: usuarioSelecionadoId,
-                permissao: perm,
-                empresaId: currentEmpresa.id,
-                criado_em: new Date().toISOString(),
-                criado_por: currentUser.uid
-            };
-            const docRef = await addDoc(collection(db, 'permissoes'), novoDoc);
-            novoDoc.id = docRef.id;
-            novasPermissoes.push(novoDoc);
-        }
-        
-        // Atualizar cache local (opcional, pois o listener fará isso)
-        permissoesCache = permissoesCache.filter(p => p.usuarioId !== usuarioSelecionadoId);
-        permissoesCache.push(...novasPermissoes);
-        
-        gerarChecklistPermissoes();
-        atualizarSelectUsuarios();
-        renderPermissoes();
-        updateStats();
-        showToast('Permissões salvas com sucesso!', 'success');
-    }
-
-    // ==================== COPIAR PERMISSÕES ====================
-    function mostrarModalCopiar() {
-        const selectOrigem = document.getElementById('copyUsuarioOrigem');
-        if (!selectOrigem) return;
-        selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
-            usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
-        const modal = document.getElementById('copyModal');
-        if (modal) modal.style.display = 'flex';
-    }
-    window.fecharCopyModal = function() {
-        const modal = document.getElementById('copyModal');
-        if (modal) modal.style.display = 'none';
-    };
-    window.confirmarCopiarPermissoes = async function() {
-        const usuarioOrigemId = document.getElementById('copyUsuarioOrigem').value;
-        if (!usuarioOrigemId) { showToast('Selecione um usuário de origem!', 'error'); return; }
-        
-        const permissoesOrigem = permissoesCache.filter(p => p.usuarioId === usuarioOrigemId);
-        // Remover permissões antigas do destino
-        const permissoesDestinoAntigas = permissoesCache.filter(p => p.usuarioId === usuarioSelecionadoId);
-        for (const p of permissoesDestinoAntigas) {
-            await deleteDoc(doc(db, 'permissoes', p.id));
-        }
-        // Adicionar novas
-        const novasPermissoes = [];
-        for (const perm of permissoesOrigem) {
-            const novoDoc = {
-                usuarioId: usuarioSelecionadoId,
-                permissao: perm.permissao,
-                empresaId: currentEmpresa.id,
-                criado_em: new Date().toISOString(),
-                criado_por: currentUser.uid,
-                copiado_de: usuarioOrigemId
-            };
-            const docRef = await addDoc(collection(db, 'permissoes'), novoDoc);
-            novoDoc.id = docRef.id;
-            novasPermissoes.push(novoDoc);
-        }
-        // Atualizar cache
-        permissoesCache = permissoesCache.filter(p => p.usuarioId !== usuarioSelecionadoId);
-        permissoesCache.push(...novasPermissoes);
-        
-        gerarChecklistPermissoes();
-        atualizarSelectUsuarios();
-        renderPermissoes();
-        updateStats();
-        showToast('Permissões copiadas com sucesso!', 'success');
-        window.fecharCopyModal();
-    };
-
-    // ==================== CARREGAR PERMISSÕES DO USUÁRIO SELECIONADO ====================
-    function carregarPermissoesDoUsuario() {
-        const usuarioId = document.getElementById('permUsuarioId').value;
-        if (!usuarioId) {
-            usuarioSelecionadoId = null;
-            const container = document.getElementById('permissionsContainer');
-            if (container) container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
-            const copyBtn = document.getElementById('copyPermissoesBtn');
-            if (copyBtn) copyBtn.style.display = 'none';
-            return;
-        }
-        usuarioSelecionadoId = usuarioId;
-        gerarChecklistPermissoes();
-        const copyBtn = document.getElementById('copyPermissoesBtn');
-        if (copyBtn) copyBtn.style.display = 'inline-block';
-    }
-
-    // ==================== RENDER TABELA DE PERMISSÕES POR USUÁRIO ====================
-    function renderPermissoes() {
-        // Agrupar permissões por usuário
-        const permissoesPorUsuario = new Map();
-        permissoesCache.forEach(p => {
-            if (!permissoesPorUsuario.has(p.usuarioId)) permissoesPorUsuario.set(p.usuarioId, []);
-            permissoesPorUsuario.get(p.usuarioId).push(p.permissao);
-        });
-        
-        let usuariosComPermissoes = Array.from(permissoesPorUsuario.keys()).map(uid => {
-            const usuario = usuariosCache.find(u => u.id === uid);
-            return { usuario, permissoes: permissoesPorUsuario.get(uid) };
-        }).filter(item => item.usuario);
-        
-        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        // Reaplicar busca local
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        let filtered = usuariosComPermissoesCache;
         if (searchTerm) {
-            usuariosComPermissoes = usuariosComPermissoes.filter(item => 
-                (item.usuario?.nome || '').toLowerCase().includes(searchTerm) || 
-                (item.usuario?.email || '').toLowerCase().includes(searchTerm)
+            filtered = filtered.filter(u => 
+                (u.nome || '').toLowerCase().includes(searchTerm) || 
+                (u.email || '').toLowerCase().includes(searchTerm)
             );
         }
-        
-        const totalPages = Math.ceil(usuariosComPermissoes.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = usuariosComPermissoes.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+        renderTabelaPermissoes(filtered);
+        atualizarPaginacao();
+    };
+    
+    function renderTabelaPermissoes(lista) {
         const tbody = document.getElementById('permissoesTableBody');
         if (!tbody) return;
-        
-        if (paginated.length === 0) {
-            tbody.innerHTML = '</td><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário com permissões encontrado</td><\/tr>';
-            const paginationDiv = document.getElementById('pagination');
-            if (paginationDiv) paginationDiv.innerHTML = '';
+        if (lista.length === 0) {
+            tbody.innerHTML = '<td><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário encontrado</td><\/tr>';
             return;
         }
-        
-        tbody.innerHTML = paginated.map(item => {
-            const permissoesFormatadas = item.permissoes.map(p => {
+        tbody.innerHTML = lista.map(u => {
+            const permissoesFormatadas = (u.permissoes || []).map(p => {
                 const parts = p.split('.');
                 const modulo = parts[0];
                 const acao = parts[1];
@@ -579,164 +372,262 @@
                 const acaoIcon = acao === 'visualizar' ? '👁️' : (acao === 'cadastrar' ? '✏️' : (acao === 'editar' ? '📝' : (acao === 'excluir' ? '🗑️' : (acao === 'exportar' ? '📄' : '⚙️'))));
                 return `<span class="permissao-badge" onclick="filtrarPorPermissao('${p}')" title="Filtrar por esta permissão">${acaoIcon} ${moduloDisplay} › ${acao}</span>`;
             }).join('');
-            return `<tr>
-                <td><strong>${escapeHtml(item.usuario?.nome || '-')}</strong><br><span style="font-size:0.7rem; color:#7a9eb0;">${escapeHtml(item.usuario?.email || '')}</span><br><span class="badge" style="margin-top:4px;">${item.permissoes.length} permissões</span></td>
+            return `</td>
+                <td><strong>${escapeHtml(u.nome || '-')}</strong><br><span style="font-size:0.7rem; color:#7a9eb0;">${escapeHtml(u.email || '')}</span><br><span class="badge" style="margin-top:4px;">${u.permissoes?.length || 0} permissões</span></td>
                 <td style="max-width:500px;">${permissoesFormatadas || '-'}</span></td>
                 <td class="action-buttons">
-                    <button class="action-btn edit" onclick="editarPermissoes('${item.usuario.id}')" title="Editar permissões"><i class="fas fa-edit"></i></button>
-                    <button class="action-btn copy" onclick="copiarPermissoesUsuario('${item.usuario.id}')" title="Copiar permissões deste usuário"><i class="fas fa-copy"></i></button>
-                 </div>
+                    <button class="action-btn edit" onclick="editarPermissoes('${u.id}')" title="Editar permissões"><i class="fas fa-edit"></i></button>
+                    <button class="action-btn copy" onclick="copiarPermissoesUsuario('${u.id}')" title="Copiar permissões deste usuário"><i class="fas fa-copy"></i></button>
+                </div>
             </tr>`;
         }).join('');
-        
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) { pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`; }
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        const paginationDiv = document.getElementById('pagination');
-        if (paginationDiv) paginationDiv.innerHTML = pagHtml;
     }
     
-    function goToPage(page) { currentPage = page; renderPermissoes(); }
-    window.filtrarPorPermissao = function(permissao) {
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.value = permissao.split('.')[0];
-            currentPage = 1;
-            renderPermissoes();
-            showToast(`Filtrando por: ${permissao.split('.')[0]}`, 'info');
+    // ==================== FUNÇÕES PARA CHECKLIST DE PERMISSÕES ====================
+    async function carregarPermissoesDoUsuario(usuarioId) {
+        if (!usuarioId) return [];
+        const constraints = getConstraints();
+        const q = query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', usuarioId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data().permissao);
+    }
+    
+    async function gerarChecklistPermissoes() {
+        const container = document.getElementById('permissionsContainer');
+        if (!usuarioSelecionadoId) {
+            container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+            return;
+        }
+        const permissoesAtuais = await carregarPermissoesDoUsuario(usuarioSelecionadoId);
+        const permissoesSet = new Set(permissoesAtuais);
+        const searchTerm = document.getElementById('permissaoSearch').value.toLowerCase();
+        
+        let html = '';
+        for (const modulo of MODULOS_PERMISSOES) {
+            const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
+            const moduloMatch = modulo.nome.toLowerCase().includes(searchTerm);
+            const permissoesFiltradas = modulo.permissoes.filter(perm => moduloMatch || perm.toLowerCase().includes(searchTerm));
+            if (permissoesFiltradas.length === 0 && searchTerm && !moduloMatch) continue;
+            html += `<div class="permissions-module">
+                <div class="module-header" onclick="toggleModule('${moduloId}')">
+                    <span><i class="fas ${modulo.icone}"></i> ${modulo.nome}</span>
+                    <div class="module-actions">
+                        <button onclick="event.stopPropagation(); marcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Marcar todos"><i class="fas fa-check-double"></i></button>
+                        <button onclick="event.stopPropagation(); desmarcarTodosModulo('${moduloId}', '${modulo.nome}')" title="Desmarcar todos"><i class="fas fa-times"></i></button>
+                        <i class="fas fa-chevron-right" id="icon_${moduloId}"></i>
+                    </div>
+                </div>
+                <div class="module-body" id="body_${moduloId}">`;
+            for (const perm of modulo.permissoes) {
+                const permKey = `${modulo.nome.toLowerCase()}.${perm.toLowerCase()}`;
+                const permNome = perm.charAt(0).toUpperCase() + perm.slice(1);
+                const checked = permissoesSet.has(permKey) ? 'checked' : '';
+                html += `<label class="permission-check" data-permissao="${permKey}">
+                    <input type="checkbox" name="permissao" value="${permKey}" ${checked} onchange="marcarPermissao(this)">
+                    <label>${permNome}</label>
+                </label>`;
+            }
+            html += `</div></div>`;
+        }
+        container.innerHTML = html || '<div style="text-align:center; padding:40px;">🔍 Nenhuma permissão encontrada para esta busca</div>';
+        // Abrir todos os módulos por padrão
+        for (const modulo of MODULOS_PERMISSOES) {
+            const moduloId = modulo.nome.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/ /g, '_');
+            const body = document.getElementById(`body_${moduloId}`);
+            const icon = document.getElementById(`icon_${moduloId}`);
+            if (body && body.children.length > 0 && !body.classList.contains('open')) {
+                body.classList.add('open');
+                if (icon) icon.style.transform = 'rotate(90deg)';
+            }
+        }
+    }
+    
+    window.toggleModule = function(moduleId) {
+        const body = document.getElementById(`body_${moduleId}`);
+        const icon = document.getElementById(`icon_${moduleId}`);
+        if (body) {
+            body.classList.toggle('open');
+            if (icon) icon.style.transform = body.classList.contains('open') ? 'rotate(90deg)' : 'rotate(0deg)';
         }
     };
+    window.marcarPermissao = function(checkbox) { /* apenas registro */ };
+    window.marcarTodosModulo = function(moduleId, moduloNome) {
+        const body = document.getElementById(`body_${moduleId}`);
+        if (body) {
+            body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+            showToast(`${moduloNome}: todas as permissões marcadas`, 'info');
+        }
+    };
+    window.desmarcarTodosModulo = function(moduleId, moduloNome) {
+        const body = document.getElementById(`body_${moduleId}`);
+        if (body) {
+            body.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            showToast(`${moduloNome}: todas as permissões desmarcadas`, 'info');
+        }
+    };
+    
+    async function salvarPermissoes() {
+        if (!usuarioSelecionadoId) { showToast('Selecione um usuário primeiro!', 'error'); return; }
+        if (!confirm('Confirmar alterações nas permissões?')) return;
+        const checkboxes = document.querySelectorAll('input[name="permissao"]');
+        const permissoesSelecionadas = [];
+        checkboxes.forEach(cb => { if (cb.checked) permissoesSelecionadas.push(cb.value); });
+        const constraints = getConstraints();
+        // Remove permissões antigas
+        const oldPerms = await getDocs(query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', usuarioSelecionadoId)));
+        for (const p of oldPerms.docs) await deleteDoc(doc(db, 'permissoes', p.id));
+        // Adiciona novas
+        for (const perm of permissoesSelecionadas) {
+            await addDoc(collection(db, 'permissoes'), {
+                usuarioId: usuarioSelecionadoId,
+                permissao: perm,
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid
+            });
+        }
+        showToast('Permissões salvas com sucesso!', 'success');
+        // Recarregar tabela e checklist
+        await carregarPaginaPermissoes(true);
+        await gerarChecklistPermissoes();
+    }
+    
+    // ==================== COPIAR PERMISSÕES ====================
+    let copyDestinoId = null;
+    function mostrarModalCopiar() {
+        if (!usuarioSelecionadoId) { showToast('Selecione um usuário destino primeiro!', 'error'); return; }
+        copyDestinoId = usuarioSelecionadoId;
+        const selectOrigem = document.getElementById('copyUsuarioOrigem');
+        selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
+            usuariosCacheFull.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        document.getElementById('copyModal').style.display = 'flex';
+    }
+    window.fecharCopyModal = () => document.getElementById('copyModal').style.display = 'none';
+    window.confirmarCopiarPermissoes = async () => {
+        const usuarioOrigemId = document.getElementById('copyUsuarioOrigem').value;
+        if (!usuarioOrigemId) { showToast('Selecione um usuário de origem!', 'error'); return; }
+        const origPerms = await carregarPermissoesDoUsuario(usuarioOrigemId);
+        // Remove antigas do destino
+        const constraints = getConstraints();
+        const oldPerms = await getDocs(query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', copyDestinoId)));
+        for (const p of oldPerms.docs) await deleteDoc(doc(db, 'permissoes', p.id));
+        for (const perm of origPerms) {
+            await addDoc(collection(db, 'permissoes'), {
+                usuarioId: copyDestinoId,
+                permissao: perm,
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString(),
+                criado_por: currentUser.uid
+            });
+        }
+        showToast('Permissões copiadas com sucesso!', 'success');
+        fecharCopyModal();
+        await carregarPaginaPermissoes(true);
+        if (usuarioSelecionadoId === copyDestinoId) await gerarChecklistPermissoes();
+    };
+    
+    // ==================== EVENTOS DE USUÁRIO ====================
     window.editarPermissoes = function(usuarioId) {
-        const select = document.getElementById('permUsuarioId');
-        if (select) select.value = usuarioId;
-        carregarPermissoesDoUsuario();
+        document.getElementById('permUsuarioId').value = usuarioId;
+        usuarioSelecionadoId = usuarioId;
+        gerarChecklistPermissoes();
+        const copyBtn = document.getElementById('copyPermissoesBtn');
+        if (copyBtn) copyBtn.style.display = 'inline-block';
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        showToast('Carregando permissões do usuário...', 'info');
     };
     window.copiarPermissoesUsuario = function(usuarioId) {
-        if (usuarioSelecionadoId) {
-            const modal = document.getElementById('copyModal');
-            if (modal) modal.style.display = 'flex';
-            const selectOrigem = document.getElementById('copyUsuarioOrigem');
-            if (selectOrigem) {
-                selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
-                    usuariosCache.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}" ${u.id === usuarioId ? 'selected' : ''}>${escapeHtml(u.nome)} (${u.email})</option>`).join('');
-            }
-        } else {
-            showToast('Selecione um usuário destino primeiro!', 'error');
-        }
+        document.getElementById('permUsuarioId').value = usuarioId;
+        usuarioSelecionadoId = usuarioId;
+        gerarChecklistPermissoes();
+        mostrarModalCopiar();
     };
-
-    // ==================== UPDATE STATS ====================
-    function updateStats() {
-        const totalUsuariosSpan = document.getElementById('totalUsuarios');
-        if (totalUsuariosSpan) totalUsuariosSpan.innerText = usuariosCache.length;
-        const totalPermissoesSpan = document.getElementById('totalPermissoes');
-        if (totalPermissoesSpan) totalPermissoesSpan.innerText = permissoesCache.length;
-        const totalModulosSpan = document.getElementById('totalModulos');
-        if (totalModulosSpan) totalModulosSpan.innerText = MODULOS_PERMISSOES.length;
+    window.filtrarPorPermissao = function(permissao) {
+        document.getElementById('searchInput').value = permissao.split('.')[0];
+        carregarPaginaPermissoes(true);
+        showToast(`Filtrando por: ${permissao.split('.')[0]}`, 'info');
+    };
+    
+    // ==================== ESTATÍSTICAS LEVES ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const totalUsuariosSnap = await getCountFromServer(query(collection(db, 'usuarios'), ...constraints));
+        document.getElementById('totalUsuarios').innerText = totalUsuariosSnap.data().count;
+        const totalPermissoesSnap = await getCountFromServer(query(collection(db, 'permissoes'), ...constraints));
+        document.getElementById('totalPermissoes').innerText = totalPermissoesSnap.data().count;
+        document.getElementById('totalModulos').innerText = MODULOS_PERMISSOES.length;
     }
     
-    // ==================== SELECT DE USUÁRIOS ====================
-    function atualizarSelectUsuarios() {
-        const select = document.getElementById('permUsuarioId');
-        if (!select) return;
-        const permissoesCount = new Map();
-        permissoesCache.forEach(p => {
-            permissoesCount.set(p.usuarioId, (permissoesCount.get(p.usuarioId) || 0) + 1);
-        });
-        select.innerHTML = '<option value="">Selecione um usuário</option>';
-        usuariosCache.forEach(u => {
-            const countPerm = permissoesCount.get(u.id) || 0;
-            const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : '👤');
-            select.innerHTML += `<option value="${u.id}">${perfilIcon} ${escapeHtml(u.nome)} - ${countPerm} permissões</option>`;
-        });
-    }
-
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    document.addEventListener('DOMContentLoaded', () => {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                const isAdmin = await verificarAcessoAdmin(user);
-                const isSuper = await verificarSuperAdmin(user);
-                if (!isAdmin && !isSuper) {
-                    const loadingScreen = document.getElementById('loadingScreen');
-                    if (loadingScreen) loadingScreen.classList.add('hidden');
-                    const blockedContent = document.getElementById('blockedContent');
-                    if (blockedContent) blockedContent.classList.remove('hidden');
-                    const conteudoPrincipal = document.getElementById('conteudoPrincipal');
-                    if (conteudoPrincipal) conteudoPrincipal.style.display = 'none';
-                    return;
-                }
-                
-                currentEmpresa = await carregarEmpresaUsuario(user);
-                if (!currentEmpresa && !isSuper) { window.location.href = 'empresa.html'; return; }
-                // Para superadmin sem empresa, criar objeto especial
-                if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-                
-                const empresaInfo = document.getElementById('empresaInfo');
-                if (empresaInfo) {
-                    empresaInfo.innerHTML = currentEmpresa.globalAdmin ? 
-                        '<i class="fas fa-globe"></i> Super Administrador' :
-                        `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-                }
-                
-                // Alerta de trial (apenas para empresas reais)
-                if (!currentEmpresa.globalAdmin) {
-                    const statusInfo = verificarStatusEmpresa(currentEmpresa);
-                    const trialDiv = document.getElementById('trialAlert');
-                    if (trialDiv) {
-                        if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                        else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                        else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                        else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
-                        else trialDiv.style.display = 'none';
-                    }
-                } else {
-                    const trialDiv = document.getElementById('trialAlert');
-                    if (trialDiv) trialDiv.style.display = 'none';
-                }
-                
-                await iniciarListeners();
-                const loadingScreen = document.getElementById('loadingScreen');
-                if (loadingScreen) loadingScreen.classList.add('hidden');
-                const conteudoPrincipal = document.getElementById('conteudoPrincipal');
-                if (conteudoPrincipal) conteudoPrincipal.style.display = 'block';
-            } else {
-                window.location.href = 'login.html';
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            const isAdmin = await verificarAcessoAdmin(user);
+            const isSuper = await verificarSuperAdmin(user);
+            if (!isAdmin && !isSuper) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('blockedContent').classList.remove('hidden');
+                return;
             }
-        });
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa && !isSuper) { window.location.href = 'empresa.html'; return; }
+            if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
+            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
+            // Alerta trial
+            if (!currentEmpresa.globalAdmin) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                else trialDiv.style.display = 'none';
+            } else {
+                document.getElementById('trialAlert').style.display = 'none';
+            }
+            
+            await carregarUsuariosParaSelect();
+            await carregarPaginaPermissoes(true);
+            await updateStats();
+            
+            // Eventos
+            document.getElementById('permUsuarioId').addEventListener('change', (e) => {
+                usuarioSelecionadoId = e.target.value;
+                if (usuarioSelecionadoId) {
+                    gerarChecklistPermissoes();
+                    document.getElementById('copyPermissoesBtn').style.display = 'inline-block';
+                } else {
+                    document.getElementById('permissionsContainer').innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+                    document.getElementById('copyPermissoesBtn').style.display = 'none';
+                }
+            });
+            document.getElementById('savePermissaoBtn').onclick = salvarPermissoes;
+            document.getElementById('copyPermissoesBtn').onclick = mostrarModalCopiar;
+            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; carregarPaginaPermissoes(true); });
+            document.getElementById('clearSearchBtn').onclick = () => { document.getElementById('searchInput').value = ''; carregarPaginaPermissoes(true); };
+            document.getElementById('refreshTableBtn').onclick = () => carregarPaginaPermissoes(true);
+            document.getElementById('refreshPermissoesBtn').onclick = () => { if (usuarioSelecionadoId) gerarChecklistPermissoes(); };
+            document.getElementById('permissaoSearch').addEventListener('input', () => gerarChecklistPermissoes());
+            document.getElementById('logoutBtn').onclick = () => auth.signOut();
+            document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
+            window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
+            window.solicitarLiberacao = () => {
+                window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank');
+                showToast('Abrindo e-mail...', 'info');
+            };
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else {
+            window.location.href = 'login.html';
+        }
     });
     
-    // ==================== EVENTOS ====================
-    const permUsuarioSelect = document.getElementById('permUsuarioId');
-    if (permUsuarioSelect) permUsuarioSelect.addEventListener('change', carregarPermissoesDoUsuario);
-    const savePermissaoBtn = document.getElementById('savePermissaoBtn');
-    if (savePermissaoBtn) savePermissaoBtn.onclick = salvarPermissoes;
-    const copyPermissoesBtn = document.getElementById('copyPermissoesBtn');
-    if (copyPermissoesBtn) copyPermissoesBtn.onclick = mostrarModalCopiar;
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; renderPermissoes(); });
-    const permissaoSearch = document.getElementById('permissaoSearch');
-    if (permissaoSearch) permissaoSearch.addEventListener('input', () => gerarChecklistPermissoes());
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) logoutBtn.onclick = () => auth.signOut();
-    
-    window.onclick = (e) => {
-        const copyModal = document.getElementById('copyModal');
-        if (e.target === copyModal && copyModal) window.fecharCopyModal();
-    };
-    window.goToPage = goToPage;
-    window.logout = () => auth.signOut();
-    window.solicitarLiberacao = () => {
-        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
-        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo e-mail...', 'info');
-    };
-    
-    console.log('✅ Permissões refatorado - com suporte a superadmin e tempo real');
+    // Funções globais para modais (view ainda não implementada, mas pode ser adicionada)
+    window.viewCanal = function(id) { showToast('Função em desenvolvimento', 'info'); };
+    window.viewTemplate = function(id) { showToast('Função em desenvolvimento', 'info'); };
+    window.viewRegra = function(id) { showToast('Função em desenvolvimento', 'info'); };
+    window.viewHistorico = function(id) { showToast('Função em desenvolvimento', 'info'); };
+    console.log('✅ Permissões refatorado - sem onSnapshot, com paginação real');
 </script>
 </body>
 </html>

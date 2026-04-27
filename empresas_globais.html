@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Gestão Global de Empresas (Superadmin)</title>
+    <title>PerShop - Gestão Global de Empresas (Superadmin) | Refatorado com Paginação</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -26,11 +26,19 @@
         .btn-danger { background: #e76f51; color: white; }
         .btn-warning { background: #e9c46a; color: #1f5068; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
+        .stat-value { font-size: 1.8rem; font-weight: 800; color: #1f5068; }
+        .stat-label { font-size: 0.7rem; color: #7a9eb0; text-transform: uppercase; }
         .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
         .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .table-header h3 { font-size: 1.1rem; color: #1f5068; }
         .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .search-area input { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; width: 260px; font-size: 0.85rem; }
+        .search-area select { padding: 10px 16px; border-radius: 40px; border: 1.5px solid #e2edf2; background: white; font-size: 0.85rem; cursor: pointer; }
         .table-wrapper { overflow-x: auto; padding: 0 20px 20px 20px; }
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 12px 10px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; }
@@ -67,6 +75,9 @@
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .acesso-bloqueado { background: #fce4e4; border-left: 4px solid #e76f51; border-radius: 24px; padding: 40px; text-align: center; margin-bottom: 30px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; }
+        .info-label { font-weight: 600; color: #1f5068; }
+        .info-value { text-align: right; color: #4a6272; }
     </style>
 </head>
 <body>
@@ -92,11 +103,26 @@
     </div>
 
     <div id="conteudoPrincipal" style="display: none;">
+        <!-- Stats cards -->
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-building"></i></div></div><div class="stat-value" id="totalEmpresas">0</div><div class="stat-label">Total Empresas</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="totalAtivas">0</div><div class="stat-label">Ativas</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div></div><div class="stat-value" id="totalSuspensas">0</div><div class="stat-label">Suspensas</div></div>
+        </div>
+
         <div class="table-card">
             <div class="table-header">
                 <h3><i class="fas fa-building"></i> Todas as Empresas do Sistema</h3>
                 <div class="search-area">
                     <input type="text" id="searchInput" placeholder="🔍 Buscar por razão social, CNPJ...">
+                    <select id="statusGlobalFilter">
+                        <option value="">Todos os status</option>
+                        <option value="ativo">✅ Ativo</option>
+                        <option value="inativo">⭕ Inativo</option>
+                        <option value="suspenso">⚠️ Suspenso</option>
+                    </select>
+                    <button id="clearFiltersBtn" class="btn btn-outline">Limpar</button>
+                    <button id="refreshTableBtn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Atualizar</button>
                 </div>
             </div>
             <div class="table-wrapper">
@@ -140,7 +166,7 @@
         <div class="modal-header"><h3>🎁 Conceder Dias de Crédito</h3><button class="modal-close" onclick="fecharModal('creditosModal')">&times;</button></div>
         <div class="modal-body">
             <div class="input-group"><label>Quantidade de dias a adicionar</label><input type="number" id="diasParaAdicionar" min="1" value="30"></div>
-            <div class="info-row" style="margin-top: 10px;"><span class="info-label">Status atual:</span><span class="info-value" id="creditosStatusAtual"></span></div>
+            <div class="info-row"><span class="info-label">Status atual:</span><span class="info-value" id="creditosStatusAtual"></span></div>
             <div class="info-row"><span class="info-label">Expiração atual:</span><span class="info-value" id="creditosExpAtual"></span></div>
             <div class="info-row"><span class="info-label">Nova expiração:</span><span class="info-value" id="creditosNovaExp"></span></div>
             <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
@@ -153,20 +179,112 @@
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, orderBy, limit, startAfter, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { verificarSuperAdmin, showToast, aplicarMascaraTelefone, aplicarMascaraCNPJ } from './util.js';
 
     let currentUser = null;
     let isSuperAdmin = false;
-    let empresasCache = [];
+    let empresasCache = [];          // apenas página atual
+    let lastVisibleDoc = null;
+    let totalEmpresasCount = 0;
     let currentPage = 1;
     const itemsPerPage = 10;
+    let isLoading = false;
 
-    async function carregarEmpresas() {
-        const snapshot = await getDocs(collection(db, 'empresas'));
-        empresasCache = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderEmpresas();
+    // ==================== CARREGAR EMPRESAS COM PAGINAÇÃO ====================
+    async function carregarPaginaEmpresas(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                empresasCache = [];
+            }
+            let q = query(collection(db, 'empresas'), orderBy('emp_razao_social', 'asc'), limit(itemsPerPage));
+            // Aplicar filtro de status (se houver)
+            const statusFilter = document.getElementById('statusGlobalFilter')?.value;
+            if (statusFilter) {
+                q = query(collection(db, 'empresas'), where('emp_status', '==', statusFilter), orderBy('emp_razao_social', 'asc'), limit(itemsPerPage));
+                if (lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc));
+            } else {
+                if (lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc));
+            }
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (reset) empresasCache = novos;
+            else empresasCache = [...empresasCache, ...novos];
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Contagem total (com filtro de status)
+            let countQuery;
+            if (statusFilter) {
+                countQuery = query(collection(db, 'empresas'), where('emp_status', '==', statusFilter));
+            } else {
+                countQuery = collection(db, 'empresas');
+            }
+            const countSnap = await getCountFromServer(countQuery);
+            totalEmpresasCount = countSnap.data().count;
+            
+            // Aplicar busca textual (cliente-side, após paginação)
+            const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+            let filtered = [...empresasCache];
+            if (searchTerm) {
+                filtered = filtered.filter(e => 
+                    (e.emp_razao_social || '').toLowerCase().includes(searchTerm) || 
+                    (e.emp_cnpj || '').includes(searchTerm)
+                );
+            }
+            renderEmpresas(filtered);
+            atualizarPaginacao();
+            await updateStats();
+        } catch (error) {
+            console.error("Erro ao carregar empresas:", error);
+            showToast("Erro ao carregar dados. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
+        }
     }
+
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalEmpresasCount / itemsPerPage);
+        const paginationDiv = document.getElementById('pagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+        }
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+
+    window.goToPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaEmpresas(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaEmpresas(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaEmpresas(false);
+                currentPage++;
+            }
+        }
+        // Reaplicar busca local
+        const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+        let filtered = [...empresasCache];
+        if (searchTerm) {
+            filtered = filtered.filter(e => 
+                (e.emp_razao_social || '').toLowerCase().includes(searchTerm) || 
+                (e.emp_cnpj || '').includes(searchTerm)
+            );
+        }
+        renderEmpresas(filtered);
+        atualizarPaginacao();
+    };
 
     function calcularDiasRestantes(dataExpiracao) {
         if (!dataExpiracao) return 0;
@@ -174,22 +292,14 @@
         return Math.ceil(diff / (1000 * 60 * 60 * 24));
     }
 
-    function renderEmpresas() {
-        const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
-        let filtered = empresasCache.filter(e => 
-            (e.emp_razao_social || '').toLowerCase().includes(search) || 
-            (e.emp_cnpj || '').includes(search)
-        );
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
+    function renderEmpresas(lista) {
         const tbody = document.getElementById('empresasTableBody');
-        if (paginated.length === 0) {
+        if (!tbody) return;
+        if (lista.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma empresa encontrada</td></tr>';
-            document.getElementById('pagination').innerHTML = '';
             return;
         }
-        tbody.innerHTML = paginated.map(e => {
+        tbody.innerHTML = lista.map(e => {
             const statusClass = e.emp_status === 'ativo' ? 'status-ativo' : (e.emp_status === 'inativo' ? 'status-inativo' : 'status-suspenso');
             const diasRestantes = calcularDiasRestantes(e.emp_data_expiracao);
             const diasTexto = e.emp_status === 'ativo' ? '∞' : (diasRestantes > 0 ? `${diasRestantes} dias` : 'Expirado');
@@ -205,32 +315,46 @@
                     <button class="action-btn" onclick="concederDias('${e.id}')" title="Conceder dias de crédito"><i class="fas fa-gift"></i></button>
                     <button class="action-btn" onclick="alternarStatus('${e.id}', '${e.emp_status}')" title="Alterar status"><i class="fas fa-power-off"></i></button>
                     <button class="action-btn delete" onclick="excluirEmpresa('${e.id}')"><i class="fas fa-trash-alt"></i></button>
-                </td>
+                </div>
             </tr>`;
         }).join('');
-        let pagHtml = '<button class="page-btn" onclick="goToPage(1)">&laquo;</button>';
-        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})">&raquo;</button>`;
-        document.getElementById('pagination').innerHTML = pagHtml;
     }
 
-    function goToPage(page) { currentPage = page; renderEmpresas(); }
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
 
-    function escapeHtml(text) { if(!text) return ''; return text.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
+    // ==================== ESTATÍSTICAS (via getCountFromServer) ====================
+    async function updateStats() {
+        const totalSnap = await getCountFromServer(collection(db, 'empresas'));
+        document.getElementById('totalEmpresas').innerText = totalSnap.data().count;
+        const ativasSnap = await getCountFromServer(query(collection(db, 'empresas'), where('emp_status', '==', 'ativo')));
+        document.getElementById('totalAtivas').innerText = ativasSnap.data().count;
+        const suspensasSnap = await getCountFromServer(query(collection(db, 'empresas'), where('emp_status', '==', 'suspenso')));
+        document.getElementById('totalSuspensas').innerText = suspensasSnap.data().count;
+    }
 
+    // ==================== CRUD OPERATIONS ====================
     let editingEmpresaId = null;
     window.editarEmpresa = async function(id) {
-        const empresa = empresasCache.find(e => e.id === id);
-        if (!empresa) return;
+        const docSnap = await getDoc(doc(db, 'empresas', id));
+        if (!docSnap.exists()) return;
+        const e = docSnap.data();
         editingEmpresaId = id;
-        document.getElementById('editRazaoSocial').value = empresa.emp_razao_social || '';
-        document.getElementById('editNomeFantasia').value = empresa.emp_nome_fantasia || '';
-        document.getElementById('editCnpj').value = empresa.emp_cnpj || '';
-        document.getElementById('editWhatsapp').value = empresa.emp_whatsapp || '';
-        document.getElementById('editEndereco').value = empresa.emp_endereco || '';
-        document.getElementById('editCidade').value = empresa.emp_cidade || '';
-        document.getElementById('editEstado').value = empresa.emp_estado || '';
-        document.getElementById('editStatus').value = empresa.emp_status || 'inativo';
+        document.getElementById('editRazaoSocial').value = e.emp_razao_social || '';
+        document.getElementById('editNomeFantasia').value = e.emp_nome_fantasia || '';
+        document.getElementById('editCnpj').value = e.emp_cnpj || '';
+        document.getElementById('editWhatsapp').value = e.emp_whatsapp || '';
+        document.getElementById('editEndereco').value = e.emp_endereco || '';
+        document.getElementById('editCidade').value = e.emp_cidade || '';
+        document.getElementById('editEstado').value = e.emp_estado || '';
+        document.getElementById('editStatus').value = e.emp_status || 'inativo';
         document.getElementById('editModal').style.display = 'flex';
     };
     document.getElementById('confirmEditBtn').onclick = async () => {
@@ -249,52 +373,57 @@
         await updateDoc(doc(db, 'empresas', editingEmpresaId), updates);
         showToast('Empresa atualizada!', 'success');
         fecharModal('editModal');
-        carregarEmpresas();
+        await carregarPaginaEmpresas(true);
+        await updateStats();
     };
 
     let concederEmpresaId = null;
     window.concederDias = async function(id) {
-        const empresa = empresasCache.find(e => e.id === id);
-        if (!empresa) return;
+        const docSnap = await getDoc(doc(db, 'empresas', id));
+        if (!docSnap.exists()) return;
+        const e = docSnap.data();
         concederEmpresaId = id;
-        const statusAtual = empresa.emp_status === 'ativo' ? 'Ativo (sem expiração)' : (empresa.emp_status || 'inativo');
-        const expAtual = empresa.emp_data_expiracao ? new Date(empresa.emp_data_expiracao).toLocaleDateString() : 'Não definida';
+        const statusAtual = e.emp_status === 'ativo' ? 'Ativo (sem expiração)' : (e.emp_status || 'inativo');
+        const expAtual = e.emp_data_expiracao ? new Date(e.emp_data_expiracao).toLocaleDateString() : 'Não definida';
         document.getElementById('creditosStatusAtual').innerHTML = statusAtual;
         document.getElementById('creditosExpAtual').innerHTML = expAtual;
         document.getElementById('diasParaAdicionar').value = 30;
         document.getElementById('creditosNovaExp').innerHTML = '---';
         document.getElementById('creditosModal').style.display = 'flex';
-        document.getElementById('diasParaAdicionar').oninput = () => {
-            const dias = parseInt(document.getElementById('diasParaAdicionar').value) || 0;
+        const inputDias = document.getElementById('diasParaAdicionar');
+        inputDias.oninput = () => {
+            const dias = parseInt(inputDias.value) || 0;
             let novaData = new Date();
-            if (empresa.emp_data_expiracao) {
-                novaData = new Date(empresa.emp_data_expiracao);
+            if (e.emp_data_expiracao) {
+                novaData = new Date(e.emp_data_expiracao);
                 if (novaData < new Date()) novaData = new Date();
             }
             novaData.setDate(novaData.getDate() + dias);
             document.getElementById('creditosNovaExp').innerHTML = novaData.toLocaleDateString();
         };
-        document.getElementById('diasParaAdicionar').dispatchEvent(new Event('input'));
+        inputDias.dispatchEvent(new Event('input'));
     };
     document.getElementById('confirmCreditsBtn').onclick = async () => {
         if (!concederEmpresaId) return;
-        const empresa = empresasCache.find(e => e.id === concederEmpresaId);
+        const docSnap = await getDoc(doc(db, 'empresas', concederEmpresaId));
+        const e = docSnap.data();
         const dias = parseInt(document.getElementById('diasParaAdicionar').value) || 0;
         let novaData = new Date();
-        if (empresa.emp_data_expiracao) {
-            novaData = new Date(empresa.emp_data_expiracao);
+        if (e.emp_data_expiracao) {
+            novaData = new Date(e.emp_data_expiracao);
             if (novaData < new Date()) novaData = new Date();
         }
         novaData.setDate(novaData.getDate() + dias);
         const updates = {
             emp_data_expiracao: novaData.toISOString(),
-            emp_status: 'ativo',  // ao conceder dias, reativa
+            emp_status: 'ativo',
             emp_atualizado_em: new Date().toISOString()
         };
         await updateDoc(doc(db, 'empresas', concederEmpresaId), updates);
         showToast(`${dias} dias concedidos! Empresa reativada.`, 'success');
         fecharModal('creditosModal');
-        carregarEmpresas();
+        await carregarPaginaEmpresas(true);
+        await updateStats();
     };
 
     window.alternarStatus = async function(id, statusAtual) {
@@ -304,15 +433,16 @@
         else novoStatus = 'ativo';
         await updateDoc(doc(db, 'empresas', id), { emp_status: novoStatus, emp_atualizado_em: new Date().toISOString() });
         showToast(`Status alterado para ${novoStatus}`, 'success');
-        carregarEmpresas();
+        await carregarPaginaEmpresas(true);
+        await updateStats();
     };
 
     window.excluirEmpresa = async function(id) {
         if (!confirm('⚠️ ATENÇÃO: Excluir uma empresa remove todos os dados associados (clientes, pets, agendamentos, etc.). Esta ação é irreversível!\n\nDeseja realmente excluir esta empresa?')) return;
-        // Opcional: remover também todos os subdocumentos (clientes, pets, etc.) para manter integridade
         await deleteDoc(doc(db, 'empresas', id));
         showToast('Empresa excluída!', 'success');
-        carregarEmpresas();
+        await carregarPaginaEmpresas(true);
+        await updateStats();
     };
 
     function fecharModal(modalId) {
@@ -322,21 +452,38 @@
     }
     window.fecharModal = fecharModal;
 
+    // ==================== FILTROS ====================
+    function aplicarFiltros() {
+        carregarPaginaEmpresas(true);
+    }
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusGlobalFilter').value = '';
+        carregarPaginaEmpresas(true);
+        showToast('Filtros limpos!', 'success');
+    }
+
+    // ==================== AUTENTICAÇÃO ====================
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
             isSuperAdmin = await verificarSuperAdmin(user);
             if (!isSuperAdmin) {
-                document.getElementById('loadingScreen')?.remove();
                 document.getElementById('acessoNegado').style.display = 'block';
+                document.getElementById('conteudoPrincipal').style.display = 'none';
+                document.getElementById('loadingScreen')?.remove();
                 return;
             }
-            await carregarEmpresas();
+            await carregarPaginaEmpresas(true);
             document.getElementById('conteudoPrincipal').style.display = 'block';
             document.getElementById('acessoNegado').style.display = 'none';
-            document.getElementById('refreshBtn').onclick = () => carregarEmpresas();
+            // Eventos
+            document.getElementById('refreshBtn').onclick = () => carregarPaginaEmpresas(true);
+            document.getElementById('refreshTableBtn').onclick = () => carregarPaginaEmpresas(true);
             document.getElementById('logoutBtn').onclick = () => auth.signOut();
-            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderEmpresas(); });
+            document.getElementById('searchInput').addEventListener('input', () => carregarPaginaEmpresas(true));
+            document.getElementById('statusGlobalFilter').addEventListener('change', () => carregarPaginaEmpresas(true));
+            document.getElementById('clearFiltersBtn').onclick = clearFilters;
         } else {
             window.location.href = 'login.html';
         }

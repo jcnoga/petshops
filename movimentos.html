@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Movimentos de Estoque | Firebase + Firestore (Refatorado)</title>
+    <title>PerShop - Movimento de Estoque | Firebase + Firestore (Refatorado com Paginação)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ESTILOS (mesmos do original, mantidos) */
+        /* ========== ESTILOS (mesmos do original, mantidos) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -158,7 +158,7 @@
                 </div>
             </div>
         </div>
-        <!-- TABELA -->
+        <!-- TABELA COM PAGINAÇÃO -->
         <div class="table-card">
             <div class="table-header"><h3>Histórico de Movimentações</h3><div class="search-area"><input type="text" id="searchInput" placeholder="🔍 Buscar por produto, responsável, motivo..."></div></div>
             <div class="table-wrapper"><table id="movimentosTable"><thead><tr><th>Data/Hora</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="movimentosTableBody"></tbody>}</div>
@@ -173,9 +173,12 @@
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
         collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
-        runTransaction, limit, startAfter, orderBy, getCountFromServer
+        runTransaction, limit, startAfter, orderBy, getCountFromServer, getDoc
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { escapeHtml, showToast, formatCurrency, formatarDataHora, carregarEmpresaUsuario, verificarStatusEmpresa } from './util.js';
+    import { 
+        escapeHtml, showToast, formatCurrency, formatarDataHora, carregarEmpresaUsuario, 
+        verificarStatusEmpresa, verificarSuperAdmin
+    } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
@@ -187,8 +190,8 @@
     let totalMovimentosCount = 0;
     let isLoading = false;
     
-    let movimentosCache = [];
-    let produtosCache = [];
+    let movimentosCache = [];      // apenas página atual
+    let produtosMap = new Map();   // cache de produtos (apenas os necessários)
     let movimentacoesChart = null;
     let tipoChart = null;
 
@@ -198,15 +201,32 @@
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== CARREGAR PRODUTOS (para selects) ====================
-    async function carregarProdutos() {
+    // ==================== CARREGAR PRODUTOS PARA SELECTS (limitado) ====================
+    async function carregarProdutosParaSelect() {
+        if (!currentEmpresa) return;
         const constraints = getConstraints();
-        const produtosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints));
-        produtosCache = produtosSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        atualizarSelects();
+        const produtosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints, orderBy('nome', 'asc'), limit(200)));
+        const select = document.getElementById('movProdutoId');
+        const filterSelect = document.getElementById('produtoFilter');
+        const options = produtosSnap.docs.map(d => `<option value="${d.id}">${escapeHtml(d.data().nome)} (Estoque: ${d.data().estoque || 0})</option>`).join('');
+        select.innerHTML = '<option value="">Selecione</option>' + options;
+        filterSelect.innerHTML = '<option value="">Todos</option>' + options;
+        // Pré-carregar dados no map
+        produtosSnap.docs.forEach(d => produtosMap.set(d.id, d.data()));
+        select.onchange = () => mostrarInfoEstoque(select.value);
     }
 
-    // ==================== PAGINAÇÃO REAL DE MOVIMENTOS ====================
+    function mostrarInfoEstoque(produtoId) {
+        const produto = produtosMap.get(produtoId);
+        const infoDiv = document.getElementById('estoqueInfo');
+        if (!produto) { infoDiv.style.display = 'none'; return; }
+        const estoqueAtual = produto.estoque || 0;
+        const estoqueMin = produto.estoqueMin || 0;
+        infoDiv.innerHTML = `📊 Estoque atual: <strong>${estoqueAtual}</strong> | Mínimo: ${estoqueMin}`;
+        infoDiv.style.display = 'block';
+    }
+
+    // ==================== PAGINAÇÃO REAL DOS MOVIMENTOS ====================
     async function carregarPaginaMovimentos(reset = true) {
         if (isLoading) return;
         isLoading = true;
@@ -251,19 +271,26 @@
             }
             lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
             
-            // Busca textual local (produto, responsável, motivo)
+            // Busca textual local (produto, responsável, motivo) – após paginação
             const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
             let filtered = [...movimentosCache];
             if (searchTerm) {
+                // Para cada movimento, precisamos do nome do produto (podemos buscar sob demanda)
+                await Promise.all(filtered.map(async (m) => {
+                    if (!produtosMap.has(m.produtoId) && m.produtoId) {
+                        const prodDoc = await getDoc(doc(db, 'produtos', m.produtoId));
+                        if (prodDoc.exists()) produtosMap.set(m.produtoId, prodDoc.data());
+                    }
+                }));
                 filtered = filtered.filter(m => {
-                    const prod = produtosCache.find(p => p.id === m.produtoId);
+                    const prod = produtosMap.get(m.produtoId);
                     return (prod?.nome || '').toLowerCase().includes(searchTerm) ||
                            (m.responsavel || '').toLowerCase().includes(searchTerm) ||
                            (m.motivo || '').toLowerCase().includes(searchTerm);
                 });
             }
             
-            // Contagem total (com filtros, sem busca textual)
+            // Contagem total (com os filtros diretos, sem busca textual)
             if (reset) {
                 let countQuery = query(collection(db, 'movimentos'), ...constraints);
                 if (inicio && fim) countQuery = query(countQuery, where('data', '>=', inicio + 'T00:00:00'), where('data', '<=', fim + 'T23:59:59'));
@@ -312,11 +339,18 @@
                 currentPage++;
             }
         }
+        // Reaplicar busca local
         const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
         let filtered = [...movimentosCache];
         if (searchTerm) {
+            await Promise.all(filtered.map(async (m) => {
+                if (!produtosMap.has(m.produtoId) && m.produtoId) {
+                    const prodDoc = await getDoc(doc(db, 'produtos', m.produtoId));
+                    if (prodDoc.exists()) produtosMap.set(m.produtoId, prodDoc.data());
+                }
+            }));
             filtered = filtered.filter(m => {
-                const prod = produtosCache.find(p => p.id === m.produtoId);
+                const prod = produtosMap.get(m.produtoId);
                 return (prod?.nome || '').toLowerCase().includes(searchTerm) ||
                        (m.responsavel || '').toLowerCase().includes(searchTerm) ||
                        (m.motivo || '').toLowerCase().includes(searchTerm);
@@ -330,11 +364,11 @@
         const tbody = document.getElementById('movimentosTableBody');
         if (!tbody) return;
         if (lista.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma movimentação</td><td/tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma movimentação encontrada</td></tr>';
             return;
         }
         tbody.innerHTML = lista.map(m => {
-            const prod = produtosCache.find(p => p.id === m.produtoId);
+            const prod = produtosMap.get(m.produtoId);
             const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
             const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
             const estornadoClass = m.estornado ? 'opacity:0.6; text-decoration:line-through;' : '';
@@ -355,72 +389,8 @@
         }).join('');
     }
     
-    // ==================== ESTATÍSTICAS LEVES ====================
-    async function updateStats() {
-        const constraints = getConstraints();
-        const baseQuery = query(collection(db, 'movimentos'), ...constraints);
-        
-        // Entradas (soma de quantidades, não estornadas)
-        const entradasQuery = query(baseQuery, where('tipo', '==', 'entrada'), where('estornado', '==', false));
-        const entradasSnap = await getDocs(entradasQuery);
-        const totalEntradas = entradasSnap.docs.reduce((sum, doc) => sum + (doc.data().quantidade || 0), 0);
-        document.getElementById('totalEntradas').innerText = totalEntradas;
-        
-        // Saídas
-        const saidasQuery = query(baseQuery, where('tipo', '==', 'saida'), where('estornado', '==', false));
-        const saidasSnap = await getDocs(saidasQuery);
-        const totalSaidas = saidasSnap.docs.reduce((sum, doc) => sum + (doc.data().quantidade || 0), 0);
-        document.getElementById('totalSaidas').innerText = totalSaidas;
-        
-        // Total de movimentações (todas, inclusive estornadas)
-        const totalSnap = await getCountFromServer(baseQuery);
-        document.getElementById('totalMovimentacoes').innerText = totalSnap.data().count;
-        
-        // Valor do estoque (soma precoCusto * estoque)
-        const produtosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints));
-        const valorEstoque = produtosSnap.docs.reduce((sum, doc) => {
-            const p = doc.data();
-            return sum + ((p.precoCusto || p.precoVenda || 0) * (p.estoque || 0));
-        }, 0);
-        document.getElementById('saldoEstoque').innerHTML = `R$ ${formatCurrency(valorEstoque)}`;
-    }
-    
-    // ==================== GRÁFICOS ====================
-    async function updateCharts() {
-        const constraints = getConstraints();
-        const baseQuery = query(collection(db, 'movimentos'), ...constraints);
-        const snap = await getDocs(baseQuery);
-        const movimentos = snap.docs.map(d => d.data()).filter(m => !m.estornado);
-        
-        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-        const entradasMensais = new Array(12).fill(0);
-        const saidasMensais = new Array(12).fill(0);
-        movimentos.forEach(m => {
-            const mes = new Date(m.data).getMonth();
-            if (m.tipo === 'entrada') entradasMensais[mes] += m.quantidade;
-            else if (m.tipo === 'saida') saidasMensais[mes] += m.quantidade;
-        });
-        if (movimentacoesChart) movimentacoesChart.destroy();
-        const ctx1 = document.getElementById('movimentacoesChart').getContext('2d');
-        movimentacoesChart = new Chart(ctx1, {
-            type: 'bar', data: { labels: meses, datasets: [
-                { label: 'Entradas', data: entradasMensais, backgroundColor: '#2a9d8f', borderRadius: 8 },
-                { label: 'Saídas', data: saidasMensais, backgroundColor: '#e76f51', borderRadius: 8 }
-            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} unidades` } } } }
-        });
-        const entradaTotal = movimentos.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.quantidade, 0);
-        const saidaTotal = movimentos.filter(m => m.tipo === 'saida').reduce((s, m) => s + m.quantidade, 0);
-        const ajusteTotal = movimentos.filter(m => m.tipo === 'ajuste').reduce((s, m) => s + m.quantidade, 0);
-        if (tipoChart) tipoChart.destroy();
-        const ctx2 = document.getElementById('tipoChart').getContext('2d');
-        tipoChart = new Chart(ctx2, {
-            type: 'doughnut', data: { labels: ['Entradas', 'Saídas', 'Ajustes'], datasets: [{ data: [entradaTotal, saidaTotal, ajusteTotal], backgroundColor: ['#2a9d8f', '#e76f51', '#e9c46a'], borderWidth: 0 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} unidades` } } } }
-        });
-    }
-    
     // ==================== TRANSAÇÃO ATÔMICA PARA REGISTRAR MOVIMENTO ====================
-    async function registrarMovimento(produtoId, tipo, quantidade, responsavel, motivo) {
+    async function registrarMovimentoTransacao(produtoId, tipo, quantidade, responsavel, motivo) {
         if (!produtoId || quantidade <= 0) throw new Error('Dados inválidos.');
         const produtoRef = doc(db, 'produtos', produtoId);
         
@@ -458,19 +428,20 @@
         });
         showToast('Movimentação registrada!', 'success');
     }
-    
+
     // ==================== ESTORNAR MOVIMENTO (com transação) ====================
     async function estornarMovimento(id) {
-        const movimento = movimentosCache.find(m => m.id === id);
-        if (!movimento) throw new Error('Movimentação não encontrada.');
+        // Primeiro buscar o movimento original
+        const movDoc = await getDoc(doc(db, 'movimentos', id));
+        if (!movDoc.exists()) throw new Error('Movimentação não encontrada.');
+        const movimento = movDoc.data();
         if (movimento.estornado) throw new Error('Já estornada.');
         if (movimento.tipo === 'ajuste') throw new Error('Estorno de ajuste não suportado. Faça um novo ajuste.');
         
         await runTransaction(db, async (transaction) => {
             const movRef = doc(db, 'movimentos', id);
-            const movDoc = await transaction.get(movRef);
-            if (!movDoc.exists()) throw new Error('Movimentação não existe.');
-            if (movDoc.data().estornado) throw new Error('Já estornada.');
+            const movDocCheck = await transaction.get(movRef);
+            if (movDocCheck.data().estornado) throw new Error('Já estornada.');
             
             const produtoRef = doc(db, 'produtos', movimento.produtoId);
             const produtoDoc = await transaction.get(produtoRef);
@@ -488,13 +459,17 @@
         showToast('Movimentação estornada!', 'success');
     }
     
-    // ==================== DELETE (com verificação de consistência) ====================
+    // ==================== DELETE (com verificação) ====================
     async function deleteMovimento(id) {
-        const mov = movimentosCache.find(m => m.id === id);
+        const movDoc = await getDoc(doc(db, 'movimentos', id));
+        const mov = movDoc.data();
         if (!mov) return;
         if (!mov.estornado && !confirm('Esta movimentação NÃO está estornada. Excluir pode deixar o estoque inconsistente. Deseja continuar?')) return;
         await deleteDoc(doc(db, 'movimentos', id));
         showToast('Movimentação excluída!', 'success');
+        await carregarPaginaMovimentos(true);
+        await updateStats();
+        await updateCharts();
     }
     window.deleteMovimento = deleteMovimento;
     
@@ -530,18 +505,6 @@
         document.getElementById('movMotivo').value = m.motivo || '';
         mostrarInfoEstoque(m.produtoId);
     }
-    function mostrarInfoEstoque(produtoId) {
-        if (!produtoId) { document.getElementById('estoqueInfo').style.display = 'none'; return; }
-        const produto = produtosCache.find(p => p.id === produtoId);
-        if (produto) {
-            const estoqueAtual = produto.estoque || 0;
-            const estoqueMin = produto.estoqueMin || 0;
-            document.getElementById('estoqueInfo').innerHTML = `📊 Estoque atual: <strong>${estoqueAtual}</strong> | Mínimo: ${estoqueMin}`;
-            document.getElementById('estoqueInfo').style.display = 'block';
-        } else {
-            document.getElementById('estoqueInfo').style.display = 'none';
-        }
-    }
     async function salvarMovimento() {
         const produtoId = document.getElementById('movProdutoId').value;
         if (!produtoId) { showToast('Selecione um produto!', 'error'); return; }
@@ -552,8 +515,9 @@
         
         // Validação adicional para saída (estoque suficiente)
         if (tipo === 'saida') {
-            const produto = produtosCache.find(p => p.id === produtoId);
-            const estoqueAtual = produto?.estoque || 0;
+            const produto = produtosMap.get(produtoId);
+            if (!produto) { showToast('Produto não encontrado', 'error'); return; }
+            const estoqueAtual = produto.estoque || 0;
             if (estoqueAtual < quantidade) {
                 showToast(`Estoque insuficiente! Disponível: ${estoqueAtual} unidades`, 'error');
                 return;
@@ -561,9 +525,15 @@
         }
         const data = getFormData();
         try {
-            await registrarMovimento(data.produtoId, data.tipo, data.quantidade, data.responsavel, data.motivo);
+            await registrarMovimentoTransacao(data.produtoId, data.tipo, data.quantidade, data.responsavel, data.motivo);
             resetForm();
             await carregarPaginaMovimentos(true);
+            await updateStats();
+            await updateCharts();
+            // Atualizar também o cache do produto localmente
+            const prodRef = doc(db, 'produtos', data.produtoId);
+            const prodSnap = await getDoc(prodRef);
+            if (prodSnap.exists()) produtosMap.set(data.produtoId, prodSnap.data());
         } catch (err) {
             showToast(err.message, 'error');
         }
@@ -571,10 +541,15 @@
     function cancelEdit() { resetForm(); }
     
     // ==================== VIEW e EDIT (apenas edição superficial, não altera estoque) ====================
-    window.viewMovimento = function(id) {
-        const m = movimentosCache.find(m => m.id === id);
-        if (!m) return;
-        const prod = produtosCache.find(p => p.id === m.produtoId);
+    window.viewMovimento = async function(id) {
+        const movDoc = await getDoc(doc(db, 'movimentos', id));
+        if (!movDoc.exists()) return;
+        const m = movDoc.data();
+        let prod = produtosMap.get(m.produtoId);
+        if (!prod && m.produtoId) {
+            const prodDoc = await getDoc(doc(db, 'produtos', m.produtoId));
+            if (prodDoc.exists()) prod = prodDoc.data();
+        }
         const tipoClass = m.tipo === 'entrada' ? 'type-entrada' : (m.tipo === 'saida' ? 'type-saida' : 'type-ajuste');
         const tipoIcon = m.tipo === 'entrada' ? '📥' : (m.tipo === 'saida' ? '📤' : '⚙️');
         const estornadoBadge = m.estornado ? '<span class="badge" style="background:#e76f5120; color:#e76f51; margin-left:8px;"><i class="fas fa-undo-alt"></i> Estornado</span>' : '';
@@ -589,9 +564,12 @@
         `;
         document.getElementById('viewModal').style.display = 'flex';
     };
-    window.editMovimento = function(id) {
-        const m = movimentosCache.find(m => m.id === id);
-        if (m && !m.estornado) {
+    
+    window.editMovimento = async function(id) {
+        const movDoc = await getDoc(doc(db, 'movimentos', id));
+        if (!movDoc.exists()) return;
+        const m = movDoc.data();
+        if (!m.estornado) {
             fillForm(m);
             editingId = id;
             document.getElementById('cancelEditBtn').style.display = 'inline-block';
@@ -600,19 +578,90 @@
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-success');
             window.scrollTo({ top: 0 });
-        } else if (m && m.estornado) {
+        } else {
             showToast('Movimentações estornadas não podem ser editadas.', 'warning');
         }
     };
+    
     window.estornarMovimento = async (id) => {
         try {
             await estornarMovimento(id);
             await carregarPaginaMovimentos(true);
+            await updateStats();
+            await updateCharts();
         } catch (err) {
             showToast(err.message, 'error');
         }
     };
+    
     function fecharModal() { document.getElementById('viewModal').style.display = 'none'; }
+    
+    // ==================== ESTATÍSTICAS LEVES (com getCountFromServer) ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const baseQuery = collection(db, 'movimentos');
+        // Entradas (soma de quantidades, não estornadas) – infelizmente não dá para somar com getCountFromServer. Vamos fazer uma query limitada ou buscar todos? Melhor: buscar só os registros do período atual (filtros) paginados? Para estatísticas gerais, podemos fazer uma consulta sem limite, mas isso pode ser pesado.
+        // Alternativa: manter um agregado separado (campo calculado) ou usar Cloud Function. Por simplicidade, faremos uma consulta com limite alto (ex: 5000) e somamos, já que a média de movimentos por empresa não deve exceder isso rapidamente.
+        let movimentosSnapshot = await getDocs(query(baseQuery, ...constraints, limit(5000)));
+        let entradas = 0, saidas = 0;
+        movimentosSnapshot.docs.forEach(doc => {
+            const m = doc.data();
+            if (!m.estornado) {
+                if (m.tipo === 'entrada') entradas += m.quantidade;
+                else if (m.tipo === 'saida') saidas += m.quantidade;
+            }
+        });
+        document.getElementById('totalEntradas').innerText = entradas;
+        document.getElementById('totalSaidas').innerText = saidas;
+        const totalSnap = await getCountFromServer(query(baseQuery, ...constraints));
+        document.getElementById('totalMovimentacoes').innerText = totalSnap.data().count;
+        
+        // Saldo em estoque (soma valores)
+        const produtosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints));
+        const valorEstoque = produtosSnap.docs.reduce((sum, doc) => {
+            const p = doc.data();
+            return sum + ((p.precoCusto || p.precoVenda || 0) * (p.estoque || 0));
+        }, 0);
+        document.getElementById('saldoEstoque').innerHTML = `R$ ${formatCurrency(valorEstoque)}`;
+    }
+    
+    // ==================== GRÁFICOS (consultas agregadas mensais) ====================
+    async function updateCharts() {
+        const constraints = getConstraints();
+        const baseQuery = collection(db, 'movimentos');
+        // Buscar movimentos do último ano para gráfico (limitado a 2000 para performance)
+        const umAnoAtras = new Date();
+        umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+        const q = query(baseQuery, ...constraints, where('data', '>=', umAnoAtras.toISOString()), orderBy('data', 'desc'), limit(2000));
+        const snapshot = await getDocs(q);
+        const movimentos = snapshot.docs.map(d => d.data()).filter(m => !m.estornado);
+        
+        const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        const entradasMensais = new Array(12).fill(0);
+        const saidasMensais = new Array(12).fill(0);
+        movimentos.forEach(m => {
+            const mes = new Date(m.data).getMonth();
+            if (m.tipo === 'entrada') entradasMensais[mes] += m.quantidade;
+            else if (m.tipo === 'saida') saidasMensais[mes] += m.quantidade;
+        });
+        if (movimentacoesChart) movimentacoesChart.destroy();
+        const ctx1 = document.getElementById('movimentacoesChart').getContext('2d');
+        movimentacoesChart = new Chart(ctx1, {
+            type: 'bar', data: { labels: meses, datasets: [
+                { label: 'Entradas', data: entradasMensais, backgroundColor: '#2a9d8f', borderRadius: 8 },
+                { label: 'Saídas', data: saidasMensais, backgroundColor: '#e76f51', borderRadius: 8 }
+            ] }, options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw} unidades` } } } }
+        });
+        const entradaTotal = movimentos.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.quantidade, 0);
+        const saidaTotal = movimentos.filter(m => m.tipo === 'saida').reduce((s, m) => s + m.quantidade, 0);
+        const ajusteTotal = movimentos.filter(m => m.tipo === 'ajuste').reduce((s, m) => s + m.quantidade, 0);
+        if (tipoChart) tipoChart.destroy();
+        const ctx2 = document.getElementById('tipoChart').getContext('2d');
+        tipoChart = new Chart(ctx2, {
+            type: 'doughnut', data: { labels: ['Entradas', 'Saídas', 'Ajustes'], datasets: [{ data: [entradaTotal, saidaTotal, ajusteTotal], backgroundColor: ['#2a9d8f', '#e76f51', '#e9c46a'], borderWidth: 0 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.raw} unidades` } } } }
+        });
+    }
     
     // ==================== FILTROS ====================
     function aplicarFiltros() { carregarPaginaMovimentos(true); }
@@ -637,13 +686,20 @@
         if (inicio && fim) q = query(q, where('data', '>=', inicio + 'T00:00:00'), where('data', '<=', fim + 'T23:59:59'));
         if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
         if (produtoFilter) q = query(q, where('produtoId', '==', produtoFilter));
-        q = query(q, orderBy('data', 'desc'));
+        q = query(q, orderBy('data', 'desc'), limit(1000));
         const snap = await getDocs(q);
         let movimentos = snap.docs.map(d => d.data());
         const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
         if (searchTerm) {
+            // Carregar nomes dos produtos conforme necessário
+            await Promise.all(movimentos.map(async (m) => {
+                if (!produtosMap.has(m.produtoId) && m.produtoId) {
+                    const prodDoc = await getDoc(doc(db, 'produtos', m.produtoId));
+                    if (prodDoc.exists()) produtosMap.set(m.produtoId, prodDoc.data());
+                }
+            }));
             movimentos = movimentos.filter(m => {
-                const prod = produtosCache.find(p => p.id === m.produtoId);
+                const prod = produtosMap.get(m.produtoId);
                 return (prod?.nome || '').toLowerCase().includes(searchTerm) ||
                        (m.responsavel || '').toLowerCase().includes(searchTerm) ||
                        (m.motivo || '').toLowerCase().includes(searchTerm);
@@ -671,7 +727,7 @@
             doc.setTextColor(0,0,0); y += 10;
             for (const m of movimentos) {
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; }); y += 10; x = 14; doc.setTextColor(0,0,0); }
-                const prod = produtosCache.find(p => p.id === m.produtoId);
+                const prod = produtosMap.get(m.produtoId);
                 const dataFormatada = formatarDataHora(m.data).substring(0,16);
                 doc.text(dataFormatada, x+2, y+4); x += 35;
                 doc.text((prod?.nome || '-').substring(0,30), x+2, y+4); x += 50;
@@ -685,16 +741,6 @@
             doc.save(`movimento_estoque_${new Date().toISOString().split('T')[0]}.pdf`);
             showToast('PDF gerado!', 'success');
         } catch(e) { showToast('Erro ao gerar PDF', 'error'); }
-    }
-    
-    // ==================== SELECTS ====================
-    function atualizarSelects() {
-        const select = document.getElementById('movProdutoId');
-        const filterSelect = document.getElementById('produtoFilter');
-        const options = produtosCache.map(p => `<option value="${p.id}">${escapeHtml(p.nome)} (Estoque: ${p.estoque || 0})</option>`).join('');
-        select.innerHTML = '<option value="">Selecione</option>' + options;
-        filterSelect.innerHTML = '<option value="">Todos</option>' + options;
-        select.onchange = () => mostrarInfoEstoque(select.value);
     }
     
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
@@ -728,8 +774,10 @@
                 document.getElementById('trialAlert').style.display = 'none';
             }
             
-            await carregarProdutos();
+            await carregarProdutosParaSelect();
             await carregarPaginaMovimentos(true);
+            await updateStats();
+            await updateCharts();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {

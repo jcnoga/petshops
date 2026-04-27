@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Templates | Firebase + Firestore</title>
+    <title>PerShop - Módulo de Templates | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -31,8 +31,8 @@
         .btn-purple { background: linear-gradient(135deg, #6c5ce7, #5a4acf); color: white; }
         .btn-purple:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; cursor: pointer; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -114,13 +114,12 @@
         .btn-generate { background: linear-gradient(135deg, #6c5ce7, #5a4acf); color: white; margin-right: 8px; }
         .btn-generate:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(108,92,231,0.3); }
         .button-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } .info-row { flex-direction: column; } .info-value { text-align: left; margin-top: 5px; } .button-group { flex-direction: column; width: 100%; } }
-        .info-box { background: #e8f4f8; border-radius: 12px; padding: 12px; margin-bottom: 15px; font-size: 0.75rem; color: #1f5068; }
-        .info-box i { margin-right: 8px; color: #2c7da0; }
-        .test-options { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eef2f5; }
         .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
         .breadcrumb a { color: #2c7da0; text-decoration: none; }
         .breadcrumb a:hover { text-decoration: underline; }
+        @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } .info-row { flex-direction: column; } .info-value { text-align: left; margin-top: 5px; } .button-group { flex-direction: column; width: 100%; } }
+        .info-box { background: #e8f4f8; border-radius: 12px; padding: 12px; margin-bottom: 15px; font-size: 0.75rem; color: #1f5068; }
+        .test-options { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eef2f5; }
     </style>
 </head>
 <body>
@@ -136,11 +135,7 @@
     </div>
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
-
-    <div id="loadingScreen" class="loading-screen">
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>Carregando módulo de templates...</p>
-    </div>
+    <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo de templates...</p></div>
 
     <div id="blockedContent" class="acesso-bloqueado hidden">
         <i class="fas fa-lock"></i>
@@ -154,11 +149,11 @@
     <div id="conteudoPrincipal" style="display: none;">
         <!-- ========== STATS ========== -->
         <div class="stats-grid">
-            <div class="stat-card" onclick="aplicarFiltroTipo('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-file-alt"></i></div></div><div class="stat-value" id="totalTemplates">0</div><div class="stat-label">Total de Templates</div></div>
-            <div class="stat-card" onclick="aplicarFiltroAtivo('true')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="templatesAtivos">0</div><div class="stat-label">Templates Ativos</div></div>
-            <div class="stat-card" onclick="aplicarFiltroCanal('whatsapp')"><div class="stat-header"><div class="stat-icon"><i class="fab fa-whatsapp"></i></div></div><div class="stat-value" id="templatesWhatsApp">0</div><div class="stat-label">WhatsApp</div></div>
-            <div class="stat-card" onclick="aplicarFiltroCanal('email')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-envelope"></i></div></div><div class="stat-value" id="templatesEmail">0</div><div class="stat-label">E-mail</div></div>
-            <div class="stat-card" onclick="aplicarFiltroTipo('cliente_inativo')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-clock"></i></div></div><div class="stat-value" id="templatesInativos">0</div><div class="stat-label">Clientes Inativos</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-file-alt"></i></div></div><div class="stat-value" id="totalTemplates">0</div><div class="stat-label">Total de Templates</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="templatesAtivos">0</div><div class="stat-label">Templates Ativos</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fab fa-whatsapp"></i></div></div><div class="stat-value" id="templatesWhatsApp">0</div><div class="stat-label">WhatsApp</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-envelope"></i></div></div><div class="stat-value" id="templatesEmail">0</div><div class="stat-label">E-mail</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-clock"></i></div></div><div class="stat-value" id="templatesInativos">0</div><div class="stat-label">Clientes Inativos</div></div>
         </div>
 
         <!-- ========== TABS ========== -->
@@ -258,7 +253,7 @@
                 </div>
             </div>
             <div class="table-card">
-                <div class="table-header"><h3><i class="fas fa-list"></i> Templates Cadastrados</h3><div class="search-area"><input type="text" id="searchTemplate" placeholder="🔍 Buscar por nome..."><select id="tplCanalFilter"><option value="">Todos canais</option></select><select id="tplStatusFilter"><option value="">Todos status</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select><select id="tplTipoFilter"><option value="">Todos tipos</option><option value="lembrete">🔔 Lembrete</option><option value="promocao">🎉 Promoção</option><option value="confirmacao">✅ Confirmação</option><option value="cancelamento">❌ Cancelamento</option><option value="notificacao">📢 Notificação</option><option value="boas_vindas">👋 Boas Vindas</option><option value="aniversario_pet">🎂 Aniversário do Pet</option><option value="aniversario_cliente">🎂 Aniversário do Cliente</option><option value="cliente_inativo">⏰ Cliente Inativo</option><option value="outro">📌 Outro</option></select><button id="clearTemplateFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button><button id="exportTemplatesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
+                <div class="table-header"><h3><i class="fas fa-list"></i> Templates Cadastrados</h3><div class="search-area"><input type="text" id="searchTemplate" placeholder="🔍 Buscar por nome..."><select id="tplCanalFilter"><option value="">Todos canais</option></select><select id="tplStatusFilter"><option value="">Todos status</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select><select id="tplTipoFilter"><option value="">Todos tipos</option><option value="lembrete">🔔 Lembrete</option><option value="promocao">🎉 Promoção</option><option value="confirmacao">✅ Confirmação</option><option value="cancelamento">❌ Cancelamento</option><option value="notificacao">📢 Notificação</option><option value="boas_vindas">👋 Boas Vindas</option><option value="aniversario_pet">🎂 Aniversário do Pet</option><option value="aniversario_cliente">🎂 Aniversário do Cliente</option><option value="cliente_inativo">⏰ Cliente Inativo</option><option value="outro">📌 Outro</option></select><button id="clearTemplateFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button><button id="refreshTemplatesBtn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Atualizar</button><button id="exportTemplatesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
                 <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></tr></thead><tbody id="templatesTableBody"></tbody>}</div>
                 <div class="pagination" id="templatesPagination"></div>
             </div>
@@ -299,12 +294,14 @@
 </div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
+        orderBy, limit, startAfter, getCountFromServer 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatCurrency, carregarEmpresaUsuario, verificarAcessoAdmin,
-        verificarSuperAdmin, verificarStatusEmpresa, aplicarMascaraTelefone, formatarData
+        verificarSuperAdmin, verificarStatusEmpresa, aplicarMascaraTelefone
     } from './util.js';
 
     // ==================== CONSTANTES ====================
@@ -313,6 +310,9 @@
     let editingId = null;
     let currentPage = 1;
     const itemsPerPage = 10;
+    let lastVisibleDoc = null;
+    let totalTemplatesCount = 0;
+    let isLoading = false;
     let templatesCache = [];
     let canaisCache = [];
     let currentWhatsappTemplate = null;
@@ -351,153 +351,210 @@
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== CARREGAR DADOS ====================
-    async function carregarDadosEmpresa() {
-        if (!currentEmpresa) return;
+    // ==================== CARREGAR CANAIS (apenas para selects) ====================
+    async function carregarCanais() {
         const constraints = getConstraints();
-        const canaisSnap = await getDocs(query(collection(db, 'canais'), ...constraints));
-        canaisCache = canaisSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const templatesSnap = await getDocs(query(collection(db, 'templates'), ...constraints));
-        templatesCache = templatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const snap = await getDocs(query(collection(db, 'canais'), ...constraints, orderBy('nome', 'asc'), limit(100)));
+        canaisCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        atualizarSelectCanais();
     }
 
-    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
-    function gerarTemplateProfissional(tipo, canalTipo, gatilho) {
-        const empresa = currentEmpresa;
-        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
-        const empresaTelefone = empresa?.emp_whatsapp || '(34) 99782-4990';
-        const empresaEmail = empresa?.emp_email || 'contato@pershop.com';
-        const empresaEndereco = empresa?.emp_endereco || 'Rua Principal, 123';
-        const templates = {
-            cliente_inativo: {
-                whatsapp: `🐾 *${empresaNome} - Sentimos sua falta!* 🐾\n\nOlá {{cliente_nome}}! 👋\n\nJá fazem *{{dias_inativo}} dias* que você não visita nosso PetShop. Seu amigo {{pet_nome}} está com saudades!\n\n✨ *Novidades especiais para você:*\n• 15% de desconto em serviços para reativação\n• Produtos com preços especiais\n• Ambiente renovado e confortável\n\n📞 *Agende agora:* ${empresaTelefone}\n📍 *Onde estamos:* ${empresaEndereco}\n\n*Aguardamos ansiosamente por vocês!* 💙\n\n_${empresaNome} - Cuidando de quem você ama_`,
-                email: `**${empresaNome} - Sentimos sua falta!**\n\nOlá {{cliente_nome}},\n\nJá fazem {{dias_inativo}} dias que você não visita nosso PetShop. Seu amigo {{pet_nome}} está com saudades!\n\n**Novidades especiais para você:**\n- 15% de desconto em serviços para reativação\n- Produtos com preços especiais\n- Ambiente renovado e confortável\n\n**Como agendar:**\n- WhatsApp: ${empresaTelefone}\n- E-mail: ${empresaEmail}\n\nAtenciosamente,\n${empresaNome}`,
-                padrao: `Olá {{cliente_nome}}! Sentimos sua falta! Já fazem {{dias_inativo}} dias que você não visita nosso PetShop. Temos novidades especiais esperando por você e seu pet! 🐾 Entre em contato pelo WhatsApp ${empresaTelefone} e agende já! ${empresaNome}`
-            },
-            lembrete: {
-                whatsapp: `🔔 *${empresaNome} - LEMBRETE IMPORTANTE* 🔔\n\nOlá {{cliente_nome}}! Este é um lembrete sobre o pet *{{pet_nome}}*.\n\n📋 *Detalhes do agendamento:*\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n✂️ *Serviço:* {{servico}}\n💰 *Valor:* {{valor}}\n\n✅ *Confirme sua presença* respondendo com "CONFIRMADO".\n❌ *Cancelar/Remarcar:* {{link_cancelamento}}\n\n*Estamos à sua disposição!*\n${empresaNome} - ${empresaTelefone}`,
-                email: `**${empresaNome} - LEMBRETE IMPORTANTE**\n\nOlá {{cliente_nome}},\n\nEste é um lembrete sobre o pet **{{pet_nome}}**.\n\n**Detalhes do agendamento:**\n- Data: {{data}}\n- Hora: {{hora}}\n- Serviço: {{servico}}\n- Valor: {{valor}}\n\n**Confirme sua presença** clicando no link abaixo:\n🔗 Confirmar: {{link_confirmacao}}\n\nPara cancelar ou remarcar: {{link_cancelamento}}\n\nAtenciosamente,\n${empresaNome}`,
-                padrao: `🔔 LEMBRETE IMPORTANTE\nOlá {{cliente_nome}}! Este é um lembrete sobre o pet {{pet_nome}}. 📅 Data: {{data}} ⏰ Hora: {{hora}} ✂️ Serviço: {{servico}} Por favor, confirme sua presença. ${empresaNome}`
-            },
-            promocao: {
-                whatsapp: `🎉 *${empresaNome} - PROMOÇÃO IMPERDÍVEL!* 🎉\n\nOlá {{cliente_nome}}! 🐾\n\nAproveite nossa *oferta especial* para você e seu pet {{pet_nome}}:\n\n✨ *Ofertas válidas até 30/04/2026:*\n• 🔥 *20% OFF* em todos os serviços\n• 🛍️ *Compre 2 banhos, leve 1 tosa grátis*\n• 🎁 *Produtos com até 25% de desconto*\n• ✨ *Indique um amigo e ganhe 10% de desconto*\n\n📞 *Agende agora:* ${empresaTelefone}\n📍 *Visite-nos:* ${empresaEndereco}\n\n*Não perca essa chance!* 🎯\n\n${empresaNome}`,
-                email: `**${empresaNome} - PROMOÇÃO IMPERDÍVEL!**\n\nOlá {{cliente_nome}},\n\nAproveite nossa oferta especial para você e seu pet **{{pet_nome}}**!\n\n**Ofertas válidas até 30/04/2026:**\n- 20% OFF em todos os serviços\n- Compre 2 banhos, leve 1 tosa grátis\n- Produtos com até 25% de desconto\n- Indique um amigo e ganhe 10% de desconto\n\nAgende já pelo WhatsApp: ${empresaTelefone}\n\n${empresaNome}`,
-                padrao: `🎉 PROMOÇÃO ESPECIAL! Olá {{cliente_nome}}! Aproveite nossa oferta imperdível para seu pet! Desconto especial em todos os serviços! Agende já: ${empresaTelefone} ${empresaNome}`
-            },
-            confirmacao: {
-                whatsapp: `✅ *${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO* ✅\n\nOlá {{cliente_nome}}!\n\nSeu agendamento foi *confirmado com sucesso*!\n\n📋 *Detalhes do serviço:*\n🐕 *Pet:* {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n💰 *Valor:* {{valor}}\n👨‍⚕️ *Profissional:* {{profissional}}\n\n📍 *Endereço:* ${empresaEndereco}\n📞 *Contato:* ${empresaTelefone}\n\n🔗 *Cancelar/Remarcar:* {{link_cancelamento}}\n\n*Estamos ansiosos para receber vocês!* 🐾\n\n${empresaNome}`,
-                email: `**${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO**\n\nOlá {{cliente_nome}},\n\nSeu agendamento foi **confirmado com sucesso**!\n\n**Detalhes do serviço:**\n- Pet: {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n- Serviço: {{servico}}\n- Data: {{data}}\n- Hora: {{hora}}\n- Valor: {{valor}}\n- Profissional: {{profissional}}\n\n**Endereço:** ${empresaEndereco}\n**Contato:** ${empresaTelefone}\n\nPara cancelar ou remarcar: ${link_cancelamento}\n\n${empresaNome}`,
-                padrao: `✅ CONFIRMAÇÃO DE AGENDAMENTO\nOlá {{cliente_nome}}! Seu agendamento foi confirmado. Pet: {{pet_nome}}. Serviço: {{servico}}. Data: {{data}} às {{hora}}. ${empresaNome}`
-            },
-            cancelamento: {
-                whatsapp: `❌ *${empresaNome} - CANCELAMENTO DE AGENDAMENTO* ❌\n\nOlá {{cliente_nome}},\n\nInformamos que seu agendamento foi *cancelado* conforme solicitado.\n\n📋 *Detalhes do cancelamento:*\n🐕 *Pet:* {{pet_nome}}\n📅 *Data original:* {{data}}\n⏰ *Horário:* {{hora}}\n✂️ *Serviço:* {{servico}}\n\n🔗 *Remarcar agora:* {{link_confirmacao}}\n\n📞 *Dúvidas?* Fale conosco: ${empresaTelefone}\n\n*Estamos à disposição para um novo agendamento!* 💙\n\n${empresaNome}`,
-                padrao: `❌ CANCELAMENTO DE AGENDAMENTO\nOlá {{cliente_nome}}, informamos que seu agendamento do pet {{pet_nome}} para o dia {{data}} foi cancelado. Para remarcar, entre em contato. ${empresaNome}`
-            },
-            boas_vindas: {
-                whatsapp: `👋 *Bem-vindo(a) ao ${empresaNome}!* 🐾\n\nOlá {{cliente_nome}}! É uma imensa alegria tê-lo(a) conosco!\n\n✨ *Sobre nós:*\n• 🛁 Banho e tosa especializado\n• 🩺 Consultas veterinárias\n• 🛍️ Produtos de qualidade\n• 🏠 Hospedagem confortável\n• 💅 Estética animal\n\n🎁 *Como cortesia de boas-vindas, ganhe 10% OFF* na primeira visita!\n\n📞 *Fale conosco:* ${empresaTelefone}\n📍 *Visite-nos:* ${empresaEndereco}\n\n*Seu pet merece o melhor!* 🌟\n\n${empresaNome}`,
-                padrao: `👋 Bem-vindo(a) ao ${empresaNome}! Olá {{cliente_nome}}! É um prazer tê-lo(a) conosco. Estamos à disposição para cuidar do seu pet com todo carinho. ${empresaNome}`
-            },
-            aniversario_pet: {
-                whatsapp: `🎂 *${empresaNome} - FELIZ ANIVERSÁRIO, {{pet_nome}}!* 🎂\n\nOlá {{cliente_nome}}!\n\n🎉 *Hoje é um dia muito especial!* 🎉\n\nParabéns ao seu pet *{{pet_nome}}* que está completando mais um ano de vida! 🐾\n\n✨ *Como presente, ganhe 20% de desconto* em qualquer serviço para comemorar esta data especial!\n\n📞 *Agende:* ${empresaTelefone}\n⏰ *Válido:* Hoje e amanhã\n\n*Muitas felicidades ao seu amigão!* 🥳\n\n${empresaNome}`,
-                email: `**${empresaNome} - FELIZ ANIVERSÁRIO!**\n\nOlá {{cliente_nome}},\n\nHoje é um dia muito especial! Parabéns ao seu pet **{{pet_nome}}** que está completando mais um ano de vida! 🐾\n\nComo presente, ganhe **20% de desconto** em qualquer serviço para comemorar esta data!\n\nAgende já pelo WhatsApp: ${empresaTelefone}\n\n${empresaNome}`,
-                padrao: `🎂 FELIZ ANIVERSÁRIO, {{pet_nome}}! Olá {{cliente_nome}}! Hoje é um dia especial! Parabéns ao seu pet! Traga-o para comemorar com um desconto especial! ${empresaNome}`
-            },
-            aniversario_cliente: {
-                whatsapp: `🎂 *${empresaNome} - FELIZ ANIVERSÁRIO, {{cliente_nome}}!* 🎂\n\nOlá {{cliente_nome}}! 🎉\n\nHoje é um dia muito especial - é o SEU aniversário! 🥳\n\nEm comemoração a esta data tão importante, queremos presentear você e seu pet {{pet_nome}} com:\n\n✨ *20% de desconto* em qualquer serviço!\n🎁 *Brinde especial* para seu pet!\n\n📞 *Agende sua visita:* ${empresaTelefone}\n⏰ *Válido:* Hoje e amanhã\n\n*Parabéns e muitas felicidades!* 🎊\n\n${empresaNome}`,
-                email: `**${empresaNome} - FELIZ ANIVERSÁRIO!**\n\nOlá {{cliente_nome}},\n\nHoje é um dia muito especial - é o SEU aniversário! 🎉\n\nEm comemoração a esta data tão importante, queremos presentear você e seu pet **{{pet_nome}}** com:\n- 20% de desconto em qualquer serviço\n- Brinde especial para seu pet\n\nAgende sua visita pelo WhatsApp: ${empresaTelefone}\n\n*Parabéns e muitas felicidades!*\n\n${empresaNome}`,
-                padrao: `🎂 FELIZ ANIVERSÁRIO, {{cliente_nome}}! Olá {{cliente_nome}}! Hoje é um dia especial - é o seu aniversário! Venha comemorar conosco e ganhe um desconto especial! ${empresaNome}`
-            },
-            notificacao: {
-                whatsapp: `📢 *${empresaNome} - NOVIDADES EXCLUSIVAS* 📢\n\nOlá {{cliente_nome}}! Temos novidades para você e seu pet {{pet_nome}}!\n\n✨ *Novidades que preparamos:*\n• 🆕 Nova linha de produtos naturais\n• 🏢 Espaço de convivência ampliado\n• 👨‍⚕️ Novos profissionais especializados\n• 🎯 Programa de fidelidade\n\n📞 *Saiba mais:* ${empresaTelefone}\n🌐 *Site:* www.pershop.com\n\n*Seu pet merece o melhor!* 💙\n\n${empresaNome}`,
-                padrao: `📢 NOVIDADES! Olá {{cliente_nome}}! Temos novidades para você e seu pet! Entre em contato para saber mais! ${empresaNome}`
-            }
-        };
-        const key = tipo;
-        const t = templates[key];
-        if (!t) return '';
-        if (canalTipo === 'whatsapp' && t.whatsapp) return t.whatsapp;
-        if (canalTipo === 'email' && t.email) return t.email;
-        return t.padrao || '';
+    function atualizarSelectCanais() {
+        const options = canaisCache.filter(c => c.ativo).map(c => `<option value="${c.id}" data-canal="${c.canal}" data-provedor="${c.provedor || ''}">${escapeHtml(c.nome)} (${c.canal === 'whatsapp' ? 'WhatsApp' : (c.canal === 'email' ? 'E-mail' : 'SMS')})</option>`).join('');
+        const select = document.getElementById('tplCanalId');
+        if (select) select.innerHTML = '<option value="">Selecione um canal</option>' + options;
+        const filterSelect = document.getElementById('tplCanalFilter');
+        if (filterSelect) filterSelect.innerHTML = '<option value="">Todos canais</option>' + options;
+        if (select) select.onchange = () => atualizarProvedorPorCanal();
     }
-    function gerarTituloProfissional(tipo) {
-        const empresa = currentEmpresa;
-        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
-        const titulos = {
-            cliente_inativo: `🌟 ${empresaNome} - Sentimos sua falta! 🌟`,
-            lembrete: `🔔 ${empresaNome} - Lembrete Importante`,
-            promocao: `🎉 ${empresaNome} - Promoção Especial! 🎉`,
-            confirmacao: `✅ ${empresaNome} - Confirmação de Agendamento`,
-            cancelamento: `❌ ${empresaNome} - Cancelamento de Agendamento`,
-            boas_vindas: `👋 ${empresaNome} - Bem-vindo! 🐾`,
-            aniversario_pet: `🎂 ${empresaNome} - Feliz Aniversário, Pet! 🎂`,
-            aniversario_cliente: `🎂 ${empresaNome} - Feliz Aniversário! 🎂`,
-            notificacao: `📢 ${empresaNome} - Novidades Exclusivas`
-        };
-        return titulos[tipo] || `${empresaNome} - Mensagem`;
-    }
-    function gerarMensagemManual() {
-        const tipo = document.getElementById('tplTipo').value;
+
+    function atualizarProvedorPorCanal() {
         const canalId = document.getElementById('tplCanalId').value;
-        if (!tipo) { showToast('Selecione o tipo de template!', 'warning'); return; }
-        if (!canalId) { showToast('Selecione o canal!', 'warning'); return; }
         const canal = canaisCache.find(c => c.id === canalId);
-        const canalTipo = canal?.canal || 'padrao';
-        const novaMensagem = gerarTemplateProfissional(tipo, canalTipo, '');
-        if (novaMensagem) {
-            document.getElementById('tplMensagem').value = novaMensagem;
-            atualizarPreview();
-            showToast('Template profissional gerado!', 'success');
-        } else {
-            showToast('Não foi possível gerar o template.', 'error');
-        }
-        const novoTitulo = gerarTituloProfissional(tipo);
-        if (novoTitulo && !document.getElementById('tplTitulo').value) {
-            document.getElementById('tplTitulo').value = novoTitulo;
+        const provedorInput = document.getElementById('tplProvedor');
+        if (provedorInput) provedorInput.value = canal?.provedor || '';
+    }
+
+    // ==================== PAGINAÇÃO REAL DE TEMPLATES ====================
+    async function carregarPaginaTemplates(reset = true) {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            if (reset) {
+                currentPage = 1;
+                lastVisibleDoc = null;
+                templatesCache = [];
+            }
+            const constraints = getConstraints();
+            let q = query(collection(db, 'templates'), ...constraints);
+            
+            // Aplicar filtros diretamente na query
+            const statusFilter = document.getElementById('tplStatusFilter')?.value || '';
+            if (statusFilter) {
+                q = query(q, where('ativo', '==', (statusFilter === 'true')));
+            }
+            const tipoFilter = document.getElementById('tplTipoFilter')?.value || '';
+            if (tipoFilter) {
+                q = query(q, where('tipo', '==', tipoFilter));
+            }
+            const canalFilter = document.getElementById('tplCanalFilter')?.value || '';
+            if (canalFilter) {
+                q = query(q, where('canal_id', '==', canalFilter));
+            }
+            // Busca por nome (prefixo)
+            const searchTerm = document.getElementById('searchTemplate')?.value.trim() || '';
+            if (searchTerm) {
+                const endPrefix = searchTerm + '\uf8ff';
+                q = query(q, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
+            }
+            
+            q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
+            if (lastVisibleDoc) {
+                q = query(q, startAfter(lastVisibleDoc));
+            }
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if (reset) templatesCache = novos;
+            else templatesCache = [...templatesCache, ...novos];
+            lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
+            
+            // Contagem total
+            if (reset) {
+                let countQuery = query(collection(db, 'templates'), ...constraints);
+                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
+                if (tipoFilter) countQuery = query(countQuery, where('tipo', '==', tipoFilter));
+                if (canalFilter) countQuery = query(countQuery, where('canal_id', '==', canalFilter));
+                if (searchTerm) {
+                    const endPrefix = searchTerm + '\uf8ff';
+                    countQuery = query(countQuery, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
+                }
+                const countSnap = await getCountFromServer(countQuery);
+                totalTemplatesCount = countSnap.data().count;
+            }
+            
+            renderTemplates();
+            atualizarPaginacao();
+            updateStats();
+        } catch (error) {
+            console.error("Erro ao carregar templates:", error);
+            showToast("Erro ao carregar templates. Verifique índices.", "error");
+        } finally {
+            isLoading = false;
         }
     }
 
-    // ==================== CRUD TEMPLATES ====================
-    async function addTemplate(data) {
-        if (templatesCache.some(t => t.nome.toLowerCase() === data.nome.toLowerCase())) {
-            showToast('Já existe um template com este nome!', 'error'); return false;
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalTemplatesCount / itemsPerPage);
+        const paginationDiv = document.getElementById('templatesPagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToTemplatePage(1)" ${currentPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToTemplatePage(${i})">${i}</button>`;
         }
-        const newDoc = {
-            ...data,
-            empresaId: currentEmpresa.id,
-            criado_em: new Date().toISOString(),
-            atualizado_em: new Date().toISOString(),
-            criado_por: currentUser.uid
-        };
-        const docRef = await addDoc(collection(db, 'templates'), newDoc);
-        newDoc.id = docRef.id;
-        templatesCache.unshift(newDoc);
+        html += `<button class="page-btn" onclick="goToTemplatePage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
+    }
+
+    window.goToTemplatePage = async function(page) {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaTemplates(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarPaginaTemplates(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarPaginaTemplates(false);
+                currentPage++;
+            }
+        }
         renderTemplates();
-        updateStats();
-        showToast('Template criado com sucesso!', 'success');
+        atualizarPaginacao();
+    };
+
+    function renderTemplates() {
+        const tbody = document.getElementById('templatesTableBody');
+        if (!tbody) return;
+        if (templatesCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px;">Nenhum template encontrado</td><\/tr>';
+            return;
+        }
+        const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
+        const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
+        tbody.innerHTML = templatesCache.map(t => {
+            const canal = canaisCache.find(c => c.id === t.canal_id);
+            const statusClass = t.ativo ? 'status-ativo' : 'status-inativo';
+            const isWhatsApp = canal?.canal === 'whatsapp';
+            return `<tr>
+                <td><strong>${escapeHtml(t.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(t.titulo || '')}</span></td>
+                <td>${canal?.canal === 'whatsapp' ? '<i class="fab fa-whatsapp"></i>' : (canal?.canal === 'email' ? '<i class="fas fa-envelope"></i>' : '<i class="fas fa-sms"></i>')} ${escapeHtml(canal?.nome || '-')}<br><span style="font-size:0.6rem;">${escapeHtml(t.provedor || canal?.provedor || '')}</span></td>
+                <td>${tipoLabels[t.tipo] || t.tipo || '-'}</td>
+                <td><span class="badge" style="background:#2c7da020;">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></td>
+                <td><span class="status-badge ${statusClass}">${t.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td>${t.automatico ? '<span class="badge" style="background:#2a9d8f20; color:#2a9d8f;"><i class="fas fa-robot"></i> Auto</span>' : '<span class="badge" style="background:#e9c46a20; color:#e9c46a;"><i class="fas fa-user"></i> Manual</span>'}</td>
+                <td class="action-buttons">
+                    <button class="action-btn view" onclick="viewTemplate('${t.id}')"><i class="fas fa-eye"></i></button>
+                    <button class="action-btn edit" onclick="editTemplate('${t.id}')"><i class="fas fa-edit"></i></button>
+                    ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
+                    <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </tr>`;
+        }).join('');
+    }
+
+    // ==================== ESTATÍSTICAS ====================
+    async function updateStats() {
+        const constraints = getConstraints();
+        const totalSnap = await getCountFromServer(query(collection(db, 'templates'), ...constraints));
+        document.getElementById('totalTemplates').innerText = totalSnap.data().count;
+        const ativosSnap = await getCountFromServer(query(collection(db, 'templates'), ...constraints, where('ativo', '==', true)));
+        document.getElementById('templatesAtivos').innerText = ativosSnap.data().count;
+        const clienteInativoSnap = await getCountFromServer(query(collection(db, 'templates'), ...constraints, where('tipo', '==', 'cliente_inativo')));
+        document.getElementById('templatesInativos').innerText = clienteInativoSnap.data().count;
+        let whatsappCount = 0, emailCount = 0;
+        const allTemplates = await getDocs(query(collection(db, 'templates'), ...constraints, limit(500)));
+        allTemplates.docs.forEach(doc => {
+            const t = doc.data();
+            const canal = canaisCache.find(c => c.id === t.canal_id);
+            if (canal) {
+                if (canal.canal === 'whatsapp') whatsappCount++;
+                if (canal.canal === 'email') emailCount++;
+            }
+        });
+        document.getElementById('templatesWhatsApp').innerText = whatsappCount;
+        document.getElementById('templatesEmail').innerText = emailCount;
+    }
+
+    // ==================== FUNÇÕES DE CRUD ====================
+    async function addTemplate(data) {
+        const constraints = getConstraints();
+        const nomeExistente = await getDocs(query(collection(db, 'templates'), ...constraints, where('nome', '==', data.nome), limit(1)));
+        if (!nomeExistente.empty) { showToast('Já existe um template com este nome!', 'error'); return false; }
+        const newDoc = { ...data, empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString(), criado_por: currentUser.uid };
+        await addDoc(collection(db, 'templates'), newDoc);
+        showToast('Template criado!', 'success');
+        await carregarPaginaTemplates(true);
+        await updateStats();
         return true;
     }
     async function updateTemplate(id, updates) {
-        const old = templatesCache.find(t => t.id === id);
-        if (updates.nome && updates.nome.toLowerCase() !== old?.nome.toLowerCase() && templatesCache.some(t => t.nome.toLowerCase() === updates.nome.toLowerCase() && t.id !== id)) {
-            showToast('Já existe um template com este nome!', 'error'); return false;
-        }
         await updateDoc(doc(db, 'templates', id), { ...updates, atualizado_em: new Date().toISOString() });
-        const idx = templatesCache.findIndex(t => t.id === id);
-        if (idx !== -1) templatesCache[idx] = { ...templatesCache[idx], ...updates };
-        renderTemplates();
-        updateStats();
         showToast('Template atualizado!', 'success');
+        await carregarPaginaTemplates(true);
+        await updateStats();
         return true;
     }
     async function deleteTemplate(id) {
-        if (confirm('Excluir template? Esta ação não pode ser desfeita.')) {
+        if (confirm('Excluir template?')) {
             await deleteDoc(doc(db, 'templates', id));
-            templatesCache = templatesCache.filter(t => t.id !== id);
-            renderTemplates();
-            updateStats();
             showToast('Template excluído!', 'success');
+            await carregarPaginaTemplates(true);
+            await updateStats();
         }
     }
+    window.deleteTemplate = deleteTemplate;
 
     // ==================== FORMULÁRIO ====================
     function getTemplateForm() {
@@ -516,7 +573,7 @@
     }
     function validarFormulario() {
         const nome = document.getElementById('tplNome').value.trim();
-        if (!nome) { showToast('Nome do template é obrigatório!', 'error'); return false; }
+        if (!nome) { showToast('Nome é obrigatório!', 'error'); return false; }
         const canalId = document.getElementById('tplCanalId').value;
         if (!canalId) { showToast('Selecione um canal!', 'error'); return false; }
         const mensagem = document.getElementById('tplMensagem').value.trim();
@@ -534,28 +591,25 @@
         document.getElementById('tplAtivo').value = 'true';
         document.getElementById('tplAutomatico').value = 'true';
         document.getElementById('tplMensagem').value = '';
-        if (document.getElementById('previewMessage')) document.getElementById('previewMessage').innerHTML = '';
+        document.getElementById('previewMessage').innerHTML = '';
         editingId = null;
-        const cancelBtn = document.getElementById('cancelTemplateBtn');
-        if (cancelBtn) cancelBtn.style.display = 'none';
+        document.getElementById('cancelTemplateBtn').style.display = 'none';
         const saveBtn = document.getElementById('saveTemplateBtn');
-        if (saveBtn) {
-            saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Template';
-            saveBtn.classList.remove('btn-success');
-            saveBtn.classList.add('btn-primary');
-        }
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Template';
+        saveBtn.classList.remove('btn-success');
+        saveBtn.classList.add('btn-primary');
     }
-    function fillForm(template) {
-        document.getElementById('tplNome').value = template.nome || '';
-        document.getElementById('tplCanalId').value = template.canal_id || '';
-        document.getElementById('tplProvedor').value = template.provedor || '';
-        document.getElementById('tplTipo').value = template.tipo || '';
-        document.getElementById('tplGatilho').value = template.gatilho || '';
-        document.getElementById('tplTitulo').value = template.titulo || '';
-        document.getElementById('tplDiasAntecedencia').value = template.dias_antecedencia || 0;
-        document.getElementById('tplAtivo').value = template.ativo ? 'true' : 'false';
-        document.getElementById('tplAutomatico').value = template.automatico ? 'true' : 'false';
-        document.getElementById('tplMensagem').value = template.mensagem || '';
+    function fillForm(t) {
+        document.getElementById('tplNome').value = t.nome || '';
+        document.getElementById('tplCanalId').value = t.canal_id || '';
+        document.getElementById('tplProvedor').value = t.provedor || '';
+        document.getElementById('tplTipo').value = t.tipo || '';
+        document.getElementById('tplGatilho').value = t.gatilho || '';
+        document.getElementById('tplTitulo').value = t.titulo || '';
+        document.getElementById('tplDiasAntecedencia').value = t.dias_antecedencia || 0;
+        document.getElementById('tplAtivo').value = t.ativo ? 'true' : 'false';
+        document.getElementById('tplAutomatico').value = t.automatico ? 'true' : 'false';
+        document.getElementById('tplMensagem').value = t.mensagem || '';
         atualizarPreview();
     }
     async function salvarTemplate() {
@@ -570,130 +624,150 @@
     // ==================== PREVIEW ====================
     function atualizarPreview() {
         const previewDiv = document.getElementById('previewMessage');
-        if (!previewDiv) return;
         const mensagem = document.getElementById('tplMensagem').value;
         if (!mensagem) { previewDiv.innerHTML = '<span style="color:#7a9eb0;">A mensagem aparecerá aqui...</span>'; return; }
         let preview = mensagem;
-        const exemplos = {
-            '{{pet_nome}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">Rex</span>',
-            '{{cliente_nome}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">João Silva</span>',
-            '{{data}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">25/04/2026</span>',
-            '{{hora}}': '<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">14:30</span>',
-            '{{dias_inativo}}': '<span style="background:#e76f5120; padding:2px 8px; border-radius:12px; color:#e76f51;">60 dias</span>'
-        };
-        for (const [variavel, exemplo] of Object.entries(exemplos)) {
-            preview = preview.split(variavel).join(exemplo);
-        }
+        const exemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{dias_inativo}}':'60 dias' };
+        for (const [k,v] of Object.entries(exemplos)) preview = preview.split(k).join(`<span style="background:#e8f4f8; padding:2px 6px; border-radius:12px;">${v}</span>`);
         preview = preview.replace(/\n/g, '<br>');
         previewDiv.innerHTML = preview;
     }
     function inserirVariavel(variavel) {
         const textarea = document.getElementById('tplMensagem');
-        if (!textarea) return;
         const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
         const text = textarea.value;
-        const newText = text.substring(0, start) + variavel + text.substring(end);
+        const newText = text.substring(0, start) + variavel + text.substring(start);
         textarea.value = newText;
         textarea.focus();
-        textarea.setSelectionRange(start + variavel.length, start + variavel.length);
         atualizarPreview();
-        showToast(`Variável ${variavel} inserida!`, 'success');
     }
 
-    // ==================== ATUALIZAR PROVEDOR ====================
-    function atualizarProvedorPorCanal() {
+    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
+    function gerarTemplateProfissional(tipo, canalTipo) {
+        const empresa = currentEmpresa;
+        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
+        const empresaTelefone = empresa?.emp_whatsapp || '(34) 99782-4990';
+        const empresaEndereco = empresa?.emp_endereco || 'Rua Principal, 123';
+        const templates = {
+            cliente_inativo: { whatsapp: `🐾 *${empresaNome} - Sentimos sua falta!* 🐾\nOlá {{cliente_nome}}! Já fazem *{{dias_inativo}} dias* que você não nos visita. Temos novidades!`, padrao: `Olá {{cliente_nome}}! Sentimos sua falta! Já fazem {{dias_inativo}} dias...` },
+            lembrete: { whatsapp: `🔔 *LEMBRETE* - {{pet_nome}} | {{data}} às {{hora}}`, padrao: `Lembrete: {{pet_nome}} em {{data}}` },
+            promocao: { whatsapp: `🎉 *PROMOÇÃO* - 20% OFF para {{pet_nome}}!`, padrao: `Promoção especial para {{pet_nome}}!` }
+        };
+        const t = templates[tipo] || templates.lembrete;
+        return (canalTipo === 'whatsapp' && t.whatsapp) ? t.whatsapp : t.padrao;
+    }
+    function gerarTituloProfissional(tipo) {
+        const empresa = currentEmpresa;
+        const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
+        const titulos = { cliente_inativo: `🌟 ${empresaNome} - Sentimos sua falta!`, lembrete: `🔔 ${empresaNome} - Lembrete`, promocao: `🎉 ${empresaNome} - Promoção`, confirmacao: `✅ ${empresaNome} - Confirmação` };
+        return titulos[tipo] || `${empresaNome} - Mensagem`;
+    }
+    function gerarMensagemManual() {
+        const tipo = document.getElementById('tplTipo').value;
         const canalId = document.getElementById('tplCanalId').value;
+        if (!tipo) { showToast('Selecione o tipo de template!', 'warning'); return; }
+        if (!canalId) { showToast('Selecione o canal!', 'warning'); return; }
         const canal = canaisCache.find(c => c.id === canalId);
-        const provedorInput = document.getElementById('tplProvedor');
-        if (provedorInput) provedorInput.value = canal?.provedor || '';
-    }
-
-    // ==================== RENDER ====================
-    function renderTemplates() {
-        const tbody = document.getElementById('templatesTableBody');
-        if (!tbody) {
-            console.error('Elemento templatesTableBody não encontrado');
-            return;
+        const novaMsg = gerarTemplateProfissional(tipo, canal?.canal);
+        if (novaMsg) {
+            document.getElementById('tplMensagem').value = novaMsg;
+            atualizarPreview();
+            showToast('Template profissional gerado!', 'success');
         }
-        let filtered = templatesCache.filter(t => {
-            const searchInput = document.getElementById('searchTemplate');
-            const canalFilter = document.getElementById('tplCanalFilter');
-            const statusFilter = document.getElementById('tplStatusFilter');
-            const tipoFilter = document.getElementById('tplTipoFilter');
-            const search = searchInput?.value.toLowerCase() || '';
-            const canalFilterValue = canalFilter?.value || '';
-            const statusFilterValue = statusFilter?.value || '';
-            const tipoFilterValue = tipoFilter?.value || '';
-            return (!search || t.nome.toLowerCase().includes(search)) &&
-                   (!canalFilterValue || t.canal_id === canalFilterValue) &&
-                   (!statusFilterValue || (t.ativo ? 'true' : 'false') === statusFilterValue) &&
-                   (!tipoFilterValue || t.tipo === tipoFilterValue);
-        });
-        const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-        const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-        if (paginated.length === 0) {
-            tbody.innerHTML = '</td><td colspan="7" style="text-align:center; padding:40px;">Nenhum template encontrado</td><tr>';
-            const paginationDiv = document.getElementById('templatesPagination');
-            if (paginationDiv) paginationDiv.innerHTML = '';
-            return;
-        }
-        tbody.innerHTML = paginated.map(t => {
-            const canal = canaisCache.find(c => c.id === t.canal_id);
-            const statusClass = t.ativo ? 'status-ativo' : 'status-inativo';
-            const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
-            const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
-            const isWhatsApp = canal?.canal === 'whatsapp';
-            return `<tr>
-                <td><strong>${escapeHtml(t.nome)}</strong><br><span style="font-size:0.65rem; color:#7a9eb0;">${escapeHtml(t.titulo || '')}</span></td>
-                <td>${canal?.canal === 'whatsapp' ? '<i class="fab fa-whatsapp"></i>' : (canal?.canal === 'email' ? '<i class="fas fa-envelope"></i>' : '<i class="fas fa-sms"></i>')} ${escapeHtml(canal?.nome || '-')}<br><span style="font-size:0.6rem;">${escapeHtml(t.provedor || canal?.provedor || '')}</span></td>
-                <td>${tipoLabels[t.tipo] || t.tipo || '-'}</td>
-                <td><span class="badge" style="background:#2c7da020;">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></td>
-                <td><span class="status-badge ${statusClass}">${t.ativo ? 'Ativo' : 'Inativo'}</span></td>
-                <td>${t.automatico ? '<span class="badge" style="background:#2a9d8f20; color:#2a9d8f;"><i class="fas fa-robot"></i> Auto</span>' : '<span class="badge" style="background:#e9c46a20; color:#e9c46a;"><i class="fas fa-user"></i> Manual</span>'}</td>
-                <td class="action-buttons">
-                    <button class="action-btn view" onclick="viewTemplate('${t.id}')"><i class="fas fa-eye"></i></button>
-                    <button class="action-btn edit" onclick="editTemplate('${t.id}')"><i class="fas fa-edit"></i></button>
-                    ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
-                    <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
-                 </div>
-             </tr>`;
-        }).join('');
-        const paginationDiv = document.getElementById('templatesPagination');
-        if (paginationDiv) {
-            let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
-            for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-            pagHtml += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-            paginationDiv.innerHTML = pagHtml;
+        const novoTitulo = gerarTituloProfissional(tipo);
+        if (novoTitulo && !document.getElementById('tplTitulo').value) {
+            document.getElementById('tplTitulo').value = novoTitulo;
         }
     }
-    function goToPage(page) { currentPage = page; renderTemplates(); }
 
-    function updateStats() {
-        const totalSpan = document.getElementById('totalTemplates');
-        if (totalSpan) totalSpan.innerText = templatesCache.length;
-        const ativosSpan = document.getElementById('templatesAtivos');
-        if (ativosSpan) ativosSpan.innerText = templatesCache.filter(t => t.ativo).length;
-        const inativosSpan = document.getElementById('templatesInativos');
-        if (inativosSpan) inativosSpan.innerText = templatesCache.filter(t => t.tipo === 'cliente_inativo').length;
-        let whatsappCount = 0, emailCount = 0;
-        templatesCache.forEach(t => {
-            const canal = canaisCache.find(c => c.id === t.canal_id);
-            if (canal) {
-                if (canal.canal === 'whatsapp') whatsappCount++;
-                if (canal.canal === 'email') emailCount++;
-            }
-        });
-        const whatsappSpan = document.getElementById('templatesWhatsApp');
-        if (whatsappSpan) whatsappSpan.innerText = whatsappCount;
-        const emailSpan = document.getElementById('templatesEmail');
-        if (emailSpan) emailSpan.innerText = emailCount;
+    // ==================== VIEW / EDIT / TESTE WHATSAPP ====================
+    window.viewTemplate = function(id) {
+        const t = templatesCache.find(t => t.id === id);
+        if (!t) return;
+        const canal = canaisCache.find(c => c.id === t.canal_id);
+        const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
+        const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
+        document.getElementById('modalBody').innerHTML = `
+            <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(t.nome)}</span></div>
+            <div class="info-row"><span class="info-label">Canal:</span><span class="info-value">${escapeHtml(canal?.nome || '-')} (${canal?.canal || '-'})</span></div>
+            <div class="info-row"><span class="info-label">Provedor:</span><span class="info-value">${escapeHtml(t.provedor || canal?.provedor || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${tipoLabels[t.tipo] || t.tipo || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Gatilho:</span><span class="info-value">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></div>
+            <div class="info-row"><span class="info-label">Título:</span><span class="info-value">${escapeHtml(t.titulo || '-')}</span></div>
+            <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${t.ativo ? 'Ativo' : 'Inativo'}</span></div>
+            <div class="info-row"><span class="info-label">Automático:</span><span class="info-value">${t.automatico ? 'Sim' : 'Não'}</span></div>
+            <div class="info-row"><span class="info-label">Mensagem:</span><span class="info-value"><div class="preview-message" style="white-space:pre-wrap;">${escapeHtml(t.mensagem || '-')}</div></span></div>
+        `;
+        document.getElementById('viewModal').style.display = 'flex';
+    };
+    window.editTemplate = function(id) {
+        const t = templatesCache.find(t => t.id === id);
+        if (t) { fillForm(t); editingId = id; document.getElementById('cancelTemplateBtn').style.display = 'inline-block'; const saveBtn = document.getElementById('saveTemplateBtn'); saveBtn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Template'; saveBtn.classList.remove('btn-primary'); saveBtn.classList.add('btn-success'); document.querySelector('.tab-btn[data-tab="templates"]').click(); window.scrollTo({ top: 0 }); }
+    };
+    function abrirWhatsappTeste(templateId) {
+        const t = templatesCache.find(t => t.id === templateId);
+        if (!t) return;
+        currentWhatsappTemplate = t;
+        let previewMsg = t.mensagem;
+        const exemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{empresa_nome}}':currentEmpresa?.emp_razao_social || 'PetShop Central', '{{empresa_telefone}}':currentEmpresa?.emp_whatsapp || '(34) 99782-4990' };
+        for (const [k,v] of Object.entries(exemplos)) previewMsg = previewMsg.split(k).join(v);
+        document.getElementById('whatsappTestMessage').value = previewMsg;
+        document.getElementById('whatsappTestNumber').value = '';
+        document.getElementById('whatsappTestModal').style.display = 'flex';
     }
+    function fecharWhatsappModal() { document.getElementById('whatsappTestModal').style.display = 'none'; currentWhatsappTemplate = null; }
+    function formatarNumeroWhatsApp(numero) {
+        let limp = numero.replace(/\D/g, '');
+        if (limp.length === 10) limp = limp.substring(0,2) + '9' + limp.substring(2);
+        if (!limp.startsWith('55')) limp = '55' + limp;
+        return limp;
+    }
+    function enviarWhatsappTeste() {
+        if (!currentWhatsappTemplate) return;
+        const numero = document.getElementById('whatsappTestNumber').value;
+        if (!numero) { showToast('Digite um número de telefone!', 'error'); return; }
+        const mensagem = document.getElementById('whatsappTestMessage').value;
+        window.open(`https://wa.me/${formatarNumeroWhatsApp(numero)}?text=${encodeURIComponent(mensagem)}`, '_blank');
+        showToast('Abrindo WhatsApp...', 'success');
+        setTimeout(() => fecharWhatsappModal(), 1000);
+    }
+    window.abrirWhatsappTeste = abrirWhatsappTeste;
+    window.fecharWhatsappModal = fecharWhatsappModal;
+    window.enviarWhatsappTeste = enviarWhatsappTeste;
 
-    // ==================== EXPORTAR PDF ====================
+    // ==================== VARIÁVEIS ====================
+    function renderVariaveis() {
+        const search = document.getElementById('searchVariavel')?.value.toLowerCase() || '';
+        let variaveis = VARIAVEIS_DISPONIVEIS.filter(v => !search || v.nome.includes(search) || v.descricao.includes(search) || v.categoria.includes(search));
+        const categorias = {};
+        variaveis.forEach(v => { if (!categorias[v.categoria]) categorias[v.categoria] = []; categorias[v.categoria].push(v); });
+        let html = '';
+        for (const [cat, items] of Object.entries(categorias)) {
+            html += `<div style="grid-column:1/-1; margin-top:10px;"><h3 style="color:#1f5068; border-left:3px solid #2c7da0; padding-left:10px;">${cat}</h3><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:10px;">`;
+            items.forEach(v => {
+                html += `<div style="background:#f8fbfd; border-radius:12px; padding:12px; border:1px solid #e2edf2; cursor:pointer;" onclick="copiarVariavel('{{${v.nome}}}')">
+                            <code style="background:#2c7da0; color:white; padding:2px 8px; border-radius:12px;">{{${v.nome}}}</code>
+                            <p style="font-size:0.75rem; margin-top:5px;">${escapeHtml(v.descricao)}</p>
+                            <small>Ex: ${escapeHtml(v.exemplo)}</small>
+                         </div>`;
+            });
+            html += `</div></div>`;
+        }
+        document.getElementById('variaveisList').innerHTML = html || '<div style="text-align:center; padding:40px;">Nenhuma variável encontrada</div>';
+    }
+    window.copiarVariavel = (variavel) => { navigator.clipboard.writeText(variavel); showToast(`Variável ${variavel} copiada!`, 'success'); };
+
+    // ==================== FILTROS ====================
+    function clearTemplateFilters() {
+        document.getElementById('searchTemplate').value = '';
+        document.getElementById('tplCanalFilter').value = '';
+        document.getElementById('tplStatusFilter').value = '';
+        document.getElementById('tplTipoFilter').value = '';
+        carregarPaginaTemplates(true);
+        showToast('Filtros limpos!', 'success');
+    }
     async function exportTemplatesPDF() {
-        if (templatesCache.length === 0) { showToast('Não há templates para exportar!', 'error'); return; }
+        if (totalTemplatesCount === 0) { showToast('Não há templates para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -701,354 +775,98 @@
             doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Templates', 14, 20);
             doc.setFontSize(10); doc.text(`Empresa: ${currentEmpresa?.emp_razao_social || 'Empresa'}`, 14, 30);
             doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 38);
-            doc.text(`Total de templates: ${templatesCache.length}`, 14, 46);
-            doc.text(`Templates ativos: ${templatesCache.filter(t => t.ativo).length}`, 14, 54);
-            doc.text(`Templates para clientes inativos: ${templatesCache.filter(t => t.tipo === 'cliente_inativo').length}`, 14, 62);
+            doc.text(`Total: ${totalTemplatesCount} templates`, 14, 46);
             const colunas = [{ label: 'Nome', width: 40 }, { label: 'Canal', width: 30 }, { label: 'Tipo', width: 40 }, { label: 'Gatilho', width: 45 }, { label: 'Status', width: 25 }];
-            let y = 72;
+            let y = 56;
             doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255,255,255);
             let x = 14;
             colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
             doc.setTextColor(0,0,0); y += 12;
+            const allTemplates = await getDocs(query(collection(db, 'templates'), ...getConstraints(), limit(1000)));
             const tipoLabels = { lembrete:'Lembrete', promocao:'Promoção', confirmacao:'Confirmação', cancelamento:'Cancelamento', notificacao:'Notificação', boas_vindas:'Boas Vindas', aniversario_pet:'Aniversário do Pet', aniversario_cliente:'Aniversário do Cliente', cliente_inativo:'Cliente Inativo', outro:'Outro' };
-            const gatilhoLabels = { agendamento_criado:'Novo Agendamento', agendamento_confirmado:'Agendamento Confirmado', agendamento_cancelado:'Agendamento Cancelado', lembrete_vencimento:'Lembrete Vencimento', aniversario_pet:'Aniv. do Pet', aniversario_cliente:'Aniv. do Cliente', cliente_inativo:'Cliente Inativo', promocao_especial:'Promoção', boas_vindas:'Boas Vindas', vacina_vencendo:'Vacina Vencendo', consulta_agendada:'Consulta' };
-            for (const t of templatesCache) {
+            for (const docSnap of allTemplates.docs) {
+                const t = docSnap.data();
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
                 const canal = canaisCache.find(c => c.id === t.canal_id);
                 doc.text((t.nome || '-').substring(0,25), x+2, y+4); x += 40;
                 doc.text(canal?.nome?.substring(0,20) || '-', x+2, y+4); x += 30;
                 doc.text(tipoLabels[t.tipo] || t.tipo || '-', x+2, y+4); x += 40;
-                doc.text(gatilhoLabels[t.gatilho] || t.gatilho || '-', x+2, y+4); x += 45;
+                doc.text(t.gatilho || '-', x+2, y+4); x += 45;
                 doc.text(t.ativo ? 'Ativo' : 'Inativo', x+2, y+4);
                 y += 8; x = 14;
             }
             for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
             doc.save(`templates_${new Date().toISOString().split('T')[0]}.pdf`);
-            showToast('PDF gerado com sucesso!', 'success');
-        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
-    }
-
-    // ==================== FILTROS ====================
-    function clearTemplateFilters() {
-        const searchInput = document.getElementById('searchTemplate');
-        if (searchInput) searchInput.value = '';
-        const canalFilter = document.getElementById('tplCanalFilter');
-        if (canalFilter) canalFilter.value = '';
-        const statusFilter = document.getElementById('tplStatusFilter');
-        if (statusFilter) statusFilter.value = '';
-        const tipoFilter = document.getElementById('tplTipoFilter');
-        if (tipoFilter) tipoFilter.value = '';
-        currentPage = 1;
-        renderTemplates();
-        showToast('Filtros limpos!', 'success');
-    }
-    function aplicarFiltroTipo(tipo) {
-        const tipoFilter = document.getElementById('tplTipoFilter');
-        if (tipoFilter) tipoFilter.value = tipo;
-        currentPage = 1;
-        renderTemplates();
-    }
-    function aplicarFiltroAtivo(ativo) {
-        const statusFilter = document.getElementById('tplStatusFilter');
-        if (statusFilter) statusFilter.value = ativo;
-        currentPage = 1;
-        renderTemplates();
-    }
-    function aplicarFiltroCanal(canal) {
-        const canalObj = canaisCache.find(c => c.canal === canal);
-        if (canalObj) {
-            const canalFilter = document.getElementById('tplCanalFilter');
-            if (canalFilter) canalFilter.value = canalObj.id;
-            currentPage = 1;
-            renderTemplates();
-        }
-    }
-
-    // ==================== VIEW FUNCTIONS ====================
-    window.viewTemplate = function(id) {
-        const t = templatesCache.find(t => t.id === id);
-        const canal = canaisCache.find(c => c.id === t?.canal_id);
-        if (!t) return;
-        const tipoLabels = { lembrete:'🔔 Lembrete', promocao:'🎉 Promoção', confirmacao:'✅ Confirmação', cancelamento:'❌ Cancelamento', notificacao:'📢 Notificação', boas_vindas:'👋 Boas Vindas', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'⏰ Cliente Inativo', outro:'📌 Outro' };
-        const gatilhoLabels = { agendamento_criado:'📅 Novo Agendamento', agendamento_confirmado:'✅ Agendamento Confirmado', agendamento_cancelado:'❌ Agendamento Cancelado', lembrete_vencimento:'⏰ Lembrete de Vencimento', aniversario_pet:'🎂 Aniversário do Pet', aniversario_cliente:'🎂 Aniversário do Cliente', cliente_inativo:'📉 Cliente Inativo', promocao_especial:'🎁 Promoção Especial', boas_vindas:'👋 Boas Vindas', vacina_vencendo:'💉 Vacina Vencendo', consulta_agendada:'🩺 Consulta Agendada' };
-        const modalBody = document.getElementById('modalBody');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="info-row"><span class="info-label">Nome:</span><span class="info-value">${escapeHtml(t.nome)}</span></div>
-                <div class="info-row"><span class="info-label">Canal:</span><span class="info-value">${escapeHtml(canal?.nome || '-')} (${canal?.canal || '-'})</span></div>
-                <div class="info-row"><span class="info-label">Provedor:</span><span class="info-value">${escapeHtml(t.provedor || canal?.provedor || '-')}</span></div>
-                <div class="info-row"><span class="info-label">Tipo:</span><span class="info-value">${tipoLabels[t.tipo] || t.tipo || '-'}</span></div>
-                <div class="info-row"><span class="info-label">Gatilho:</span><span class="info-value">${gatilhoLabels[t.gatilho] || t.gatilho || '-'}</span></div>
-                <div class="info-row"><span class="info-label">Título/Assunto:</span><span class="info-value">${escapeHtml(t.titulo || '-')}</span></div>
-                <div class="info-row"><span class="info-label">Dias Antecedência:</span><span class="info-value">${t.dias_antecedencia || 0} dias</span></div>
-                <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${t.ativo ? '<span class="status-badge status-ativo">✅ Ativo</span>' : '<span class="status-badge status-inativo">⭕ Inativo</span>'}</span></div>
-                <div class="info-row"><span class="info-label">Automático:</span><span class="info-value">${t.automatico ? '✅ Sim' : '❌ Não'}</span></div>
-                <div class="info-row"><span class="info-label">Mensagem:</span><span class="info-value"><div class="preview-message" style="background:#f8fbfd; white-space:pre-wrap; text-align:left;">${escapeHtml(t.mensagem || '-')}</div></span></div>
-            `;
-        }
-        const modal = document.getElementById('viewModal');
-        if (modal) modal.style.display = 'flex';
-    };
-    window.editTemplate = function(id) {
-        const t = templatesCache.find(t => t.id === id);
-        if (t) { fillForm(t); editingId = id; const cancelBtn = document.getElementById('cancelTemplateBtn'); if (cancelBtn) cancelBtn.style.display = 'inline-block'; const saveBtn = document.getElementById('saveTemplateBtn'); if (saveBtn) { saveBtn.innerHTML = '<i class="fas fa-pen"></i> Atualizar Template'; saveBtn.classList.remove('btn-primary'); saveBtn.classList.add('btn-success'); } const tabBtn = document.querySelector('.tab-btn[data-tab="templates"]'); if (tabBtn) tabBtn.click(); window.scrollTo({ top: 0 }); }
-    };
-    window.deleteTemplate = deleteTemplate;
-
-    // ==================== TESTE WHATSAPP ====================
-    function abrirWhatsappTeste(templateId) {
-        const template = templatesCache.find(t => t.id === templateId);
-        if (!template) { showToast('Template não encontrado!', 'error'); return; }
-        currentWhatsappTemplate = template;
-        const messageTextarea = document.getElementById('whatsappTestMessage');
-        const numeroInput = document.getElementById('whatsappTestNumber');
-        if (messageTextarea) {
-            let previewMsg = template.mensagem;
-            const previewExemplos = { '{{pet_nome}}':'Rex', '{{cliente_nome}}':'João Silva', '{{data}}':new Date().toLocaleDateString('pt-BR'), '{{hora}}':new Date().toLocaleTimeString('pt-BR').substring(0,5), '{{empresa_nome}}':currentEmpresa?.emp_razao_social || 'PetShop Central', '{{empresa_telefone}}':currentEmpresa?.emp_whatsapp || '(34) 99782-4990' };
-            for (const [k,v] of Object.entries(previewExemplos)) previewMsg = previewMsg.split(k).join(v);
-            messageTextarea.value = previewMsg;
-        }
-        if (numeroInput) numeroInput.value = '';
-        const modal = document.getElementById('whatsappTestModal');
-        if (modal) modal.style.display = 'flex';
-    }
-    function fecharWhatsappModal() {
-        const modal = document.getElementById('whatsappTestModal');
-        if (modal) modal.style.display = 'none';
-        currentWhatsappTemplate = null;
-    }
-    function formatarNumeroWhatsApp(numero) {
-        let limp = numero.replace(/\D/g, '');
-        if (limp.length === 10) limp = limp.substring(0,2) + '9' + limp.substring(2);
-        if (limp.length === 11 && !limp.startsWith('55')) limp = '55' + limp;
-        else if (limp.length === 11) limp = '55' + limp;
-        return limp;
-    }
-    function enviarWhatsappTeste() {
-        if (!currentWhatsappTemplate) { showToast('Nenhum template selecionado!', 'error'); fecharWhatsappModal(); return; }
-        const numeroInput = document.getElementById('whatsappTestNumber');
-        if (!numeroInput || !numeroInput.value) { showToast('Digite um número de telefone!', 'error'); return; }
-        const numeroWhats = formatarNumeroWhatsApp(numeroInput.value);
-        const messageTextarea = document.getElementById('whatsappTestMessage');
-        const mensagem = messageTextarea ? messageTextarea.value : '';
-        window.open(`https://wa.me/${numeroWhats}?text=${encodeURIComponent(mensagem)}`, '_blank');
-        showToast('✅ Abrindo WhatsApp! A mensagem foi preenchida.', 'success');
-        setTimeout(() => fecharWhatsappModal(), 2000);
-    }
-
-    // ==================== VARIÁVEIS ====================
-    function renderVariaveis() {
-        const searchInput = document.getElementById('searchVariavel');
-        const search = searchInput?.value.toLowerCase() || '';
-        let variaveis = VARIAVEIS_DISPONIVEIS.filter(v => !search || v.nome.includes(search) || v.descricao.includes(search) || v.categoria.includes(search));
-        const categorias = {};
-        variaveis.forEach(v => { if (!categorias[v.categoria]) categorias[v.categoria] = []; categorias[v.categoria].push(v); });
-        let html = '';
-        for (const [cat, items] of Object.entries(categorias)) {
-            html += `<div style="grid-column:1/-1; margin-top:10px;"><h3 style="color:#1f5068; font-size:0.9rem; margin-bottom:10px; border-left:3px solid #2c7da0; padding-left:10px;">${cat}</h3><div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); gap:10px;">`;
-            items.forEach(v => {
-                html += `<div style="background:#f8fbfd; border-radius:12px; padding:12px; border:1px solid #e2edf2; cursor:pointer;" onclick="copiarVariavel('{{${v.nome}}}')">
-                            <code style="background:#2c7da0; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem;">{{${v.nome}}}</code>
-                            <p style="font-size:0.75rem; margin-top:5px; color:#4a6272;">${escapeHtml(v.descricao)}</p>
-                            <small style="color:#7a9eb0;">Ex: ${escapeHtml(v.exemplo)}</small>
-                         </div>`;
-            });
-            html += `</div></div>`;
-        }
-        const variaveisList = document.getElementById('variaveisList');
-        if (variaveisList) variaveisList.innerHTML = html || '<div style="text-align:center; padding:40px;">Nenhuma variável encontrada</div>';
-    }
-    window.copiarVariavel = function(variavel) { navigator.clipboard.writeText(variavel); showToast(`Variável ${variavel} copiada!`, 'success'); };
-
-    // ==================== SELECTS ====================
-    function atualizarSelectCanais() {
-        const options = canaisCache.filter(c => c.ativo).map(c => `<option value="${c.id}" data-canal="${c.canal}" data-provedor="${c.provedor || ''}">${escapeHtml(c.nome)} (${c.canal === 'whatsapp' ? 'WhatsApp' : (c.canal === 'email' ? 'E-mail' : 'SMS')})</option>`).join('');
-        const canalSelect = document.getElementById('tplCanalId');
-        if (canalSelect) canalSelect.innerHTML = '<option value="">Selecione um canal</option>' + options;
-        const canalFilter = document.getElementById('tplCanalFilter');
-        if (canalFilter) canalFilter.innerHTML = '<option value="">Todos canais</option>' + options;
-        if (canalSelect) canalSelect.onchange = atualizarProvedorPorCanal;
-    }
-
-    // ==================== DADOS EXEMPLO ====================
-    async function initSampleData() {
-        if (templatesCache.length === 0 && canaisCache.length > 0) {
-            const whatsappCanal = canaisCache.find(c => c.canal === 'whatsapp');
-            const emailCanal = canaisCache.find(c => c.canal === 'email');
-            const sampleTemplates = [];
-            if (whatsappCanal) {
-                sampleTemplates.push({
-                    nome: 'Lembrete Vacina WhatsApp',
-                    canal_id: whatsappCanal.id,
-                    provedor: whatsappCanal.provedor,
-                    tipo: 'lembrete',
-                    gatilho: 'lembrete_vencimento',
-                    titulo: '',
-                    dias_antecedencia: 7,
-                    ativo: true,
-                    automatico: true,
-                    mensagem: gerarTemplateProfissional('lembrete', 'whatsapp', 'lembrete_vencimento')
-                });
-            }
-            if (emailCanal) {
-                sampleTemplates.push({
-                    nome: 'Confirmação Agendamento E-mail',
-                    canal_id: emailCanal.id,
-                    provedor: emailCanal.provedor,
-                    tipo: 'confirmacao',
-                    gatilho: 'agendamento_confirmado',
-                    titulo: gerarTituloProfissional('confirmacao'),
-                    dias_antecedencia: 0,
-                    ativo: true,
-                    automatico: true,
-                    mensagem: gerarTemplateProfissional('confirmacao', 'email', 'agendamento_confirmado')
-                });
-                sampleTemplates.push({
-                    nome: 'Reativação de Cliente Inativo',
-                    canal_id: emailCanal.id,
-                    provedor: emailCanal.provedor,
-                    tipo: 'cliente_inativo',
-                    gatilho: 'cliente_inativo',
-                    titulo: gerarTituloProfissional('cliente_inativo'),
-                    dias_antecedencia: 0,
-                    ativo: true,
-                    automatico: true,
-                    mensagem: gerarTemplateProfissional('cliente_inativo', 'email', 'cliente_inativo')
-                });
-            }
-            for (const t of sampleTemplates) {
-                const docRef = await addDoc(collection(db, 'templates'), { ...t, empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString(), criado_por: currentUser.uid });
-                t.id = docRef.id;
-                templatesCache.push(t);
-            }
-            renderTemplates();
-        }
+            showToast('PDF gerado!', 'success');
+        } catch(e) { showToast('Erro ao gerar PDF', 'error'); }
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    document.addEventListener('DOMContentLoaded', () => {
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                const isAdminUser = await verificarAcessoAdmin(user);
-                const isSuperUser = await verificarSuperAdmin(user);
-                if (!isAdminUser && !isSuperUser) {
-                    const loadingScreen = document.getElementById('loadingScreen');
-                    if (loadingScreen) loadingScreen.classList.add('hidden');
-                    const blockedContent = document.getElementById('blockedContent');
-                    if (blockedContent) blockedContent.classList.remove('hidden');
-                    const conteudoPrincipal = document.getElementById('conteudoPrincipal');
-                    if (conteudoPrincipal) conteudoPrincipal.style.display = 'none';
-                    return;
-                }
-                currentEmpresa = await carregarEmpresaUsuario(user);
-                if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-                const empresaInfo = document.getElementById('empresaInfo');
-                if (empresaInfo) {
-                    empresaInfo.innerHTML = isSuperUser ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-                }
-                
-                // Exibir alerta de trial (apenas para não superadmin)
-                if (!isSuperUser && currentEmpresa) {
-                    const statusInfo = verificarStatusEmpresa(currentEmpresa);
-                    const trialDiv = document.getElementById('trialAlert');
-                    if (trialDiv) {
-                        if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                        else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                        else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                        else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
-                        else trialDiv.style.display = 'none';
-                    }
-                } else {
-                    const trialDiv = document.getElementById('trialAlert');
-                    if (trialDiv) trialDiv.style.display = 'none';
-                }
-
-                await carregarDadosEmpresa();
-                atualizarSelectCanais();
-                await initSampleData();
-                renderTemplates();
-                renderVariaveis();
-                updateStats();
-                const loadingScreen = document.getElementById('loadingScreen');
-                if (loadingScreen) loadingScreen.style.display = 'none';
-                const conteudoPrincipal = document.getElementById('conteudoPrincipal');
-                if (conteudoPrincipal) conteudoPrincipal.style.display = 'block';
-            } else {
-                window.location.href = 'login.html';
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            const isAdminUser = await verificarAcessoAdmin(user);
+            const isSuperUser = await verificarSuperAdmin(user);
+            if (!isAdminUser && !isSuperUser) {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('blockedContent').classList.remove('hidden');
+                return;
             }
-        });
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = isSuperUser ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            if (!isSuperUser && currentEmpresa) {
+                const statusInfo = verificarStatusEmpresa(currentEmpresa);
+                const trialDiv = document.getElementById('trialAlert');
+                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                else trialDiv.style.display = 'none';
+            } else { document.getElementById('trialAlert').style.display = 'none'; }
+            await carregarCanais();
+            await carregarPaginaTemplates(true);
+            renderVariaveis();
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('conteudoPrincipal').style.display = 'block';
+        } else { window.location.href = 'login.html'; }
     });
 
-    // ==================== EVENTOS DOM (com verificação de existência) ====================
-    const saveBtn = document.getElementById('saveTemplateBtn');
-    if (saveBtn) saveBtn.onclick = salvarTemplate;
-    const cancelBtn = document.getElementById('cancelTemplateBtn');
-    if (cancelBtn) cancelBtn.onclick = cancelEdit;
-    const generateBtn = document.getElementById('generateMessageBtn');
-    if (generateBtn) generateBtn.onclick = gerarMensagemManual;
-    const searchTemplate = document.getElementById('searchTemplate');
-    if (searchTemplate) searchTemplate.addEventListener('input', () => { currentPage = 1; renderTemplates(); });
-    const canalFilter = document.getElementById('tplCanalFilter');
-    if (canalFilter) canalFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    const statusFilter = document.getElementById('tplStatusFilter');
-    if (statusFilter) statusFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    const tipoFilter = document.getElementById('tplTipoFilter');
-    if (tipoFilter) tipoFilter.addEventListener('change', () => { currentPage = 1; renderTemplates(); });
-    const clearFiltersBtn = document.getElementById('clearTemplateFilters');
-    if (clearFiltersBtn) clearFiltersBtn.onclick = clearTemplateFilters;
-    const exportPdfBtn = document.getElementById('exportTemplatesPdfBtn');
-    if (exportPdfBtn) exportPdfBtn.onclick = exportTemplatesPDF;
-    const searchVariavel = document.getElementById('searchVariavel');
-    if (searchVariavel) searchVariavel.addEventListener('input', () => renderVariaveis());
-    const mensagemTextarea = document.getElementById('tplMensagem');
-    if (mensagemTextarea) mensagemTextarea.addEventListener('input', atualizarPreview);
-    const variablesBox = document.getElementById('variablesBox');
-    if (variablesBox) {
-        variablesBox.addEventListener('click', (e) => {
-            const tag = e.target.closest('.variable-tag');
-            if (tag) inserirVariavel(tag.getAttribute('data-var'));
-        });
-    }
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) logoutBtn.onclick = () => auth.signOut();
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    if (modalCloseBtn) modalCloseBtn.onclick = () => { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; };
-    window.onclick = (e) => {
-        const viewModal = document.getElementById('viewModal');
-        if (e.target === viewModal && viewModal) viewModal.style.display = 'none';
-        const whatsappModal = document.getElementById('whatsappTestModal');
-        if (e.target === whatsappModal && whatsappModal) fecharWhatsappModal();
-    };
-    window.goToPage = goToPage;
-    window.solicitarLiberacao = () => {
-        const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
-        const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
-        window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
-        showToast('Abrindo cliente de e-mail...', 'info');
-    };
+    // ==================== EVENTOS ====================
+    document.getElementById('saveTemplateBtn').onclick = salvarTemplate;
+    document.getElementById('cancelTemplateBtn').onclick = cancelEdit;
+    document.getElementById('generateMessageBtn').onclick = gerarMensagemManual;
+    document.getElementById('searchTemplate').addEventListener('input', () => carregarPaginaTemplates(true));
+    document.getElementById('tplCanalFilter').addEventListener('change', () => carregarPaginaTemplates(true));
+    document.getElementById('tplStatusFilter').addEventListener('change', () => carregarPaginaTemplates(true));
+    document.getElementById('tplTipoFilter').addEventListener('change', () => carregarPaginaTemplates(true));
+    document.getElementById('clearTemplateFilters').onclick = clearTemplateFilters;
+    document.getElementById('refreshTemplatesBtn').onclick = () => { carregarPaginaTemplates(true); showToast('Templates atualizados!', 'success'); };
+    document.getElementById('exportTemplatesPdfBtn').onclick = exportTemplatesPDF;
+    document.getElementById('searchVariavel').addEventListener('input', renderVariaveis);
+    document.getElementById('tplMensagem').addEventListener('input', atualizarPreview);
+    document.getElementById('variablesBox').addEventListener('click', (e) => {
+        const tag = e.target.closest('.variable-tag');
+        if (tag) inserirVariavel(tag.getAttribute('data-var'));
+    });
+    document.getElementById('logoutBtn').onclick = () => auth.signOut();
+    document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
+    window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
+    window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank'); showToast('Abrindo e-mail...', 'info'); };
     window.logout = () => auth.signOut();
-    window.fecharModal = () => { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; };
-    window.fecharWhatsappModal = fecharWhatsappModal;
-    window.enviarWhatsappTeste = enviarWhatsappTeste;
-    window.abrirWhatsappTeste = abrirWhatsappTeste;
-
-    // TABS
-    const tabs = document.querySelectorAll('.tab-btn');
-    tabs.forEach(btn => {
+    window.fecharModal = () => document.getElementById('viewModal').style.display = 'none';
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.onclick = () => {
             const tab = btn.dataset.tab;
-            const templatesPanel = document.getElementById('templatesPanel');
-            const variaveisPanel = document.getElementById('variaveisPanel');
-            if (templatesPanel) templatesPanel.style.display = tab === 'templates' ? 'block' : 'none';
-            if (variaveisPanel) variaveisPanel.style.display = tab === 'variaveis' ? 'block' : 'none';
-            tabs.forEach(b => b.classList.remove('active'));
+            document.getElementById('templatesPanel').style.display = tab === 'templates' ? 'block' : 'none';
+            document.getElementById('variaveisPanel').style.display = tab === 'variaveis' ? 'block' : 'none';
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             if (tab === 'variaveis') renderVariaveis();
         };
     });
-
-    console.log('✅ Templates refatorado - com verificações de DOM e estabilidade');
+    console.log('✅ Templates refatorado - paginação real, sem onSnapshot');
 </script>
 </body>
 </html>

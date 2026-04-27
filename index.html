@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ========== ESTILOS (idênticos ao original) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(145deg, #eef2f8 0%, #e0e8f0 100%); min-height: 100vh; }
         .app-container { display: flex; min-height: 100vh; }
@@ -106,7 +106,7 @@
         </div>
         <div id="permissoesMenuItem" class="nav-item" style="display: none;" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span><span class="admin-badge">Admin</span></div>
         <div id="usuariosMenuItem" class="nav-item" style="display: none;" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span><span class="admin-badge">Admin</span></div>
-        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globais.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
+        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globales.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
     </aside>
     <main class="main-content">
         <div class="top-bar">
@@ -156,32 +156,79 @@
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { collection, query, where, onSnapshot, getDoc, doc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { collection, query, where, getCountFromServer, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { formatCurrency, showToast, carregarEmpresaUsuario, verificarStatusEmpresa, verificarSuperAdmin } from './util.js';
 
     let currentUser = null;
     let currentEmpresa = null;
     let isSuperAdmin = false;
-    let dadosCache = { clientes: [], pets: [], agendamentos: [], produtos: [], profissionais: [], financeiro: [] };
-    let unsubscribes = [];
 
-    function atualizarStats() {
-        document.getElementById('totalClientes').innerText = dadosCache.clientes.length;
-        document.getElementById('totalPets').innerText = dadosCache.pets.length;
-        document.getElementById('totalAgendamentos').innerText = dadosCache.agendamentos.length;
-        document.getElementById('totalProdutos').innerText = dadosCache.produtos.length;
-        document.getElementById('totalProfissionais').innerText = dadosCache.profissionais.length;
-        const totalGeral = dadosCache.financeiro.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
-        const mesAtual = new Date().getMonth(), anoAtual = new Date().getFullYear();
-        const faturamentoMes = dadosCache.financeiro.filter(f => {
-            if (f.tipo !== 'entrada' || f.status !== 'pago') return false;
-            const dataPagto = f.dataPagamento ? new Date(f.dataPagamento) : null;
-            return dataPagto && dataPagto.getMonth() === mesAtual && dataPagto.getFullYear() === anoAtual;
-        }).reduce((s, f) => s + (f.valor || 0), 0);
-        document.getElementById('totalFinanceiro').innerHTML = `R$ ${formatCurrency(totalGeral)}`;
-        document.getElementById('faturamentoMes').innerHTML = `Este mês: R$ ${formatCurrency(faturamentoMes)}`;
+    // ==================== CARREGAR DADOS DO DASHBOARD (SEM onSnapshot) ====================
+    async function carregarDadosDoDashboard() {
+        if (!currentEmpresa) return;
+        
+        // Mostrar loading visual (opcional)
+        const cards = document.querySelectorAll('.stat-value');
+        cards.forEach(card => card.style.opacity = '0.5');
+        
+        try {
+            // Construir constraints base (empresaId ou superadmin)
+            const constraints = (currentEmpresa && currentEmpresa.globalAdmin) ? [] : [where('empresaId', '==', currentEmpresa.id)];
+            
+            // 1. Total de clientes (somente ativos, sem lixeira)
+            let clientesQuery = query(collection(db, 'clientes'), ...constraints, where('deleted_at', '==', null));
+            const clientesCount = await getCountFromServer(clientesQuery);
+            document.getElementById('totalClientes').innerText = clientesCount.data().count;
+            
+            // 2. Total de pets
+            const petsQuery = query(collection(db, 'pets'), ...constraints);
+            const petsCount = await getCountFromServer(petsQuery);
+            document.getElementById('totalPets').innerText = petsCount.data().count;
+            
+            // 3. Total de agendamentos
+            const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
+            const agendamentosCount = await getCountFromServer(agendamentosQuery);
+            document.getElementById('totalAgendamentos').innerText = agendamentosCount.data().count;
+            
+            // 4. Total de produtos
+            const produtosQuery = query(collection(db, 'produtos'), ...constraints);
+            const produtosCount = await getCountFromServer(produtosQuery);
+            document.getElementById('totalProdutos').innerText = produtosCount.data().count;
+            
+            // 5. Faturamento total (soma de entradas pagas) - precisa buscar alguns documentos
+            // Para evitar alto custo, buscamos apenas os últimos 1000 lançamentos pagos (ou todos com limite)
+            let financeiroQuery = query(collection(db, 'financeiro'), ...constraints, where('tipo', '==', 'entrada'), where('status', '==', 'pago'), limit(2000));
+            const financeiroSnap = await getDocs(financeiroQuery);
+            let totalFaturamento = 0;
+            let faturamentoMes = 0;
+            const mesAtual = new Date().getMonth();
+            const anoAtual = new Date().getFullYear();
+            financeiroSnap.forEach(doc => {
+                const f = doc.data();
+                const valor = f.valor || 0;
+                totalFaturamento += valor;
+                const dataPagto = f.dataPagamento ? new Date(f.dataPagamento) : null;
+                if (dataPagto && dataPagto.getMonth() === mesAtual && dataPagto.getFullYear() === anoAtual) {
+                    faturamentoMes += valor;
+                }
+            });
+            document.getElementById('totalFinanceiro').innerHTML = `R$ ${formatCurrency(totalFaturamento)}`;
+            document.getElementById('faturamentoMes').innerHTML = `Este mês: R$ ${formatCurrency(faturamentoMes)}`;
+            
+            // 6. Total de profissionais
+            const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
+            const profissionaisCount = await getCountFromServer(profissionaisQuery);
+            document.getElementById('totalProfissionais').innerText = profissionaisCount.data().count;
+            
+        } catch (error) {
+            console.error("Erro ao carregar dados do dashboard:", error);
+            showToast("Erro ao carregar estatísticas. Tente novamente.", "error");
+        } finally {
+            cards.forEach(card => card.style.opacity = '1');
+        }
     }
 
+    // ==================== CARREGAR INFORMAÇÕES DO USUÁRIO ====================
     async function carregarInfoUsuario() {
         if (!currentUser) return;
         const userDoc = await getDoc(doc(db, 'usuarios', currentUser.uid));
@@ -195,8 +242,10 @@
         const isAdmin = userData.perfil === 'admin' || isSuperAdmin;
         document.getElementById('permissoesMenuItem').style.display = isAdmin ? 'flex' : 'none';
         document.getElementById('usuariosMenuItem').style.display = isAdmin ? 'flex' : 'none';
+        if (isSuperAdmin) document.getElementById('todasEmpresasMenuItem').style.display = 'flex';
     }
 
+    // ==================== WELCOME MESSAGE E TRIAL ====================
     function atualizarWelcomeMessage() {
         const welcomeDiv = document.getElementById('welcomeMessage');
         if (!welcomeDiv) return;
@@ -210,7 +259,6 @@
             welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
             return;
         }
-        // Garantia extra: verificarStatusEmpresa agora trata undefined/null internamente (já corrigido no util.js)
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
@@ -238,25 +286,6 @@
         }
     }
 
-    function iniciarListeners() {
-        unsubscribes.forEach(unsub => unsub());
-        unsubscribes = [];
-        if (!currentEmpresa) return;
-        const constraints = (currentEmpresa.globalAdmin) ? [] : [where('empresaId', '==', currentEmpresa.id)];
-        const clientesQuery = query(collection(db, 'clientes'), ...constraints);
-        unsubscribes.push(onSnapshot(clientesQuery, (snapshot) => { dadosCache.clientes = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-        const petsQuery = query(collection(db, 'pets'), ...constraints);
-        unsubscribes.push(onSnapshot(petsQuery, (snapshot) => { dadosCache.pets = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
-        unsubscribes.push(onSnapshot(agendamentosQuery, (snapshot) => { dadosCache.agendamentos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-        const produtosQuery = query(collection(db, 'produtos'), ...constraints);
-        unsubscribes.push(onSnapshot(produtosQuery, (snapshot) => { dadosCache.produtos = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-        const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
-        unsubscribes.push(onSnapshot(profissionaisQuery, (snapshot) => { dadosCache.profissionais = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-        const financeiroQuery = query(collection(db, 'financeiro'), ...constraints);
-        unsubscribes.push(onSnapshot(financeiroQuery, (snapshot) => { dadosCache.financeiro = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); atualizarStats(); }, err => console.error(err)));
-    }
-
     window.solicitarLiberacao = function() {
         const assunto = encodeURIComponent(`Liberação - ${currentEmpresa?.emp_razao_social || 'Empresa'}`);
         const corpo = encodeURIComponent(`Solicito liberação da empresa:\n\nRazão Social: ${currentEmpresa?.emp_razao_social || '-'}\nCNPJ: ${currentEmpresa?.emp_cnpj || '-'}\nWhatsApp: ${currentEmpresa?.emp_whatsapp || '-'}\n\nAguardo retorno.`);
@@ -279,7 +308,7 @@
         location.reload();
     };
 
-    async function logout() { unsubscribes.forEach(unsub => unsub()); await auth.signOut(); sessionStorage.removeItem('empresa_atual'); window.location.href = 'login.html'; }
+    async function logout() { await auth.signOut(); sessionStorage.removeItem('empresa_atual'); window.location.href = 'login.html'; }
     function abrirModalLogout() { document.getElementById('logoutModal').style.display = 'flex'; }
     function fecharModalLogout() { document.getElementById('logoutModal').style.display = 'none'; }
     function confirmarLogout() { fecharModalLogout(); logout(); }
@@ -300,6 +329,7 @@
         }
     }
 
+    // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
     document.addEventListener('DOMContentLoaded', () => {
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -318,10 +348,17 @@
                 if (isSuperAdmin && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
                 atualizarWelcomeMessage();
                 adicionarAlertaTrial();
-                if (currentEmpresa) iniciarListeners();
+                if (currentEmpresa) {
+                    // Carregar dados do dashboard (consulta única)
+                    await carregarDadosDoDashboard();
+                }
                 setupNavegacao();
                 if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) document.getElementById('todasEmpresasMenuItem').style.display = 'flex';
-                document.getElementById('refreshBtn').onclick = () => showToast('Dados já atualizados em tempo real!', 'info');
+                // Botão de atualização manual
+                document.getElementById('refreshBtn').onclick = () => {
+                    carregarDadosDoDashboard();
+                    showToast('Dados atualizados!', 'success');
+                };
                 document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
             } else {
                 window.location.href = 'login.html';
