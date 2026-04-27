@@ -137,7 +137,7 @@
                 <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="produtosTableBody">
-                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos......</td></tr>
+                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos...</td></tr>
             </tbody>
         </table>
     </div>
@@ -153,7 +153,6 @@
             <button class="close" id="closeCategoriaModalBtn">&times;</button>
         </div>
         <div class="modal-body">
-            <!-- Formulário para adicionar nova categoria -->
             <div class="quick-form" style="padding: 12px; margin-bottom: 16px;">
                 <div class="form-row">
                     <div class="field-group" style="flex:2"><label>Nova categoria</label><input type="text" id="novaCategoriaNome" placeholder="Ex: Alimentação, Higiene"></div>
@@ -161,7 +160,6 @@
                     <div class="field-group"><button id="salvarCategoriaBtn" class="btn btn-success"><i class="fas fa-save"></i> Adicionar</button></div>
                 </div>
             </div>
-            <!-- Lista de categorias existentes -->
             <div id="listaCategorias" style="max-height: 400px; overflow-y: auto;">
                 <div style="text-align:center; padding:20px;">Carregando categorias...</div>
             </div>
@@ -179,14 +177,16 @@
     let currentPage = 1, itemsPerPage = 15, lastVisibleDoc = null, totalCount = 0, isLoading = false;
     let produtosCache = [], categoriasCache = [];
     let activeFilter = 'all';
-    let activeInlineEdit = null, autoSaveTimeout = null, searchDebounce = null;
+    let activeInlineEdit = null;     // { cell, originalHtml, saveCallback }
+    let autoSaveTimeout = null;
+    let searchDebounce = null;
 
     function getConstraints() {
         if (currentEmpresa?.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ========== CATEGORIAS (CRUD completo) ==========
+    // ========== CATEGORIAS (CRUD) ==========
     async function carregarCategorias() {
         const constraints = getConstraints();
         const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints, orderBy('nome')));
@@ -198,7 +198,6 @@
         if (filter) filter.innerHTML = '<option value="">Todas categorias</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
     }
 
-    // Abrir/fechar modal de categorias
     function abrirModalCategorias() {
         document.getElementById('categoriaModal').style.display = 'flex';
         renderizarListaCategorias();
@@ -225,7 +224,6 @@
                 </div>
             </div>
         `).join('');
-        // Eventos dos botões
         document.querySelectorAll('.editar-categoria').forEach(btn => {
             btn.onclick = () => editarCategoria(btn.dataset.id, btn.dataset.nome, btn.dataset.desc);
         });
@@ -243,7 +241,7 @@
             showToast('Categoria adicionada', 'success');
             document.getElementById('novaCategoriaNome').value = '';
             document.getElementById('novaCategoriaDesc').value = '';
-            await carregarCategorias();  // recarrega cache e selects
+            await carregarCategorias();
             renderizarListaCategorias();
         } catch(e) { showToast('Erro ao adicionar categoria', 'error'); }
     }
@@ -270,7 +268,7 @@
         } catch(e) { showToast('Erro ao excluir', 'error'); }
     }
 
-    // ========== PRODUTOS (paginado, edição inline, etc) ==========
+    // ========== PRODUTOS ==========
     async function carregarProdutos(reset = true) {
         if (isLoading) return;
         isLoading = true;
@@ -336,22 +334,21 @@
                     <button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button>
                     <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button>
                 </td>
-             </tr>`;
+            </tr>`;
         }).join('');
-        document.querySelectorAll('.editable').forEach(cell => cell.ondblclick = () => startInlineEdit(cell));
-        document.querySelectorAll('.duplicate-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); duplicarProduto(btn.dataset.id); });
-        document.querySelectorAll('.delete-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); deleteProduto(btn.dataset.id); });
     }
 
-    // Edição inline
-    function startInlineEdit(cell) {
-        if (activeInlineEdit) cancelInlineEdit();
+    // ========== EDIÇÃO INLINE COM DELEGAÇÃO DE EVENTOS ==========
+    function iniciarEdicaoInline(cell) {
+        if (activeInlineEdit) cancelarEdicaoInline();
         const row = cell.closest('tr');
-        const field = cell.dataset.field;
-        const productId = row.dataset.id;
-        const index = parseInt(row.dataset.index);
+        if (!row) return;
+        const productId = row.getAttribute('data-id');
+        if (!productId) return;
+        const index = parseInt(row.getAttribute('data-index'));
         const product = produtosCache[index];
         if (!product) return;
+        const field = cell.getAttribute('data-field');
         let input;
         if (field === 'ativo') {
             input = document.createElement('select');
@@ -367,17 +364,18 @@
         input.style.padding = '4px';
         input.style.borderRadius = '8px';
         input.style.border = '1px solid #2c7da0';
+        const originalHtml = cell.innerHTML;
         cell.innerHTML = '';
         cell.appendChild(input);
         cell.classList.add('editing');
         input.focus();
-        const save = async () => {
+        const salvar = async () => {
             let newValue;
             if (field === 'precoVenda') newValue = parseCurrency(input.value);
             else if (field === 'ativo') newValue = input.value === 'true';
             else newValue = (field === 'estoque' || field === 'estoqueMin') ? parseInt(input.value) : input.value;
             if (isNaN(newValue)) newValue = 0;
-            if (newValue === product[field]) { cancelInlineEdit(); return; }
+            if (newValue === product[field]) { cancelarEdicaoInline(); return; }
             try {
                 await updateDoc(doc(db, 'produtos', productId), { [field]: newValue, atualizado_em: new Date().toISOString() });
                 product[field] = newValue;
@@ -385,18 +383,45 @@
                 showToast(`${field} atualizado!`, 'success');
                 await carregarProdutos(true);
             } catch(e) { showToast('Erro ao salvar', 'error'); }
-            cancelInlineEdit();
+            cancelarEdicaoInline();
         };
-        input.onblur = () => { if (autoSaveTimeout) clearTimeout(autoSaveTimeout); autoSaveTimeout = setTimeout(save, 500); };
-        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') cancelInlineEdit(); };
-    }
-    function cancelInlineEdit() {
-        if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
-        activeInlineEdit = null;
-        renderTabela();
+        const cancelar = () => {
+            cell.innerHTML = originalHtml;
+            cell.classList.remove('editing');
+            activeInlineEdit = null;
+        };
+        input.onblur = () => {
+            if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(salvar, 500);
+        };
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); salvar(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancelar(); }
+        };
+        activeInlineEdit = { cell, originalHtml, cancelar };
     }
 
-    // CRUD produtos
+    function cancelarEdicaoInline() {
+        if (activeInlineEdit) {
+            activeInlineEdit.cancelar();
+            activeInlineEdit = null;
+        }
+        if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    }
+
+    // ========== EVENTOS DE DUPLO CLIQUE (DELEGAÇÃO) ==========
+    document.getElementById('produtosTableBody')?.addEventListener('dblclick', (e) => {
+        let target = e.target;
+        while (target && !target.classList?.contains('editable')) {
+            target = target.parentElement;
+        }
+        if (target && target.classList.contains('editable')) {
+            e.preventDefault();
+            iniciarEdicaoInline(target);
+        }
+    });
+
+    // ========== CRUD produtos ==========
     async function duplicarProduto(id) {
         const original = produtosCache.find(p => p.id === id);
         if (!original) return;
@@ -412,12 +437,14 @@
         document.getElementById('quickNome').focus();
         showToast('Altere o nome e salve para criar cópia', 'info');
     }
+
     async function deleteProduto(id) {
         if (!confirm('Excluir produto permanentemente?')) return;
         await deleteDoc(doc(db, 'produtos', id));
         showToast('Produto excluído', 'success');
         await carregarProdutos(true);
     }
+
     async function salvarRapido() {
         const nome = document.getElementById('quickNome').value.trim();
         if (!nome) { showToast('Nome obrigatório', 'error'); document.getElementById('quickNome').focus(); return; }
@@ -445,6 +472,7 @@
         document.getElementById('quickNome').focus();
         await carregarProdutos(true);
     }
+
     function cancelarEdicaoRapida() {
         editingId = null;
         document.getElementById('quickNome').value = '';
@@ -458,7 +486,7 @@
         showToast('Edição cancelada', 'info');
     }
 
-    // Estatísticas e paginação
+    // ========== ESTATÍSTICAS E PAGINAÇÃO ==========
     async function atualizarStats() {
         const constraints = getConstraints();
         const total = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
@@ -470,6 +498,7 @@
         document.getElementById('totalInativos').innerText = total.data().count - ativos.data().count;
         document.getElementById('totalEstoqueBaixo').innerText = baixo;
     }
+
     function atualizarPaginacao() {
         const totalPages = Math.ceil(totalCount / itemsPerPage);
         const pagDiv = document.getElementById('pagination');
@@ -490,28 +519,36 @@
         }
         renderTabela(); atualizarPaginacao();
     };
+
     function setFilter(filter) {
         activeFilter = filter;
         document.querySelectorAll('.chip').forEach(ch => ch.classList.remove('active'));
-        document.querySelector(`.chip[data-filter="${filter}"]`)?.classList.add('active');
+        const chip = document.querySelector(`.chip[data-filter="${filter}"]`);
+        if (chip) chip.classList.add('active');
         document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
-        document.querySelector(`.stat-card[data-filter="${filter}"]`)?.classList.add('active');
+        const statCard = document.querySelector(`.stat-card[data-filter="${filter}"]`);
+        if (statCard) statCard.classList.add('active');
         carregarProdutos(true);
     }
+
     function limparFiltros() {
         document.getElementById('searchInput').value = '';
         document.getElementById('categoriaFilter').value = '';
         setFilter('all');
     }
+
     function configurarEventosFiltros() {
         document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => setFilter(ch.dataset.filter));
         document.querySelectorAll('.stat-card').forEach(card => card.onclick = () => setFilter(card.dataset.filter));
-        document.getElementById('searchInput').addEventListener('input', () => { if (searchDebounce) clearTimeout(searchDebounce); searchDebounce = setTimeout(() => carregarProdutos(true), 300); });
+        document.getElementById('searchInput').addEventListener('input', () => {
+            if (searchDebounce) clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => carregarProdutos(true), 300);
+        });
         document.getElementById('categoriaFilter').addEventListener('change', () => carregarProdutos(true));
         document.getElementById('clearFiltersBtn').onclick = limparFiltros;
     }
 
-    // Exportar PDF
+    // ========== EXPORTAR PDF ==========
     async function exportarPDF() {
         if (produtosCache.length === 0) { showToast('Nenhum produto para exportar', 'error'); return; }
         showToast('Gerando PDF...', 'info');
@@ -539,14 +576,14 @@
         } catch(e) { showToast('Erro PDF', 'error'); }
     }
 
-    // Atalhos de teclado
+    // ========== ATALHOS DE TECLADO ==========
     function setupShortcuts() {
         window.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'n') { e.preventDefault(); document.getElementById('quickNome').focus(); }
             if (e.ctrlKey && e.key === 's') { e.preventDefault(); salvarRapido(); }
             if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const firstRow = document.querySelector('tr[data-id]'); if (firstRow) duplicarProduto(firstRow.dataset.id); }
-            if (e.key === 'F2') { e.preventDefault(); const firstCell = document.querySelector('.editable'); if (firstCell) startInlineEdit(firstCell); }
-            if (e.key === 'Escape') { cancelarEdicaoRapida(); cancelInlineEdit(); }
+            if (e.key === 'F2') { e.preventDefault(); const firstCell = document.querySelector('.editable'); if (firstCell) iniciarEdicaoInline(firstCell); }
+            if (e.key === 'Escape') { cancelarEdicaoRapida(); cancelarEdicaoInline(); }
         });
     }
 
@@ -578,6 +615,15 @@
         document.getElementById('exportPdfBtn').onclick = exportarPDF;
         document.getElementById('logoutBtn').onclick = () => auth.signOut();
         document.getElementById('quickNome').focus();
+
+        // Eventos botões de ações (duplicar/excluir) via delegação
+        document.getElementById('produtosTableBody')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.duplicate-btn');
+            if (btn) { e.stopPropagation(); duplicarProduto(btn.dataset.id); return; }
+            const delBtn = e.target.closest('.delete-btn');
+            if (delBtn) { e.stopPropagation(); deleteProduto(delBtn.dataset.id); return; }
+        });
+
         // Modal categorias
         document.getElementById('openCategoriaModalBtn').onclick = abrirModalCategorias;
         document.getElementById('closeCategoriaModalBtn').onclick = fecharModalCategorias;
