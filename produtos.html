@@ -53,8 +53,7 @@
         th { text-align: left; padding: 10px 12px; background: #f8fbfd; font-size: 0.65rem; font-weight: 600; color: #4a6272; border-bottom: 1px solid #eef2f5; }
         td { padding: 10px 12px; border-bottom: 1px solid #eef2f5; font-size: 0.75rem; }
         tr:hover { background: #fafcfd; }
-        .editable { cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; transition: 0.05s; }
-        .editable.editing { background: #fff9e0; outline: 1px solid #e9c46a; }
+        .editing-cell { background: #fff9e0; outline: 1px solid #e9c46a; }
         .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 30px; font-size: 0.6rem; font-weight: 500; }
         .status-ativo { background: #2a9d8f20; color: #2a9d8f; }
         .status-inativo { background: #e76f5120; color: #e76f51; }
@@ -134,7 +133,7 @@
     <div class="table-wrapper">
         <table>
             <thead>
-                <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:70px">Ações</th></tr>
+                <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:100px">Ações</th></tr>
             </thead>
             <tbody id="produtosTableBody">
                 <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos...</td></tr>
@@ -142,7 +141,7 @@
         </table>
     </div>
     <div class="pagination" id="pagination"></div>
-    <div class="footer">✅ Dica: duplo clique para editar | Ctrl+D duplica produto | F2 edita célula | Esc cancela</div>
+    <div class="footer">✅ Dica: clique no ícone <i class="fas fa-edit"></i> para editar | Ctrl+D duplica | F2 edita célula atual</div>
 </div>
 
 <!-- Modal de Gerenciamento de Categorias (CRUD completo) -->
@@ -177,7 +176,7 @@
     let currentPage = 1, itemsPerPage = 15, lastVisibleDoc = null, totalCount = 0, isLoading = false;
     let produtosCache = [], categoriasCache = [];
     let activeFilter = 'all';
-    let activeInlineEdit = null;     // { cell, originalHtml, saveCallback }
+    let activeEdit = null;          // { cell, originalHtml, field, productId, productIndex }
     let autoSaveTimeout = null;
     let searchDebounce = null;
 
@@ -324,72 +323,98 @@
             const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
             const statusText = p.ativo ? 'Ativo' : 'Inativo';
             return `<tr data-id="${p.id}" data-index="${idx}">
-                <td class="editable" data-field="nome" data-value="${escapeHtml(p.nome || '')}">${escapeHtml(p.nome || '-')}</td>
-                <td class="editable" data-field="precoVenda" data-value="${p.precoVenda || 0}">R$ ${formatCurrency(p.precoVenda || 0)}</td>
-                <td class="editable" data-field="estoque" data-value="${p.estoque || 0}">${p.estoque || 0}</td>
-                <td class="editable" data-field="estoqueMin" data-value="${p.estoqueMin || 0}">${p.estoqueMin || 0}</td>
-                <td>${escapeHtml(cat)}</td>
-                <td class="editable" data-field="ativo" data-value="${p.ativo}"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td class="view-cell" data-field="nome">${escapeHtml(p.nome || '-')}</td>
+                <td class="view-cell" data-field="precoVenda">R$ ${formatCurrency(p.precoVenda || 0)}</td>
+                <td class="view-cell" data-field="estoque">${p.estoque || 0}</td>
+                <td class="view-cell" data-field="estoqueMin">${p.estoqueMin || 0}</td>
+                <td class="view-cell" data-field="categoria">${escapeHtml(cat)}</td>
+                <td class="view-cell" data-field="ativo"><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td class="action-buttons">
+                    <button class="btn-icon edit-inline-btn" data-id="${p.id}" data-field="nome" title="Editar nome"><i class="fas fa-edit"></i></button>
                     <button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button>
                     <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button>
                 </td>
-            </tr>`;
+            <tr>`;
         }).join('');
     }
 
-    // ========== EDIÇÃO INLINE COM DELEGAÇÃO DE EVENTOS ==========
-    function iniciarEdicaoInline(cell) {
-        if (activeInlineEdit) cancelarEdicaoInline();
-        const row = cell.closest('tr');
+    // ========== EDIÇÃO INLINE (via ícone, não duplo clique) ==========
+    function iniciarEdicaoInline(productId, field) {
+        // Localizar o produto no cache e a célula correspondente
+        const productIndex = produtosCache.findIndex(p => p.id === productId);
+        if (productIndex === -1) return;
+        const product = produtosCache[productIndex];
+        const row = document.querySelector(`tr[data-id="${productId}"]`);
         if (!row) return;
-        const productId = row.getAttribute('data-id');
-        if (!productId) return;
-        const index = parseInt(row.getAttribute('data-index'));
-        const product = produtosCache[index];
-        if (!product) return;
-        const field = cell.getAttribute('data-field');
+        
+        let targetCell;
+        if (field === 'nome') targetCell = row.cells[0];
+        else if (field === 'precoVenda') targetCell = row.cells[1];
+        else if (field === 'estoque') targetCell = row.cells[2];
+        else if (field === 'estoqueMin') targetCell = row.cells[3];
+        else if (field === 'categoria') targetCell = row.cells[4];
+        else if (field === 'ativo') targetCell = row.cells[5];
+        else return;
+        
+        if (activeEdit) cancelarEdicaoInline();
+        
         let input;
         if (field === 'ativo') {
             input = document.createElement('select');
             input.innerHTML = '<option value="true">Ativo</option><option value="false">Inativo</option>';
             input.value = product.ativo ? 'true' : 'false';
+        } else if (field === 'categoria') {
+            input = document.createElement('select');
+            input.innerHTML = '<option value="">-- Sem categoria --</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+            input.value = product.categoriaId || '';
         } else {
             input = document.createElement('input');
             input.type = field === 'precoVenda' ? 'text' : 'number';
             input.step = field === 'precoVenda' ? '0.01' : '1';
-            input.value = field === 'precoVenda' ? formatCurrency(product.precoVenda || 0) : (product[field] || 0);
+            if (field === 'precoVenda') input.value = formatCurrency(product.precoVenda || 0);
+            else input.value = product[field] || 0;
         }
+        
         input.style.width = '100%';
         input.style.padding = '4px';
         input.style.borderRadius = '8px';
         input.style.border = '1px solid #2c7da0';
-        const originalHtml = cell.innerHTML;
-        cell.innerHTML = '';
-        cell.appendChild(input);
-        cell.classList.add('editing');
+        
+        const originalHtml = targetCell.innerHTML;
+        targetCell.innerHTML = '';
+        targetCell.appendChild(input);
+        targetCell.classList.add('editing-cell');
         input.focus();
+        
         const salvar = async () => {
             let newValue;
             if (field === 'precoVenda') newValue = parseCurrency(input.value);
             else if (field === 'ativo') newValue = input.value === 'true';
+            else if (field === 'categoria') newValue = input.value || null;
             else newValue = (field === 'estoque' || field === 'estoqueMin') ? parseInt(input.value) : input.value;
             if (isNaN(newValue)) newValue = 0;
-            if (newValue === product[field]) { cancelarEdicaoInline(); return; }
+            
+            const oldValue = (field === 'categoria') ? product.categoriaId : product[field];
+            if (newValue === oldValue) { cancelarEdicaoInline(); return; }
+            
             try {
-                await updateDoc(doc(db, 'produtos', productId), { [field]: newValue, atualizado_em: new Date().toISOString() });
-                product[field] = newValue;
-                renderTabela();
+                const updateData = { [field === 'categoria' ? 'categoriaId' : field]: newValue, atualizado_em: new Date().toISOString() };
+                await updateDoc(doc(db, 'produtos', productId), updateData);
+                if (field === 'categoria') product.categoriaId = newValue;
+                else product[field] = newValue;
+                renderTabela(); // recarrega para exibir valores formatados e categoria nome
                 showToast(`${field} atualizado!`, 'success');
                 await carregarProdutos(true);
             } catch(e) { showToast('Erro ao salvar', 'error'); }
             cancelarEdicaoInline();
         };
+        
         const cancelar = () => {
-            cell.innerHTML = originalHtml;
-            cell.classList.remove('editing');
-            activeInlineEdit = null;
+            targetCell.innerHTML = originalHtml;
+            targetCell.classList.remove('editing-cell');
+            activeEdit = null;
         };
+        
         input.onblur = () => {
             if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
             autoSaveTimeout = setTimeout(salvar, 500);
@@ -398,26 +423,42 @@
             if (e.key === 'Enter') { e.preventDefault(); salvar(); }
             else if (e.key === 'Escape') { e.preventDefault(); cancelar(); }
         };
-        activeInlineEdit = { cell, originalHtml, cancelar };
+        
+        activeEdit = { cell: targetCell, originalHtml, cancelar };
     }
-
+    
     function cancelarEdicaoInline() {
-        if (activeInlineEdit) {
-            activeInlineEdit.cancelar();
-            activeInlineEdit = null;
+        if (activeEdit) {
+            activeEdit.cancelar();
+            activeEdit = null;
         }
         if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     }
 
-    // ========== EVENTOS DE DUPLO CLIQUE (DELEGAÇÃO) ==========
-    document.getElementById('produtosTableBody')?.addEventListener('dblclick', (e) => {
-        let target = e.target;
-        while (target && !target.classList?.contains('editable')) {
-            target = target.parentElement;
+    // ========== EVENTOS DE AÇÕES (botões) ==========
+    document.getElementById('produtosTableBody')?.addEventListener('click', (e) => {
+        // Botão de editar inline
+        const editBtn = e.target.closest('.edit-inline-btn');
+        if (editBtn) {
+            e.stopPropagation();
+            const productId = editBtn.dataset.id;
+            const field = editBtn.dataset.field || 'nome'; // padrão nome
+            iniciarEdicaoInline(productId, field);
+            return;
         }
-        if (target && target.classList.contains('editable')) {
-            e.preventDefault();
-            iniciarEdicaoInline(target);
+        // Duplicar
+        const dupBtn = e.target.closest('.duplicate-btn');
+        if (dupBtn) {
+            e.stopPropagation();
+            duplicarProduto(dupBtn.dataset.id);
+            return;
+        }
+        // Excluir
+        const delBtn = e.target.closest('.delete-btn');
+        if (delBtn) {
+            e.stopPropagation();
+            deleteProduto(delBtn.dataset.id);
+            return;
         }
     });
 
@@ -582,7 +623,14 @@
             if (e.ctrlKey && e.key === 'n') { e.preventDefault(); document.getElementById('quickNome').focus(); }
             if (e.ctrlKey && e.key === 's') { e.preventDefault(); salvarRapido(); }
             if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const firstRow = document.querySelector('tr[data-id]'); if (firstRow) duplicarProduto(firstRow.dataset.id); }
-            if (e.key === 'F2') { e.preventDefault(); const firstCell = document.querySelector('.editable'); if (firstCell) iniciarEdicaoInline(firstCell); }
+            if (e.key === 'F2') { 
+                e.preventDefault(); 
+                const firstRow = document.querySelector('tr[data-id]');
+                if (firstRow) {
+                    const productId = firstRow.dataset.id;
+                    iniciarEdicaoInline(productId, 'nome');
+                }
+            }
             if (e.key === 'Escape') { cancelarEdicaoRapida(); cancelarEdicaoInline(); }
         });
     }
@@ -615,14 +663,6 @@
         document.getElementById('exportPdfBtn').onclick = exportarPDF;
         document.getElementById('logoutBtn').onclick = () => auth.signOut();
         document.getElementById('quickNome').focus();
-
-        // Eventos botões de ações (duplicar/excluir) via delegação
-        document.getElementById('produtosTableBody')?.addEventListener('click', (e) => {
-            const btn = e.target.closest('.duplicate-btn');
-            if (btn) { e.stopPropagation(); duplicarProduto(btn.dataset.id); return; }
-            const delBtn = e.target.closest('.delete-btn');
-            if (delBtn) { e.stopPropagation(); deleteProduto(delBtn.dataset.id); return; }
-        });
 
         // Modal categorias
         document.getElementById('openCategoriaModalBtn').onclick = abrirModalCategorias;
