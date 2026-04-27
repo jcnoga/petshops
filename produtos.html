@@ -137,7 +137,7 @@
                 <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="produtosTableBody">
-                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos...</td></tr>
+                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos......</td></tr>
             </tbody>
         </table>
     </div>
@@ -145,7 +145,7 @@
     <div class="footer">✅ Dica: duplo clique para editar | Ctrl+D duplica produto | F2 edita célula | Esc cancela</div>
 </div>
 
-<!-- Modal de Gerenciamento de Categorias -->
+<!-- Modal de Gerenciamento de Categorias (CRUD completo) -->
 <div id="categoriaModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -153,6 +153,7 @@
             <button class="close" id="closeCategoriaModalBtn">&times;</button>
         </div>
         <div class="modal-body">
+            <!-- Formulário para adicionar nova categoria -->
             <div class="quick-form" style="padding: 12px; margin-bottom: 16px;">
                 <div class="form-row">
                     <div class="field-group" style="flex:2"><label>Nova categoria</label><input type="text" id="novaCategoriaNome" placeholder="Ex: Alimentação, Higiene"></div>
@@ -160,6 +161,7 @@
                     <div class="field-group"><button id="salvarCategoriaBtn" class="btn btn-success"><i class="fas fa-save"></i> Adicionar</button></div>
                 </div>
             </div>
+            <!-- Lista de categorias existentes -->
             <div id="listaCategorias" style="max-height: 400px; overflow-y: auto;">
                 <div style="text-align:center; padding:20px;">Carregando categorias...</div>
             </div>
@@ -184,7 +186,7 @@
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ========== CATEGORIAS ==========
+    // ========== CATEGORIAS (CRUD completo) ==========
     async function carregarCategorias() {
         const constraints = getConstraints();
         const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints, orderBy('nome')));
@@ -196,7 +198,7 @@
         if (filter) filter.innerHTML = '<option value="">Todas categorias</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
     }
 
-    // Modal de categorias
+    // Abrir/fechar modal de categorias
     function abrirModalCategorias() {
         document.getElementById('categoriaModal').style.display = 'flex';
         renderizarListaCategorias();
@@ -204,6 +206,7 @@
     function fecharModalCategorias() {
         document.getElementById('categoriaModal').style.display = 'none';
     }
+
     async function renderizarListaCategorias() {
         const container = document.getElementById('listaCategorias');
         if (categoriasCache.length === 0) {
@@ -222,6 +225,7 @@
                 </div>
             </div>
         `).join('');
+        // Eventos dos botões
         document.querySelectorAll('.editar-categoria').forEach(btn => {
             btn.onclick = () => editarCategoria(btn.dataset.id, btn.dataset.nome, btn.dataset.desc);
         });
@@ -229,6 +233,7 @@
             btn.onclick = () => excluirCategoria(btn.dataset.id);
         });
     }
+
     async function adicionarCategoria() {
         const nome = document.getElementById('novaCategoriaNome').value.trim();
         if (!nome) { showToast('Nome da categoria é obrigatório', 'error'); return; }
@@ -238,10 +243,11 @@
             showToast('Categoria adicionada', 'success');
             document.getElementById('novaCategoriaNome').value = '';
             document.getElementById('novaCategoriaDesc').value = '';
-            await carregarCategorias();
+            await carregarCategorias();  // recarrega cache e selects
             renderizarListaCategorias();
         } catch(e) { showToast('Erro ao adicionar categoria', 'error'); }
     }
+
     async function editarCategoria(id, nomeAtual, descAtual) {
         const novoNome = prompt('Editar nome da categoria:', nomeAtual);
         if (!novoNome || novoNome === nomeAtual) return;
@@ -253,6 +259,7 @@
             renderizarListaCategorias();
         } catch(e) { showToast('Erro ao editar', 'error'); }
     }
+
     async function excluirCategoria(id) {
         if (!confirm('Excluir esta categoria? Produtos que a utilizam ficarão sem categoria.')) return;
         try {
@@ -325,8 +332,11 @@
                 <td class="editable" data-field="estoqueMin" data-value="${p.estoqueMin || 0}">${p.estoqueMin || 0}</td>
                 <td>${escapeHtml(cat)}</td>
                 <td class="editable" data-field="ativo" data-value="${p.ativo}"><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td><button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button> <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button></td>
-            </tr>`;
+                <td class="action-buttons">
+                    <button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button>
+                    <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                </td>
+             </tr>`;
         }).join('');
         document.querySelectorAll('.editable').forEach(cell => cell.ondblclick = () => startInlineEdit(cell));
         document.querySelectorAll('.duplicate-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); duplicarProduto(btn.dataset.id); });
@@ -448,7 +458,7 @@
         showToast('Edição cancelada', 'info');
     }
 
-    // Estatísticas e filtros
+    // Estatísticas e paginação
     async function atualizarStats() {
         const constraints = getConstraints();
         const total = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
