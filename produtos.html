@@ -3,71 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Produtos (Modo Eficiente)</title>
+    <title>PerShop - Produtos | Modo Eficiente</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
+        body { background: #eef2f5; min-height: 100vh; padding: 16px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: white; border-radius: 24px; padding: 15px 25px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
-        .logo h1 { font-size: 1.3rem; color: #1f5068; }
+        .header { background: white; border-radius: 20px; padding: 12px 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem; }
+        .logo h1 { font-size: 1.2rem; color: #1f5068; }
         .logo span { font-weight: 400; color: #61a5c2; }
-        .empresa-info { background: #e6f0f5; padding: 6px 14px; border-radius: 40px; font-size: 0.75rem; font-weight: 600; color: #1f5068; }
-        .config-bar { display: flex; gap: 10px; align-items: center; }
-        .btn { border: none; padding: 6px 16px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
-        .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(44,125,160,0.2); }
-        .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
-        .btn-outline:hover { background: #2c7da0; color: white; }
+        .empresa-info { background: #eef2f5; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 500; }
+        .config-bar { display: flex; gap: 8px; align-items: center; }
+        .btn { border: none; padding: 5px 14px; border-radius: 30px; font-weight: 500; cursor: pointer; transition: 0.1s; font-size: 0.75rem; }
+        .btn-primary { background: #2c7da0; color: white; }
+        .btn-primary:hover { background: #1f5e7a; }
+        .btn-outline { border: 1px solid #2c7da0; background: transparent; color: #2c7da0; }
+        .btn-outline:hover { background: #eef2f5; }
         .btn-success { background: #2a9d8f; color: white; }
+        .btn-success:hover { background: #21867a; }
         .btn-sm { padding: 4px 12px; font-size: 0.7rem; }
-        .btn-icon { padding: 6px; border-radius: 8px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background: #f0f4f8; color: #5e7c8c; }
-        .btn-icon:hover { background: #2c7da0; color: white; transform: scale(1.02); }
-        .badge { background: #d4e6f1; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); transition: 0.1s; cursor: pointer; border: 1px solid #eef2f5; }
-        .stat-card:hover { background: #f8fbfd; }
-        .stat-value { font-size: 1.6rem; font-weight: 800; color: #1f5068; line-height: 1.2; }
-        .stat-label { font-size: 0.65rem; color: #7a9eb0; text-transform: uppercase; margin-top: 4px; }
-        .quick-form { background: white; border-radius: 24px; margin-bottom: 20px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); border: 1px solid #eef2f5; }
-        .quick-form h3 { font-size: 0.9rem; color: #1f5068; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .form-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-        .form-field { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px; }
-        .form-field label { font-size: 0.65rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
-        .form-field input, .form-field select { padding: 8px 12px; border-radius: 12px; border: 1.5px solid #e2edf2; font-size: 0.8rem; transition: all 0.1s; background: white; }
-        .form-field input:focus, .form-field select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 2px rgba(44,125,160,0.1); }
-        .form-actions { display: flex; gap: 10px; align-items: center; }
-        .filter-bar { background: white; border-radius: 24px; padding: 12px 20px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+        .btn-icon { background: transparent; border: none; cursor: pointer; color: #7a9eb0; font-size: 0.9rem; padding: 4px; border-radius: 6px; }
+        .btn-icon:hover { background: #eef2f5; color: #2c7da0; }
+        .badge { background: #eef2f5; padding: 4px 10px; border-radius: 30px; font-size: 0.65rem; }
+        .stats-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-card { background: white; border-radius: 16px; padding: 12px 16px; flex: 1; min-width: 100px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); cursor: pointer; border: 1px solid #eef2f5; }
+        .stat-card.active { border-color: #2c7da0; background: #f8fbfd; }
+        .stat-value { font-size: 1.4rem; font-weight: 700; color: #1f5068; }
+        .stat-label { font-size: 0.6rem; color: #7a9eb0; text-transform: uppercase; }
+        .quick-form { background: white; border-radius: 20px; padding: 12px 16px; margin-bottom: 20px; border: 1px solid #eef2f5; }
+        .quick-form h3 { font-size: 0.8rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+        .field-group { flex: 1; min-width: 100px; display: flex; flex-direction: column; gap: 4px; }
+        .field-group label { font-size: 0.6rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .field-group input, .field-group select { padding: 6px 10px; border-radius: 10px; border: 1px solid #e2edf2; font-size: 0.75rem; background: white; }
+        .field-group input:focus { outline: none; border-color: #2c7da0; }
+        .filter-bar { background: white; border-radius: 20px; padding: 8px 16px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
         .filter-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-        .filter-group input, .filter-group select { padding: 6px 12px; border-radius: 30px; border: 1px solid #e2edf2; font-size: 0.8rem; background: white; }
-        .chip-filter { background: #f0f4f8; padding: 5px 12px; border-radius: 30px; font-size: 0.7rem; cursor: pointer; transition: 0.1s; border: 1px solid transparent; }
-        .chip-filter.active { background: #2c7da0; color: white; border-color: #2c7da0; }
-        .table-container { background: white; border-radius: 24px; overflow: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.03); border: 1px solid #eef2f5; }
+        .filter-group input, .filter-group select { padding: 5px 10px; border-radius: 30px; border: 1px solid #e2edf2; font-size: 0.7rem; }
+        .chip { background: #eef2f5; padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; cursor: pointer; transition: 0.1s; }
+        .chip.active { background: #2c7da0; color: white; }
+        .table-wrapper { background: white; border-radius: 20px; overflow: auto; border: 1px solid #eef2f5; }
         table { width: 100%; border-collapse: collapse; min-width: 700px; }
-        th { text-align: left; padding: 10px 12px; background: #f8fbfd; font-weight: 600; font-size: 0.7rem; color: #5e7c8c; text-transform: uppercase; border-bottom: 1px solid #eef2f5; }
-        td { padding: 10px 12px; border-bottom: 1px solid #eef2f5; font-size: 0.8rem; vertical-align: middle; transition: 0.05s linear; }
+        th { text-align: left; padding: 10px 12px; background: #f8fbfd; font-size: 0.65rem; font-weight: 600; color: #4a6272; border-bottom: 1px solid #eef2f5; }
+        td { padding: 10px 12px; border-bottom: 1px solid #eef2f5; font-size: 0.75rem; }
         tr:hover { background: #fafcfd; }
-        .editable-cell { cursor: pointer; border-radius: 8px; padding: 4px 8px; margin: -4px -8px; }
-        .editable-cell.editing { background: #fff9e0; outline: 1px solid #e9c46a; cursor: text; }
-        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 40px; font-size: 0.65rem; font-weight: 600; }
+        .editable { cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: -2px -6px; transition: 0.05s; }
+        .editable.editing { background: #fff9e0; outline: 1px solid #e9c46a; }
+        .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 30px; font-size: 0.6rem; font-weight: 500; }
         .status-ativo { background: #2a9d8f20; color: #2a9d8f; }
-        .status-inativo { background: #e9c46a20; color: #e9c46a; }
-        .action-btn { background: transparent; border: none; cursor: pointer; color: #7a9eb0; font-size: 0.9rem; padding: 4px; border-radius: 8px; transition: 0.1s; }
-        .action-btn:hover { background: #eef2f5; color: #2c7da0; }
-        .pagination { display: flex; justify-content: center; gap: 6px; padding: 15px; flex-wrap: wrap; }
-        .page-btn { padding: 5px 10px; border-radius: 30px; border: 1px solid #e2edf2; background: white; cursor: pointer; font-size: 0.7rem; }
+        .status-inativo { background: #e76f5120; color: #e76f51; }
+        .pagination { display: flex; justify-content: center; gap: 5px; padding: 12px; flex-wrap: wrap; }
+        .page-btn { padding: 4px 8px; border-radius: 20px; border: 1px solid #eef2f5; background: white; font-size: 0.7rem; cursor: pointer; }
         .page-btn.active { background: #2c7da0; color: white; border-color: #2c7da0; }
-        .toast { position: fixed; bottom: 20px; right: 20px; background: #1f5068; color: white; padding: 8px 16px; border-radius: 40px; font-size: 0.75rem; z-index: 1000; animation: fadeInUp 0.2s; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .footer { text-align: center; padding: 15px; font-size: 0.65rem; color: #8aa4b8; margin-top: 20px; }
-        @media (max-width: 768px) { body { padding: 10px; } .quick-form .form-row { flex-direction: column; } .filter-bar { flex-direction: column; align-items: stretch; } .form-actions { width: 100%; justify-content: center; } }
-        .shortcut-hint { font-size: 0.6rem; color: #aaa; margin-left: 8px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #1f5068; color: white; padding: 8px 16px; border-radius: 30px; font-size: 0.7rem; z-index: 1000; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .footer { text-align: center; padding: 12px; font-size: 0.6rem; color: #8aa4b8; margin-top: 16px; }
+        @media (max-width: 680px) { .form-row { flex-direction: column; align-items: stretch; } .filter-bar { flex-direction: column; align-items: stretch; } }
+        .shortcut-hint { font-size: 0.55rem; color: #aaa; margin-left: 6px; }
     </style>
 </head>
 <body>
@@ -80,90 +77,74 @@
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
 
-    <div class="stats-grid">
+    <!-- Cards de estatísticas (filtros rápidos) -->
+    <div class="stats-row" id="statsRow">
         <div class="stat-card" data-filter="all"><div class="stat-value" id="totalProdutos">0</div><div class="stat-label">Total</div></div>
         <div class="stat-card" data-filter="active"><div class="stat-value" id="totalAtivos">0</div><div class="stat-label">Ativos</div></div>
         <div class="stat-card" data-filter="lowstock"><div class="stat-value" id="totalEstoqueBaixo">0</div><div class="stat-label">Estoque Baixo</div></div>
         <div class="stat-card" data-filter="inactive"><div class="stat-value" id="totalInativos">0</div><div class="stat-label">Inativos</div></div>
     </div>
 
-    <!-- Barra de Cadastro Rápido -->
+    <!-- Barra de cadastro rápido -->
     <div class="quick-form">
         <h3><i class="fas fa-bolt"></i> Cadastro rápido <span class="shortcut-hint">(Ctrl+N foca, Ctrl+S salva)</span></h3>
         <div class="form-row">
-            <div class="form-field" style="flex:2"><label>Nome</label><input type="text" id="quickNome" placeholder="Ex: Ração Premium" autocomplete="off"></div>
-            <div class="form-field"><label>Preço Venda (R$)</label><input type="text" id="quickPreco" placeholder="0,00"></div>
-            <div class="form-field"><label>Estoque</label><input type="number" id="quickEstoque" value="0" step="1"></div>
-            <div class="form-field"><label>Estoque Mínimo</label><input type="number" id="quickEstoqueMin" value="0" step="1"></div>
-            <div class="form-field"><label>Categoria</label><select id="quickCategoriaId"><option value="">Selecione</option></select></div>
-            <div class="form-field"><label>Status</label><select id="quickAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
-            <div class="form-actions">
-                <button id="saveQuickBtn" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button>
-                <button id="cancelQuickBtn" class="btn btn-outline" style="display:none;">Cancelar</button>
-            </div>
+            <div class="field-group" style="flex:2"><label>Nome *</label><input type="text" id="quickNome" placeholder="Ex: Ração Premium" autocomplete="off"></div>
+            <div class="field-group"><label>Preço Venda * (R$)</label><input type="text" id="quickPreco" placeholder="0,00"></div>
+            <div class="field-group"><label>Estoque</label><input type="number" id="quickEstoque" value="0" step="1"></div>
+            <div class="field-group"><label>Mínimo</label><input type="number" id="quickEstoqueMin" value="0" step="1"></div>
+            <div class="field-group"><label>Categoria</label><select id="quickCategoriaId"><option value="">-- Selecione --</option></select></div>
+            <div class="field-group"><label>Status</label><select id="quickAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+            <div class="field-group"><div style="display: flex; gap: 6px;"><button id="saveQuickBtn" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button><button id="cancelQuickBtn" class="btn btn-outline" style="display:none;">Cancelar</button></div></div>
         </div>
     </div>
 
-    <!-- Filtros inteligentes -->
+    <!-- Filtros e busca -->
     <div class="filter-bar">
         <div class="filter-group">
             <input type="text" id="searchInput" placeholder="🔍 Buscar produto..." autocomplete="off">
             <select id="categoriaFilter"><option value="">Todas categorias</option></select>
         </div>
         <div class="filter-group">
-            <div class="chip-filter" data-filter="all">Todos</div>
-            <div class="chip-filter" data-filter="active">Ativos</div>
-            <div class="chip-filter" data-filter="inactive">Inativos</div>
-            <div class="chip-filter" data-filter="lowstock">Estoque baixo</div>
+            <div class="chip" data-filter="all">Todos</div>
+            <div class="chip" data-filter="active">Ativos</div>
+            <div class="chip" data-filter="inactive">Inativos</div>
+            <div class="chip" data-filter="lowstock">Estoque baixo</div>
             <button id="clearFiltersBtn" class="btn btn-outline btn-sm"><i class="fas fa-eraser"></i> Limpar</button>
-            <button id="exportPdfBtn" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button id="exportPdfBtn" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
         </div>
     </div>
 
-    <!-- Grid profissional (tabela editável inline) -->
-    <div class="table-container">
+    <!-- Grid de produtos (tabela editável) -->
+    <div class="table-wrapper">
         <table>
             <thead>
-                <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:80px">Ações</th></tr>
+                <tr><th>Nome</th><th>Preço Venda</th><th>Estoque</th><th>Mínimo</th><th>Categoria</th><th>Status</th><th style="width:70px">Ações</th></tr>
             </thead>
             <tbody id="produtosTableBody">
-                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando...</td></tr>
+                <tr><td colspan="7" style="text-align:center; padding:30px;">Carregando produtos...</td></tr>
             </tbody>
         </table>
     </div>
     <div class="pagination" id="pagination"></div>
-    <div class="footer">✅ Dicas: Duplo clique para editar | Ctrl+D duplica produto selecionado | F2 edita primeira célula</div>
+    <div class="footer">✅ Dica: duplo clique para editar | Ctrl+D duplica produto | F2 edita célula | Esc cancela</div>
 </div>
 
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
-    import { 
-        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
-        orderBy, limit, startAfter, getCountFromServer, getDoc
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { 
-        escapeHtml, showToast, formatCurrency, parseCurrency, carregarEmpresaUsuario, 
-        verificarStatusEmpresa, configurarMascaraValor
-    } from './util.js';
+    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, limit, startAfter, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { escapeHtml, showToast, formatCurrency, parseCurrency, carregarEmpresaUsuario, verificarStatusEmpresa, configurarMascaraValor } from './util.js';
 
     // ========== ESTADO GLOBAL ==========
-    let currentUser = null;
-    let currentEmpresa = null;
-    let editingId = null;           // produto sendo editado no formulário rápido
-    let currentPage = 1;
-    let itemsPerPage = 15;          // mais denso
-    let lastVisibleDoc = null;
-    let totalProdutosCount = 0;
-    let isLoading = false;
-    let produtosCache = [];          // produtos da página atual
-    let categoriasCache = [];
-    let activeInlineEdit = null;     // { rowIndex, field, originalValue }
-    let autoSaveTimeout = null;
-    let currentSelectedRow = null;   // para duplicar e atalhos
+    let currentUser, currentEmpresa, editingId = null;
+    let currentPage = 1, itemsPerPage = 15, lastVisibleDoc = null, totalCount = 0, isLoading = false;
+    let produtosCache = [], categoriasCache = [];
+    let activeFilter = 'all';  // all, active, inactive, lowstock
+    let activeInlineEdit = null, autoSaveTimeout = null, searchDebounce = null;
 
     // ========== CONSTRAINTS ==========
     function getConstraints() {
-        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        if (currentEmpresa?.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
@@ -173,14 +154,14 @@
         const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints, orderBy('nome')));
         categoriasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const select = document.getElementById('quickCategoriaId');
-        const filterSelect = document.getElementById('categoriaFilter');
-        const options = '<option value="">-- Sem categoria --</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
-        if (select) select.innerHTML = options;
-        if (filterSelect) filterSelect.innerHTML = '<option value="">Todas categorias</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+        const filter = document.getElementById('categoriaFilter');
+        const opts = '<option value="">-- Sem categoria --</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+        if (select) select.innerHTML = opts;
+        if (filter) filter.innerHTML = '<option value="">Todas categorias</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
     }
 
-    // ========== PAGINAÇÃO / CARREGAR PRODUTOS ==========
-    async function carregarPaginaProdutos(reset = true) {
+    // ========== CARREGAR PRODUTOS (PAGINAÇÃO + FILTROS) ==========
+    async function carregarProdutos(reset = true) {
         if (isLoading) return;
         isLoading = true;
         try {
@@ -188,32 +169,27 @@
             const constraints = getConstraints();
             let q = query(collection(db, 'produtos'), ...constraints);
             
-            // Filtros aplicados diretamente na query (exceto busca textual e lowstock)
-            const statusFilter = document.querySelector('.chip-filter.active')?.getAttribute('data-filter');
-            if (statusFilter === 'active') q = query(q, where('ativo', '==', true));
-            else if (statusFilter === 'inactive') q = query(q, where('ativo', '==', false));
-            // lowstock não pode ser filtrado no firestore diretamente, faremos pós-carga
+            // Filtro de status (ativo/inativo) – aplicado no Firestore
+            if (activeFilter === 'active') q = query(q, where('ativo', '==', true));
+            else if (activeFilter === 'inactive') q = query(q, where('ativo', '==', false));
+            // lowstock será tratado após o carregamento
             
             const catFilter = document.getElementById('categoriaFilter').value;
             if (catFilter) q = query(q, where('categoriaId', '==', catFilter));
             
-            // Busca por nome (prefixo)
             const searchTerm = document.getElementById('searchInput').value.trim();
             if (searchTerm) {
                 const end = searchTerm + '\uf8ff';
                 q = query(q, where('nome', '>=', searchTerm), where('nome', '<=', end));
             }
-            
             q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
             if (lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc));
+            
             const snapshot = await getDocs(q);
             let novos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            // Aplicar filtro lowstock (client-side, pois depende da comparação com estoqueMin)
-            if (statusFilter === 'lowstock') {
+            if (activeFilter === 'lowstock') {
                 novos = novos.filter(p => (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0);
             }
-            
             if (reset) produtosCache = novos;
             else produtosCache = [...produtosCache, ...novos];
             lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
@@ -221,97 +197,52 @@
             // Contagem total (ignorar lowstock para precisão)
             if (reset) {
                 let countQ = query(collection(db, 'produtos'), ...constraints);
-                if (statusFilter === 'active') countQ = query(countQ, where('ativo', '==', true));
-                else if (statusFilter === 'inactive') countQ = query(countQ, where('ativo', '==', false));
+                if (activeFilter === 'active') countQ = query(countQ, where('ativo', '==', true));
+                else if (activeFilter === 'inactive') countQ = query(countQ, where('ativo', '==', false));
                 if (catFilter) countQ = query(countQ, where('categoriaId', '==', catFilter));
                 if (searchTerm) countQ = query(countQ, where('nome', '>=', searchTerm), where('nome', '<=', searchTerm + '\uf8ff'));
                 const countSnap = await getCountFromServer(countQ);
-                totalProdutosCount = countSnap.data().count;
-                if (statusFilter === 'lowstock') totalProdutosCount = produtosCache.length; // ajuste
+                totalCount = countSnap.data().count;
+                if (activeFilter === 'lowstock') totalCount = produtosCache.length;
             }
             renderTabela();
             atualizarPaginacao();
-            updateStats();
-        } catch(e) { console.error(e); showToast('Erro ao carregar produtos', 'error'); } 
+            atualizarStats();
+        } catch(e) { console.error(e); showToast('Erro ao carregar produtos', 'error'); }
         finally { isLoading = false; }
     }
 
-    function atualizarPaginacao() {
-        const totalPages = Math.ceil(totalProdutosCount / itemsPerPage);
-        const paginationDiv = document.getElementById('pagination');
-        if (!paginationDiv) return;
-        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage===1?'disabled':''}>&laquo;</button>`;
-        for (let i=1; i<=Math.min(totalPages, 8); i++) {
-            html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
-        }
-        if (totalPages > 8) html += `<span>...</span><button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
-        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage===totalPages?'disabled':''}>&raquo;</button>`;
-        paginationDiv.innerHTML = html;
-    }
-    window.goToPage = async (page) => {
-        if (page < 1) return;
-        if (page > currentPage) {
-            while (currentPage < page && lastVisibleDoc && !isLoading) {
-                await carregarPaginaProdutos(false);
-                currentPage++;
-            }
-        } else if (page < currentPage) {
-            await carregarPaginaProdutos(true);
-            currentPage = 1;
-            while (currentPage < page && lastVisibleDoc && !isLoading) {
-                await carregarPaginaProdutos(false);
-                currentPage++;
-            }
-        }
-        renderTabela();
-        atualizarPaginacao();
-    };
-
-    // ========== RENDER TABELA COM EDIÇÃO INLINE ==========
     function renderTabela() {
         const tbody = document.getElementById('produtosTableBody');
         if (!tbody) return;
         if (produtosCache.length === 0) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhum produto encontrado</td></tr>'; return; }
         tbody.innerHTML = produtosCache.map((p, idx) => {
-            const categoria = categoriasCache.find(c => c.id === p.categoriaId)?.nome || '-';
+            const cat = categoriasCache.find(c => c.id === p.categoriaId)?.nome || '-';
             const statusClass = p.ativo ? 'status-ativo' : 'status-inativo';
             const statusText = p.ativo ? 'Ativo' : 'Inativo';
             return `<tr data-id="${p.id}" data-index="${idx}">
-                <td class="editable-cell" data-field="nome" data-value="${escapeHtml(p.nome || '')}">${escapeHtml(p.nome || '-')}</td>
-                <td class="editable-cell" data-field="precoVenda" data-value="${p.precoVenda || 0}">R$ ${formatCurrency(p.precoVenda || 0)}</td>
-                <td class="editable-cell" data-field="estoque" data-value="${p.estoque || 0}">${p.estoque || 0}</td>
-                <td class="editable-cell" data-field="estoqueMin" data-value="${p.estoqueMin || 0}">${p.estoqueMin || 0}</td>
-                <td>${escapeHtml(categoria)}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td>
-                    <button class="action-btn duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button>
-                    <button class="action-btn delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button>
-                </td>
+                <td class="editable" data-field="nome" data-value="${escapeHtml(p.nome || '')}">${escapeHtml(p.nome || '-')}</td>
+                <td class="editable" data-field="precoVenda" data-value="${p.precoVenda || 0}">R$ ${formatCurrency(p.precoVenda || 0)}</td>
+                <td class="editable" data-field="estoque" data-value="${p.estoque || 0}">${p.estoque || 0}</td>
+                <td class="editable" data-field="estoqueMin" data-value="${p.estoqueMin || 0}">${p.estoqueMin || 0}</td>
+                <td>${escapeHtml(cat)}</td>
+                <td class="editable" data-field="ativo" data-value="${p.ativo}"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td><button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button> <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button></td>
             </tr>`;
         }).join('');
-        
-        // Anexar eventos de edição inline (duplo clique)
-        document.querySelectorAll('.editable-cell').forEach(cell => {
-            cell.ondblclick = (e) => startInlineEdit(cell);
-        });
-        // Botões duplicar
-        document.querySelectorAll('.duplicate-btn').forEach(btn => {
-            btn.onclick = (e) => { e.stopPropagation(); duplicarProduto(btn.getAttribute('data-id')); };
-        });
-        // Botões excluir
-        document.querySelectorAll('.delete-btn').forEach(btn => {
-            btn.onclick = (e) => { e.stopPropagation(); deleteProduto(btn.getAttribute('data-id')); };
-        });
+        // Eventos de edição
+        document.querySelectorAll('.editable').forEach(cell => cell.ondblclick = () => startInlineEdit(cell));
+        document.querySelectorAll('.duplicate-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); duplicarProduto(btn.dataset.id); });
+        document.querySelectorAll('.delete-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); deleteProduto(btn.dataset.id); });
     }
 
-    // ========== EDIÇÃO INLINE (autosave) ==========
+    // ========== EDIÇÃO INLINE COM AUTOSAVE ==========
     function startInlineEdit(cell) {
         if (activeInlineEdit) cancelInlineEdit();
         const row = cell.closest('tr');
-        const field = cell.getAttribute('data-field');
-        const oldValue = cell.getAttribute('data-value');
-        const productId = row.getAttribute('data-id');
-        const index = parseInt(row.getAttribute('data-index'));
+        const field = cell.dataset.field;
+        const productId = row.dataset.id;
+        const index = parseInt(row.dataset.index);
         const product = produtosCache[index];
         if (!product) return;
         
@@ -326,7 +257,6 @@
             input.step = field === 'precoVenda' ? '0.01' : '1';
             input.value = field === 'precoVenda' ? formatCurrency(product.precoVenda || 0) : (product[field] || 0);
         }
-        input.classList.add('inline-input');
         input.style.width = '100%';
         input.style.padding = '4px';
         input.style.borderRadius = '8px';
@@ -340,33 +270,31 @@
             let newValue;
             if (field === 'precoVenda') newValue = parseCurrency(input.value);
             else if (field === 'ativo') newValue = input.value === 'true';
-            else newValue = field === 'estoque' || field === 'estoqueMin' ? parseInt(input.value) : input.value;
+            else newValue = (field === 'estoque' || field === 'estoqueMin') ? parseInt(input.value) : input.value;
             if (isNaN(newValue)) newValue = 0;
             if (newValue === product[field]) { cancelInlineEdit(); return; }
-            const updates = { [field]: newValue };
             try {
-                await updateDoc(doc(db, 'produtos', productId), { ...updates, atualizado_em: new Date().toISOString() });
+                await updateDoc(doc(db, 'produtos', productId), { [field]: newValue, atualizado_em: new Date().toISOString() });
                 product[field] = newValue;
                 renderTabela();
                 showToast(`${field} atualizado!`, 'success');
-                await carregarPaginaProdutos(true);
+                await carregarProdutos(true); // recarrega para manter consistência de ordenação
             } catch(e) { showToast('Erro ao salvar', 'error'); }
             cancelInlineEdit();
         };
         input.onblur = () => { if (autoSaveTimeout) clearTimeout(autoSaveTimeout); autoSaveTimeout = setTimeout(save, 500); };
-        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') { cancelInlineEdit(); } };
+        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } else if (e.key === 'Escape') cancelInlineEdit(); };
     }
     function cancelInlineEdit() {
         if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
         activeInlineEdit = null;
-        renderTabela(); // recarrega a tabela, removendo inputs
+        renderTabela();
     }
 
     // ========== DUPLICAR PRODUTO ==========
     async function duplicarProduto(id) {
         const original = produtosCache.find(p => p.id === id);
         if (!original) return;
-        // Preencher formulário rápido
         document.getElementById('quickNome').value = original.nome + ' (cópia)';
         document.getElementById('quickPreco').value = formatCurrency(original.precoVenda || 0);
         document.getElementById('quickEstoque').value = original.estoque || 0;
@@ -378,24 +306,23 @@
         document.getElementById('saveQuickBtn').classList.add('btn-success');
         document.getElementById('cancelQuickBtn').style.display = 'none';
         document.getElementById('quickNome').focus();
-        showToast('Preencha e salve para duplicar', 'info');
+        showToast('Altere o nome e salve para criar cópia', 'info');
     }
 
     // ========== EXCLUIR PRODUTO ==========
     async function deleteProduto(id) {
-        if (!confirm('Excluir produto? Esta ação não pode ser desfeita.')) return;
+        if (!confirm('Excluir produto permanentemente?')) return;
         await deleteDoc(doc(db, 'produtos', id));
-        showToast('Produto excluído!', 'success');
-        await carregarPaginaProdutos(true);
-        updateStats();
+        showToast('Produto excluído', 'success');
+        await carregarProdutos(true);
     }
 
-    // ========== FORMULÁRIO RÁPIDO (salvar/atualizar) ==========
-    async function salvarProdutoRapido() {
+    // ========== FORMULÁRIO RÁPIDO ==========
+    async function salvarRapido() {
         const nome = document.getElementById('quickNome').value.trim();
-        if (!nome) { showToast('Nome é obrigatório!', 'error'); document.getElementById('quickNome').focus(); return; }
+        if (!nome) { showToast('Nome obrigatório', 'error'); document.getElementById('quickNome').focus(); return; }
         const precoVenda = parseCurrency(document.getElementById('quickPreco').value);
-        if (precoVenda <= 0) { showToast('Preço de venda deve ser maior que zero', 'error'); document.getElementById('quickPreco').focus(); return; }
+        if (precoVenda <= 0) { showToast('Preço de venda inválido', 'error'); document.getElementById('quickPreco').focus(); return; }
         const estoque = parseInt(document.getElementById('quickEstoque').value) || 0;
         const estoqueMin = parseInt(document.getElementById('quickEstoqueMin').value) || 0;
         const categoriaId = document.getElementById('quickCategoriaId').value || null;
@@ -405,22 +332,20 @@
         
         if (editingId) {
             await updateDoc(doc(db, 'produtos', editingId), data);
-            showToast('Produto atualizado!', 'success');
+            showToast('Produto atualizado', 'success');
             editingId = null;
             document.getElementById('saveQuickBtn').innerHTML = '<i class="fas fa-save"></i> Salvar';
             document.getElementById('cancelQuickBtn').style.display = 'none';
         } else {
             await addDoc(collection(db, 'produtos'), { ...data, criado_em: new Date().toISOString(), criado_por: currentUser.uid });
-            showToast('Produto cadastrado!', 'success');
+            showToast('Produto cadastrado', 'success');
         }
-        // Limpar campos exceto categoria e status (opcional)
         document.getElementById('quickNome').value = '';
         document.getElementById('quickPreco').value = '';
         document.getElementById('quickEstoque').value = '0';
         document.getElementById('quickEstoqueMin').value = '0';
         document.getElementById('quickNome').focus();
-        await carregarPaginaProdutos(true);
-        updateStats();
+        await carregarProdutos(true);
     }
     function cancelarEdicaoRapida() {
         editingId = null;
@@ -435,47 +360,69 @@
         showToast('Edição cancelada', 'info');
     }
 
-    // ========== ESTATÍSTICAS ==========
-    async function updateStats() {
+    // ========== ESTATÍSTICAS E FILTROS ==========
+    async function atualizarStats() {
         const constraints = getConstraints();
-        const totalSnap = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
-        document.getElementById('totalProdutos').innerText = totalSnap.data().count;
-        const ativosSnap = await getCountFromServer(query(collection(db, 'produtos'), ...constraints, where('ativo', '==', true)));
-        document.getElementById('totalAtivos').innerText = ativosSnap.data().count;
-        const produtosAll = await getDocs(query(collection(db, 'produtos'), ...constraints));
-        const baixo = produtosAll.docs.filter(d => {
-            const p = d.data();
-            return (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0;
-        }).length;
+        const total = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
+        const ativos = await getCountFromServer(query(collection(db, 'produtos'), ...constraints, where('ativo', '==', true)));
+        const todosDocs = await getDocs(query(collection(db, 'produtos'), ...constraints));
+        const baixo = todosDocs.docs.filter(d => { const p = d.data(); return (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0; }).length;
+        document.getElementById('totalProdutos').innerText = total.data().count;
+        document.getElementById('totalAtivos').innerText = ativos.data().count;
+        document.getElementById('totalInativos').innerText = total.data().count - ativos.data().count;
         document.getElementById('totalEstoqueBaixo').innerText = baixo;
-        const inativos = totalSnap.data().count - ativosSnap.data().count;
-        document.getElementById('totalInativos').innerText = inativos;
     }
 
-    // ========== FILTROS E BUSCA ==========
-    function aplicarFiltros() { carregarPaginaProdutos(true); }
+    function atualizarPaginacao() {
+        const totalPages = Math.ceil(totalCount / itemsPerPage);
+        const pagDiv = document.getElementById('pagination');
+        if (!pagDiv) return;
+        let html = `<button class="page-btn" onclick="goToPage(1)" ${currentPage===1?'disabled':''}>&laquo;</button>`;
+        for (let i=1; i<=Math.min(totalPages, 8); i++) html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        if (totalPages > 8) html += `<span>...</span><button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+        html += `<button class="page-btn" onclick="goToPage(${totalPages})" ${currentPage===totalPages?'disabled':''}>&raquo;</button>`;
+        pagDiv.innerHTML = html;
+    }
+    window.goToPage = async (page) => {
+        if (page < 1) return;
+        if (page > currentPage) {
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarProdutos(false);
+                currentPage++;
+            }
+        } else if (page < currentPage) {
+            await carregarProdutos(true);
+            currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) {
+                await carregarProdutos(false);
+                currentPage++;
+            }
+        }
+        renderTabela();
+        atualizarPaginacao();
+    };
+
+    function setFilter(filter) {
+        activeFilter = filter;
+        document.querySelectorAll('.chip').forEach(ch => ch.classList.remove('active'));
+        document.querySelector(`.chip[data-filter="${filter}"]`)?.classList.add('active');
+        document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('active'));
+        document.querySelector(`.stat-card[data-filter="${filter}"]`)?.classList.add('active');
+        carregarProdutos(true);
+    }
+
     function limparFiltros() {
         document.getElementById('searchInput').value = '';
         document.getElementById('categoriaFilter').value = '';
-        document.querySelectorAll('.chip-filter').forEach(ch => ch.classList.remove('active'));
-        document.querySelector('.chip-filter[data-filter="all"]').classList.add('active');
-        carregarPaginaProdutos(true);
+        setFilter('all');
     }
-    function setChipFilter(activeChip) {
-        document.querySelectorAll('.chip-filter').forEach(ch => ch.classList.remove('active'));
-        activeChip.classList.add('active');
-        carregarPaginaProdutos(true);
-    }
-
-    // ========== ATALHOS DE TECLADO ==========
-    function setupShortcuts() {
-        window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'n') { e.preventDefault(); document.getElementById('quickNome').focus(); }
-            if (e.ctrlKey && e.key === 's') { e.preventDefault(); salvarProdutoRapido(); }
-            if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const firstRow = document.querySelector('tr[data-id]'); if (firstRow) duplicarProduto(firstRow.getAttribute('data-id')); }
-            if (e.key === 'F2') { e.preventDefault(); const firstCell = document.querySelector('.editable-cell'); if (firstCell) startInlineEdit(firstCell); }
-            if (e.key === 'Escape') { cancelarEdicaoRapida(); cancelInlineEdit(); }
-        });
+    
+    function configurarEventosFiltros() {
+        document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => setFilter(ch.dataset.filter));
+        document.querySelectorAll('.stat-card').forEach(card => card.onclick = () => setFilter(card.dataset.filter));
+        document.getElementById('searchInput').addEventListener('input', () => { if (searchDebounce) clearTimeout(searchDebounce); searchDebounce = setTimeout(() => carregarProdutos(true), 300); });
+        document.getElementById('categoriaFilter').addEventListener('change', () => carregarProdutos(true));
+        document.getElementById('clearFiltersBtn').onclick = limparFiltros;
     }
 
     // ========== EXPORTAR PDF ==========
@@ -485,27 +432,36 @@
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            doc.setFontSize(20); doc.setTextColor(44,125,160); doc.text('Relatório de Produtos', 14, 20);
-            doc.setFontSize(10); doc.text(`Total: ${totalProdutosCount} produtos`, 14, 30);
-            const colunas = [{ label: 'Nome', width: 50 }, { label: 'Preço', width: 30 }, { label: 'Estoque', width: 25 }, { label: 'Mínimo', width: 25 }, { label: 'Status', width: 25 }];
-            let y = 40;
-            doc.setFontSize(9); doc.setFillColor(44,125,160); doc.setTextColor(255);
-            let x = 14;
-            colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; });
-            doc.setTextColor(0);
-            y += 10;
+            doc.setFontSize(18); doc.text('Relatório de Produtos', 14, 20);
+            doc.setFontSize(9); doc.text(`Total: ${totalCount} produtos`, 14, 30);
+            const cols = [{ label: 'Nome', w: 50 }, { label: 'Preço', w: 30 }, { label: 'Estoque', w: 25 }, { label: 'Mínimo', w: 25 }, { label: 'Status', w: 25 }];
+            let y = 40, x = 14;
+            doc.setFillColor(44,125,160); doc.setTextColor(255);
+            cols.forEach(c => { doc.rect(x, y, c.w, 8, 'F'); doc.text(c.label, x+2, y+5); x += c.w; });
+            doc.setTextColor(0); y += 9;
             for (const p of produtosCache) {
-                if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 8, 'F'); doc.text(col.label, x+2, y+5); x += col.width; }); y += 10; x = 14; doc.setTextColor(0); }
-                doc.text(p.nome.substring(0,30), x+2, y+4); x += 50;
-                doc.text(`R$ ${formatCurrency(p.precoVenda)}`, x+2, y+4); x += 30;
-                doc.text(`${p.estoque || 0}`, x+2, y+4); x += 25;
-                doc.text(`${p.estoqueMin || 0}`, x+2, y+4); x += 25;
+                if (y > 190) { doc.addPage(); y = 30; x = 14; cols.forEach(c => { doc.rect(x, y, c.w, 8, 'F'); doc.text(c.label, x+2, y+5); x += c.w; }); y += 9; x = 14; doc.setTextColor(0); }
+                doc.text(p.nome.substring(0,30), x+2, y+4); x+=50;
+                doc.text(`R$ ${formatCurrency(p.precoVenda)}`, x+2, y+4); x+=30;
+                doc.text(`${p.estoque || 0}`, x+2, y+4); x+=25;
+                doc.text(`${p.estoqueMin || 0}`, x+2, y+4); x+=25;
                 doc.text(p.ativo ? 'Ativo' : 'Inativo', x+2, y+4);
                 y += 7; x = 14;
             }
-            doc.save(`produtos_${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`produtos_${new Date().toISOString().slice(0,10)}.pdf`);
             showToast('PDF gerado', 'success');
         } catch(e) { showToast('Erro PDF', 'error'); }
+    }
+
+    // ========== ATALHOS DE TECLADO ==========
+    function setupShortcuts() {
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'n') { e.preventDefault(); document.getElementById('quickNome').focus(); }
+            if (e.ctrlKey && e.key === 's') { e.preventDefault(); salvarRapido(); }
+            if (e.ctrlKey && e.key === 'd') { e.preventDefault(); const firstRow = document.querySelector('tr[data-id]'); if (firstRow) duplicarProduto(firstRow.dataset.id); }
+            if (e.key === 'F2') { e.preventDefault(); const firstCell = document.querySelector('.editable'); if (firstCell) startInlineEdit(firstCell); }
+            if (e.key === 'Escape') { cancelarEdicaoRapida(); cancelInlineEdit(); }
+        });
     }
 
     // ========== INICIALIZAÇÃO ==========
@@ -514,26 +470,32 @@
         currentUser = user;
         currentEmpresa = await carregarEmpresaUsuario(user);
         if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
-        document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 'Super Admin' : currentEmpresa.emp_razao_social || 'Empresa';
-        await carregarCategorias();
-        await carregarPaginaProdutos(true);
-        await updateStats();
-        configurarMascaraValor('quickPreco');
+        document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 'Super Admin' : (currentEmpresa.emp_razao_social || 'Empresa');
         
-        // Eventos UI
-        document.getElementById('saveQuickBtn').onclick = salvarProdutoRapido;
-        document.getElementById('cancelQuickBtn').onclick = cancelarEdicaoRapida;
-        document.getElementById('searchInput').addEventListener('input', () => { carregarPaginaProdutos(true); });
-        document.getElementById('categoriaFilter').addEventListener('change', () => { carregarPaginaProdutos(true); });
-        document.getElementById('clearFiltersBtn').onclick = limparFiltros;
-        document.getElementById('exportPdfBtn').onclick = exportarPDF;
-        document.querySelectorAll('.chip-filter').forEach(ch => {
-            ch.onclick = () => setChipFilter(ch);
-        });
-        document.querySelector('.chip-filter[data-filter="all"]').classList.add('active');
+        // Verificar trial (apenas para empresas normais)
+        if (!currentEmpresa.globalAdmin && currentEmpresa) {
+            const statusInfo = verificarStatusEmpresa(currentEmpresa);
+            const trialDiv = document.getElementById('trialAlert');
+            if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+            else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+            else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+            else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+            else trialDiv.style.display = 'none';
+        }
+        
+        await carregarCategorias();
+        await carregarProdutos(true);
+        configurarMascaraValor('quickPreco');
+        configurarEventosFiltros();
         setupShortcuts();
+        document.getElementById('saveQuickBtn').onclick = salvarRapido;
+        document.getElementById('cancelQuickBtn').onclick = cancelarEdicaoRapida;
+        document.getElementById('exportPdfBtn').onclick = exportarPDF;
+        document.getElementById('logoutBtn').onclick = () => auth.signOut();
         document.getElementById('quickNome').focus();
     });
+    
+    window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - ' + encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank'); showToast('Abrindo e-mail...','info'); };
 </script>
 </body>
 </html>
