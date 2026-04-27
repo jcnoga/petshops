@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mantidos originais) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
@@ -23,7 +23,7 @@
         .btn { border: none; padding: 8px 18px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
         .btn-primary { background: linear-gradient(135deg, #2c7da0, #1f5e7a); color: white; }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
-        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
+        .btn-success { background: #2a9d8f; color: white; }
         .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
         .btn-outline:hover { background: #2c7da0; color: white; }
         .btn-danger { background: #e76f51; color: white; }
@@ -122,10 +122,10 @@
     <div id="loadingScreen" class="loading-screen"><i class="fas fa-spinner fa-spin"></i><p>Carregando módulo de clientes...</p></div>
     <div id="conteudoPrincipal" style="display: none;">
         <div class="stats-grid">
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-users"></i></div></div><div class="stat-value" id="totalClientes">0</div><div class="stat-label">Total de Clientes</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-check"></i></div></div><div class="stat-value" id="totalAtivos">0</div><div class="stat-label">Clientes Ativos</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-trash-alt"></i></div></div><div class="stat-value" id="totalLixeira">0</div><div class="stat-label">Na Lixeira</div></div>
-            <div class="stat-card"><div class="stat-header"><div class="stat-icon"><i class="fas fa-paw"></i></div></div><div class="stat-value" id="totalPets">0</div><div class="stat-label">Pets</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-value" id="totalClientes">0</div><div class="stat-label">Total de Clientes</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-user-check"></i></div><div class="stat-value" id="totalAtivos">0</div><div class="stat-label">Clientes Ativos</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-trash-alt"></i></div><div class="stat-value" id="totalLixeira">0</div><div class="stat-label">Na Lixeira</div></div>
+            <div class="stat-card"><div class="stat-icon"><i class="fas fa-paw"></i></div><div class="stat-value" id="totalPets">0</div><div class="stat-label">Pets</div></div>
         </div>
         <div class="form-card">
             <div class="form-header"><h2><i class="fas fa-user-plus"></i> Cadastro de Cliente</h2><p>Preencha todos os campos para cadastrar um novo cliente</p></div>
@@ -172,9 +172,14 @@
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Detalhes do Cliente</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
 <script type="module">
-    import { auth, db, onAuthStateChanged, onSnapshot } from './firebase-config.js';
-    import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { escapeHtml, showToast, formatCurrency, formatarData, validarEmail, validarTelefone, carregarEmpresaUsuario, verificarStatusEmpresa, aplicarMascaraTelefone } from './util.js';
+    import { auth, db, onAuthStateChanged } from './firebase-config.js';
+    import { 
+        collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+        escapeHtml, showToast, formatCurrency, formatarData, validarEmail, validarTelefone, 
+        carregarEmpresaUsuario, verificarStatusEmpresa, aplicarMascaraTelefone 
+    } from './util.js';
 
     // ==================== ESTADO GLOBAL ====================
     let currentUser = null;
@@ -192,32 +197,34 @@
     let unsubscribePets = null;
     let unsubscribeAgendamentos = null;
 
-    // ==================== FUNÇÕES AUXILIARES ====================
+    // ==================== AUXILIAR: CONSTRAINTS DE EMPRESA ====================
     function getConstraints() {
-        // Se for superadmin, não filtra por empresaId
         if (currentEmpresa && currentEmpresa.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    async function verificarUnicidadeEmail(email, empresaId, idIgnorar = null) {
+    // ==================== VERIFICAÇÕES DE UNICIDADE ====================
+    async function verificarUnicidadeEmail(email, idIgnorar = null) {
         if (!email) return true;
-        const constraints = empresaId ? [where('cli_email', '==', email), where('empresaId', '==', empresaId)] : [where('cli_email', '==', email)];
+        const constraints = getConstraints();
+        constraints.push(where('cli_email', '==', email));
         const q = query(collection(db, 'clientes'), ...constraints);
         const snap = await getDocs(q);
         const existe = snap.docs.some(doc => doc.id !== idIgnorar && !doc.data().deleted_at);
         return !existe;
     }
 
-    async function verificarUnicidadeDocumento(documento, empresaId, idIgnorar = null) {
+    async function verificarUnicidadeDocumento(documento, idIgnorar = null) {
         if (!documento) return true;
-        const constraints = empresaId ? [where('cli_documento', '==', documento), where('empresaId', '==', empresaId)] : [where('cli_documento', '==', documento)];
+        const constraints = getConstraints();
+        constraints.push(where('cli_documento', '==', documento));
         const q = query(collection(db, 'clientes'), ...constraints);
         const snap = await getDocs(q);
         const existe = snap.docs.some(doc => doc.id !== idIgnorar && !doc.data().deleted_at);
         return !existe;
     }
 
-    // ==================== CARREGAR DADOS COM LISTENER (TEMPO REAL) ====================
+    // ==================== LISTENERS EM TEMPO REAL ====================
     async function iniciarListeners() {
         if (unsubscribeClientes) unsubscribeClientes();
         if (unsubscribePets) unsubscribePets();
@@ -225,27 +232,26 @@
 
         if (!currentEmpresa) return;
 
-        // Construir queries com ou sem filtro de empresaId (superadmin)
         const constraints = getConstraints();
-        const clientesQuery = query(collection(db, 'clientes'), ...constraints);
-        const petsQuery = query(collection(db, 'pets'), ...constraints);
-        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
 
+        const clientesQuery = query(collection(db, 'clientes'), ...constraints);
         unsubscribeClientes = onSnapshot(clientesQuery, (snapshot) => {
             clientesCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             renderClientes();
             updateStats();
         }, (error) => console.error('Erro snapshot clientes:', error));
 
+        const petsQuery = query(collection(db, 'pets'), ...constraints);
         unsubscribePets = onSnapshot(petsQuery, (snapshot) => {
             petsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderClientes(); // para atualizar contagem de pets na tabela
+            renderClientes(); // atualiza contagem de pets na tabela
             updateStats();
         }, (error) => console.error('Erro snapshot pets:', error));
 
+        const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
         unsubscribeAgendamentos = onSnapshot(agendamentosQuery, (snapshot) => {
             agendamentosCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderClientes(); // para exibir contagem de agendamentos no modal
+            // não precisa re-renderizar apenas para stats, mas chamar updateStats já basta
             updateStats();
         }, (error) => console.error('Erro snapshot agendamentos:', error));
     }
@@ -253,9 +259,9 @@
     // ==================== CRUD ====================
     async function addCliente(data) {
         // Validação de unicidade
-        const emailOk = await verificarUnicidadeEmail(data.cli_email, currentEmpresa.id);
+        const emailOk = await verificarUnicidadeEmail(data.cli_email);
         if (!emailOk) { showToast('E-mail já cadastrado para outro cliente!', 'error'); return false; }
-        const docOk = await verificarUnicidadeDocumento(data.cli_documento, currentEmpresa.id);
+        const docOk = await verificarUnicidadeDocumento(data.cli_documento);
         if (!docOk) { showToast('CPF/CNPJ já cadastrado para outro cliente!', 'error'); return false; }
 
         const newCliente = {
@@ -277,11 +283,11 @@
 
         // Verifica unicidade apenas se os campos foram alterados
         if (updates.cli_email && updates.cli_email !== clienteAtual.cli_email) {
-            const emailOk = await verificarUnicidadeEmail(updates.cli_email, currentEmpresa.id, id);
+            const emailOk = await verificarUnicidadeEmail(updates.cli_email, id);
             if (!emailOk) { showToast('E-mail já cadastrado para outro cliente!', 'error'); return false; }
         }
         if (updates.cli_documento && updates.cli_documento !== clienteAtual.cli_documento) {
-            const docOk = await verificarUnicidadeDocumento(updates.cli_documento, currentEmpresa.id, id);
+            const docOk = await verificarUnicidadeDocumento(updates.cli_documento, id);
             if (!docOk) { showToast('CPF/CNPJ já cadastrado para outro cliente!', 'error'); return false; }
         }
 
@@ -405,7 +411,7 @@
 
     function cancelEdit() { resetForm(); }
 
-    // ==================== EDIT E VIEW ====================
+    // ==================== EDIT, VIEW, DELETE (globais) ====================
     window.editCliente = function(id) {
         const cliente = clientesCache.find(c => c.id === id);
         if (cliente) {
@@ -495,7 +501,7 @@
                     ${isDeleted ? `<button class="action-btn restore" onclick="restaurarCliente('${c.id}')"><i class="fas fa-trash-restore"></i></button>` : ''}
                     ${isDeleted ? `<button class="action-btn delete" onclick="permanentDeleteCliente('${c.id}')" style="background:#e76f51; color:white;"><i class="fas fa-skull-crossbones"></i></button>` : ''}
                  </div>
-            </td>`;
+            </tr>`;
         }).join('');
         let pagHtml = '';
         for (let i = 1; i <= totalPages; i++) { pagHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`; }
@@ -575,13 +581,13 @@
         if (user) {
             currentUser = user;
             const empresa = await carregarEmpresaUsuario(user);
-            if (!empresa && !empresa.globalAdmin) { window.location.href = 'login.html'; return; }
+            if (!empresa && !empresa?.globalAdmin) { window.location.href = 'login.html'; return; }
             currentEmpresa = empresa;
             document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 
                 '<i class="fas fa-globe"></i> Super Administrador' :
                 `<i class="fas fa-building"></i> ${empresa.emp_razao_social || empresa.emp_nome_fantasia || 'Empresa'}`;
-            
-            // Alerta de trial (apenas para empresas reais)
+
+            // Exibir alerta de trial apenas para empresas reais
             if (!currentEmpresa.globalAdmin) {
                 const statusInfo = verificarStatusEmpresa(currentEmpresa);
                 const trialDiv = document.getElementById('trialAlert');
@@ -608,10 +614,8 @@
             } else {
                 document.getElementById('trialAlert').style.display = 'none';
             }
-            
+
             await iniciarListeners();
-            renderClientes();
-            updateStats();
             applyMasks();
             document.getElementById('loadingScreen').classList.add('hidden');
             document.getElementById('conteudoPrincipal').style.display = 'block';
@@ -641,7 +645,7 @@
         window.open(`mailto:jcnvap@gmail.com?subject=${assunto}&body=${corpo}`);
         showToast('Abrindo cliente de e-mail...', 'info');
     };
-    console.log('✅ Clientes refatorado – suporte a superadmin, unicidade corrigida, tempo real completo');
+    console.log('✅ Clientes refatorado - Com onSnapshot, suporte a superadmin e unicidade corrigida');
 </script>
 </body>
 </html>
