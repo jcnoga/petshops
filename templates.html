@@ -119,14 +119,13 @@
         .info-box { background: #e8f4f8; border-radius: 12px; padding: 12px; margin-bottom: 15px; font-size: 0.75rem; color: #1f5068; }
         .info-box i { margin-right: 8px; color: #2c7da0; }
         .test-options { display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eef2f5; }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
-<div class="breadcrumb" style="background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0;">
-    <a href="index.html">Dashboard</a> > 
-    <a href="javascript:void(0)">Configurações</a> > 
-    <span>Templates de Mensagens</span>
-</div>
+<div class="breadcrumb"><a href="index.html">Dashboard</a> > <a href="javascript:void(0)">Configurações</a> > <span>Templates de Mensagens</span></div>
 <div class="container">
     <div class="header">
         <div class="logo"><div class="logo-icon"><i class="fas fa-file-alt"></i></div><h1>PerShop <span>Templates</span></h1></div>
@@ -139,13 +138,11 @@
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
 
-    <!-- Loading -->
     <div id="loadingScreen" class="loading-screen">
         <i class="fas fa-spinner fa-spin"></i>
         <p>Carregando módulo de templates...</p>
     </div>
 
-    <!-- Mensagem de bloqueio (se não for admin) -->
     <div id="blockedContent" class="acesso-bloqueado hidden">
         <i class="fas fa-lock"></i>
         <h2>⛔ Acesso Restrito</h2>
@@ -155,8 +152,8 @@
         <button class="btn btn-outline" onclick="logout()" style="margin-left:10px;">Sair</button>
     </div>
 
-    <!-- Conteúdo principal -->
     <div id="conteudoPrincipal" style="display: none;">
+        <!-- ========== STATS ========== -->
         <div class="stats-grid">
             <div class="stat-card" onclick="aplicarFiltroTipo('')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-file-alt"></i></div></div><div class="stat-value" id="totalTemplates">0</div><div class="stat-label">Total de Templates</div></div>
             <div class="stat-card" onclick="aplicarFiltroAtivo('true')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-check-circle"></i></div></div><div class="stat-value" id="templatesAtivos">0</div><div class="stat-label">Templates Ativos</div></div>
@@ -165,12 +162,13 @@
             <div class="stat-card" onclick="aplicarFiltroTipo('cliente_inativo')"><div class="stat-header"><div class="stat-icon"><i class="fas fa-user-clock"></i></div></div><div class="stat-value" id="templatesInativos">0</div><div class="stat-label">Clientes Inativos</div></div>
         </div>
 
+        <!-- ========== TABS ========== -->
         <div class="tabs">
             <button class="tab-btn active" data-tab="templates"><i class="fas fa-file-alt"></i> Templates</button>
             <button class="tab-btn" data-tab="variaveis"><i class="fas fa-code"></i> Variáveis Disponíveis</button>
         </div>
 
-        <!-- PAINEL TEMPLATES -->
+        <!-- ========== PAINEL TEMPLATES ========== -->
         <div id="templatesPanel" class="panel">
             <div class="form-card">
                 <div class="form-header">
@@ -262,12 +260,12 @@
             </div>
             <div class="table-card">
                 <div class="table-header"><h3><i class="fas fa-list"></i> Templates Cadastrados</h3><div class="search-area"><input type="text" id="searchTemplate" placeholder="🔍 Buscar por nome..."><select id="tplCanalFilter"><option value="">Todos canais</option></select><select id="tplStatusFilter"><option value="">Todos status</option><option value="true">✅ Ativos</option><option value="false">⭕ Inativos</option></select><select id="tplTipoFilter"><option value="">Todos tipos</option><option value="lembrete">🔔 Lembrete</option><option value="promocao">🎉 Promoção</option><option value="confirmacao">✅ Confirmação</option><option value="cancelamento">❌ Cancelamento</option><option value="notificacao">📢 Notificação</option><option value="boas_vindas">👋 Boas Vindas</option><option value="aniversario_pet">🎂 Aniversário do Pet</option><option value="aniversario_cliente">🎂 Aniversário do Cliente</option><option value="cliente_inativo">⏰ Cliente Inativo</option><option value="outro">📌 Outro</option></select><button id="clearTemplateFilters" class="btn btn-outline"><i class="fas fa-eraser"></i> Limpar</button><button id="exportTemplatesPdfBtn" class="btn btn-primary"><i class="fas fa-file-pdf"></i> Exportar PDF</button></div></div>
-                <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></tr></thead><tbody id="templatesTableBody"></tbody>}</div>
+                <div class="table-wrapper"><table id="templatesTable"><thead><tr><th>Nome</th><th>Canal</th><th>Tipo</th><th>Gatilho</th><th>Status</th><th>Automático</th><th>Ações</th></table></thead><tbody id="templatesTableBody"></tbody>}</div>
                 <div class="pagination" id="templatesPagination"></div>
             </div>
         </div>
 
-        <!-- PAINEL VARIÁVEIS -->
+        <!-- ========== PAINEL VARIÁVEIS ========== -->
         <div id="variaveisPanel" class="panel" style="display:none;">
             <div class="form-card">
                 <div class="form-header"><h2><i class="fas fa-code"></i> Guia de Variáveis</h2><p>Utilize estas variáveis nos templates para personalizar as mensagens</p></div>
@@ -281,15 +279,13 @@
     <div class="footer">PerShop Enterprise - Módulo de Templates | Personalize suas mensagens com variáveis dinâmicas</div>
 </div>
 
+<!-- Modal Detalhes -->
 <div id="viewModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-file-alt"></i> Detalhes do Template</h3><button class="modal-close" id="modalCloseBtn">&times;</button></div><div class="modal-body" id="modalBody"></div></div></div>
 
-<!-- Modal para Teste WhatsApp -->
+<!-- Modal WhatsApp Test -->
 <div id="whatsappTestModal" class="modal">
     <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h3><i class="fab fa-whatsapp"></i> Teste no WhatsApp</h3>
-            <button class="modal-close" onclick="fecharWhatsappModal()">&times;</button>
-        </div>
+        <div class="modal-header"><h3><i class="fab fa-whatsapp"></i> Teste no WhatsApp</h3><button class="modal-close" onclick="fecharWhatsappModal()">&times;</button></div>
         <div class="modal-body">
             <div class="info-box"><i class="fas fa-info-circle"></i> Ao clicar em "Enviar Teste", você será redirecionado para o WhatsApp Web/App <strong>sem custos adicionais</strong>.</div>
             <div class="info-box" style="background:#e0f2e9;"><i class="fab fa-whatsapp" style="color:#25D366;"></i> <strong>Gratuito!</strong> O envio é feito pelo seu próprio WhatsApp, sem cobrança de API.</div>
@@ -297,21 +293,18 @@
             <div class="input-group"><label><i class="fas fa-comment"></i> Mensagem que será enviada</label><textarea id="whatsappTestMessage" rows="6" readonly style="background:#f8fbfd; resize:vertical;"></textarea></div>
             <div class="test-options">
                 <button class="btn btn-outline" onclick="fecharWhatsappModal()">Cancelar</button>
-                <button class="btn btn-success" id="sendWhatsappTestBtn" onclick="enviarWhatsappTeste()"><i class="fab fa-whatsapp"></i> Abrir no WhatsApp</button>
+                <button class="btn btn-success" onclick="enviarWhatsappTeste()"><i class="fab fa-whatsapp"></i> Abrir no WhatsApp</button>
             </div>
         </div>
     </div>
 </div>
 
 <script type="module">
-    // ==================== IMPORTAÇÕES ====================
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-    // Importa funções compartilhadas do util.js
     import { 
         escapeHtml, showToast, formatCurrency, carregarEmpresaUsuario, verificarAcessoAdmin,
-        verificarStatusEmpresa, aplicarMascaraTelefone, formatarData
+        verificarSuperAdmin, verificarStatusEmpresa, aplicarMascaraTelefone, formatarData
     } from './util.js';
 
     // ==================== CONSTANTES ====================
@@ -352,17 +345,23 @@
         { nome: "link_whatsapp", descricao: "Link para WhatsApp da empresa", exemplo: "https://wa.me/...", categoria: "Links" }
     ];
 
-    // ==================== CARREGAR DADOS DO FIRESTORE ====================
+    // ==================== AUXILIAR: CONSTRAINTS (SUPERADMIN) ====================
+    function getConstraints() {
+        if (currentEmpresa && currentEmpresa.globalAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
+    }
+
+    // ==================== CARREGAR DADOS ====================
     async function carregarDadosEmpresa() {
         if (!currentEmpresa) return;
-        const empresaId = currentEmpresa.id;
-        const canaisSnap = await getDocs(query(collection(db, 'canais'), where('empresaId', '==', empresaId)));
+        const constraints = getConstraints();
+        const canaisSnap = await getDocs(query(collection(db, 'canais'), ...constraints));
         canaisCache = canaisSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const templatesSnap = await getDocs(query(collection(db, 'templates'), where('empresaId', '==', empresaId)));
+        const templatesSnap = await getDocs(query(collection(db, 'templates'), ...constraints));
         templatesCache = templatesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
-    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE ====================
+    // ==================== FUNÇÕES DE GERAÇÃO DE TEMPLATE PROFISSIONAL ====================
     function gerarTemplateProfissional(tipo, canalTipo, gatilho) {
         const empresa = currentEmpresa;
         const empresaNome = empresa?.emp_razao_social || empresa?.emp_nome_fantasia || 'PetShop';
@@ -386,7 +385,7 @@
                 padrao: `🎉 PROMOÇÃO ESPECIAL! Olá {{cliente_nome}}! Aproveite nossa oferta imperdível para seu pet! Desconto especial em todos os serviços! Agende já: ${empresaTelefone} ${empresaNome}`
             },
             confirmacao: {
-                whatsapp: `✅ *${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO* ✅\n\nOlá {{cliente_nome}}!\n\nSeu agendamento foi *confirmado com sucesso*!\n\n📋 *Detalhes do serviço:*\n🐕 *Pet:* {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n💰 *Valor:* {{valor}}\n👨‍⚕️ *Profissional:* {{profissional}}\n\n📍 *Endereço:* ${empresaEndereco}\n📞 *Contato:* ${empresaTelefone}\n\n🔗 *Cancelar/Remarcar:* ${link_cancelamento}\n\n*Estamos ansiosos para receber vocês!* 🐾\n\n${empresaNome}`,
+                whatsapp: `✅ *${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO* ✅\n\nOlá {{cliente_nome}}!\n\nSeu agendamento foi *confirmado com sucesso*!\n\n📋 *Detalhes do serviço:*\n🐕 *Pet:* {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n✂️ *Serviço:* {{servico}}\n📅 *Data:* {{data}}\n⏰ *Hora:* {{hora}}\n💰 *Valor:* {{valor}}\n👨‍⚕️ *Profissional:* {{profissional}}\n\n📍 *Endereço:* ${empresaEndereco}\n📞 *Contato:* ${empresaTelefone}\n\n🔗 *Cancelar/Remarcar:* {{link_cancelamento}}\n\n*Estamos ansiosos para receber vocês!* 🐾\n\n${empresaNome}`,
                 email: `**${empresaNome} - CONFIRMAÇÃO DE AGENDAMENTO**\n\nOlá {{cliente_nome}},\n\nSeu agendamento foi **confirmado com sucesso**!\n\n**Detalhes do serviço:**\n- Pet: {{pet_nome}} ({{pet_especie}} - {{pet_raca}})\n- Serviço: {{servico}}\n- Data: {{data}}\n- Hora: {{hora}}\n- Valor: {{valor}}\n- Profissional: {{profissional}}\n\n**Endereço:** ${empresaEndereco}\n**Contato:** ${empresaTelefone}\n\nPara cancelar ou remarcar: ${link_cancelamento}\n\n${empresaNome}`,
                 padrao: `✅ CONFIRMAÇÃO DE AGENDAMENTO\nOlá {{cliente_nome}}! Seu agendamento foi confirmado. Pet: {{pet_nome}}. Serviço: {{servico}}. Data: {{data}} às {{hora}}. ${empresaNome}`
             },
@@ -603,7 +602,7 @@
         document.getElementById('tplProvedor').value = canal?.provedor || '';
     }
 
-    // ==================== RENDER TEMPLATES ====================
+    // ==================== RENDER ====================
     function renderTemplates() {
         let filtered = templatesCache.filter(t => {
             const search = document.getElementById('searchTemplate')?.value.toLowerCase() || '';
@@ -639,7 +638,7 @@
                     ${isWhatsApp ? `<button class="action-btn whatsapp-test" onclick="abrirWhatsappTeste('${t.id}')"><i class="fab fa-whatsapp"></i></button>` : ''}
                     <button class="action-btn delete" onclick="deleteTemplate('${t.id}')"><i class="fas fa-trash-alt"></i></button>
                  </div>
-            </tr>`;
+            <table>`;
         }).join('');
         let pagHtml = '<button class="page-btn" onclick="goToPage(1)" ' + (currentPage === 1 ? 'disabled' : '') + '>&laquo;</button>';
         for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
@@ -867,23 +866,18 @@
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
-            currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
-            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            const isAdmin = await verificarAcessoAdmin(user);
-            if (!isAdmin) {
+            const isAdminUser = await verificarAcessoAdmin(user);
+            const isSuperUser = await verificarSuperAdmin(user);
+            if (!isAdminUser && !isSuperUser) {
                 document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('blockedContent').classList.remove('hidden');
                 document.getElementById('conteudoPrincipal').style.display = 'none';
                 return;
             }
-            await carregarDadosEmpresa();
-            atualizarSelectCanais();
-            await initSampleData();
-            renderTemplates();
-            renderVariaveis();
-            updateStats();
-            // Exibir alerta de trial
+            currentEmpresa = await carregarEmpresaUsuario(user);
+            if (!currentEmpresa) { window.location.href = 'login.html'; return; }
+            document.getElementById('empresaInfo').innerHTML = `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            
             const statusInfo = verificarStatusEmpresa(currentEmpresa);
             const trialDiv = document.getElementById('trialAlert');
             if (statusInfo.status === 'expired') {
@@ -906,6 +900,13 @@
             } else {
                 trialDiv.style.display = 'none';
             }
+
+            await carregarDadosEmpresa();
+            atualizarSelectCanais();
+            await initSampleData();
+            renderTemplates();
+            renderVariaveis();
+            updateStats();
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else {
@@ -945,7 +946,7 @@
     window.enviarWhatsappTeste = enviarWhatsappTeste;
     window.abrirWhatsappTeste = abrirWhatsappTeste;
 
-    console.log('✅ Templates - Refatorado (uma empresa por usuário)');
+    console.log('✅ Templates refatorado - superadmin liberado');
 </script>
 </body>
 </html>

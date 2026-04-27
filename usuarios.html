@@ -120,7 +120,15 @@
                     <div class="input-group"><label class="required">E-mail</label><input type="email" id="userEmail" placeholder="email@exemplo.com"></div>
                     <div class="input-group" id="senhaGroup"><label class="required">Senha</label><input type="password" id="userSenha" placeholder="********"></div>
                     <div class="input-group"><label>Telefone</label><input type="text" id="userTelefone" placeholder="(00) 00000-0000"></div>
-                    <div class="input-group"><label>Perfil</label><select id="userPerfil"><option value="admin">Administrador</option><option value="gerente">Gerente</option><option value="recepcionista">Recepcionista</option><option value="veterinario">Veterinário</option><option value="tosador">Tosador</option><option value="financeiro">Financeiro</option><option value="usuario">Usuário</option></select></div>
+                    <div class="input-group"><label>Perfil</label><select id="userPerfil">
+                        <option value="admin">Administrador</option>
+                        <option value="gerente">Gerente</option>
+                        <option value="recepcionista">Recepcionista</option>
+                        <option value="veterinario">Veterinário</option>
+                        <option value="tosador">Tosador</option>
+                        <option value="financeiro">Financeiro</option>
+                        <option value="usuario">Usuário</option>
+                    </select></div>
                     <div class="input-group"><label>Status</label><select id="userAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
                     <div class="input-group" id="empresaGroup" style="display: none;"><label>Empresa</label><select id="userEmpresaId"><option value="">Selecione a empresa</option></select></div>
                     <div class="form-actions"><button type="button" id="cancelEditBtn" class="btn btn-outline" style="display: none;">Cancelar</button><button type="button" id="saveUserBtn" class="btn btn-primary">Salvar Usuário</button></div>
@@ -129,7 +137,8 @@
         </div>
         <div class="table-card">
             <div class="table-header"><h3>Lista de Usuários</h3><div class="search-area"><input type="text" id="searchInput" placeholder="Buscar por nome ou email..."><select id="perfilFilter"><option value="">Todos os perfis</option><option value="admin">Administrador</option><option value="gerente">Gerente</option><option value="recepcionista">Recepcionista</option><option value="veterinario">Veterinário</option><option value="tosador">Tosador</option><option value="financeiro">Financeiro</option><option value="usuario">Usuário</option></select><select id="statusFilter"><option value="">Todos status</option><option value="true">Ativos</option><option value="false">Inativos</option></select><button id="clearFiltersBtn" class="btn btn-outline">Limpar</button></div></div>
-            <div class="table-wrapper"><table id="usuariosTable"><thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Perfil</th><th>Empresa</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usuariosTableBody"></tbody></table><div class="pagination" id="pagination"></div></div>
+            <div class="table-wrapper"><table id="usuariosTable"><thead><tr><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Perfil</th><th>Empresa</th><th>Status</th><th>Ações</th></tr></thead><tbody id="usuariosTableBody"></tbody>}</div>
+            <div class="pagination" id="pagination"></div>
         </div>
     </div>
     <div class="footer">PerShop Enterprise - Gestão de Usuários</div>
@@ -139,7 +148,7 @@
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { escapeHtml, showToast, validarEmail, aplicarMascaraTelefone, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin, verificarStatusEmpresa, SUPER_ADMIN_EMAIL } from './util.js';
 
     let currentUser = null;
@@ -151,8 +160,14 @@
     let usuariosCache = [];
     let empresasCache = [];
 
+    // ==================== AUXILIAR: CONSTRAINTS PARA SUPERADMIN ====================
+    function getConstraints() {
+        if (isSuperAdmin) return [];
+        return [where('empresaId', '==', currentEmpresa.id)];
+    }
+
     async function carregarEmpresas() {
-        if(!isSuperAdmin) return;
+        if (!isSuperAdmin) return;
         const snapshot = await getDocs(collection(db, 'empresas'));
         empresasCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         const select = document.getElementById('userEmpresaId');
@@ -161,18 +176,17 @@
 
     async function carregarUsuarios() {
         let usuarios = [];
-        if(isSuperAdmin) {
+        const constraints = getConstraints();
+        if (isSuperAdmin) {
             const snapshot = await getDocs(collection(db, 'usuarios'));
             usuarios = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            // Remove o próprio superadmin da lista? Opcional: mostrar todos
-        } else if(currentEmpresa) {
-            const q = query(collection(db, 'usuarios'), where('empresaId', '==', currentEmpresa.id));
+        } else if (currentEmpresa) {
+            const q = query(collection(db, 'usuarios'), ...constraints);
             const snapshot = await getDocs(q);
             usuarios = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            // Filtra para não mostrar o superadmin (caso esteja na mesma empresa, não deveria)
-            usuarios = usuarios.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
         }
-        usuariosCache = usuarios;
+        // Filtra para não mostrar o superadmin na lista (evita auto-exclusão)
+        usuariosCache = usuarios.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
         return usuariosCache;
     }
 
@@ -197,10 +211,10 @@
             updateStats();
             showToast('Usuário criado com sucesso!', 'success');
             return true;
-        } catch(error) {
+        } catch (error) {
             let msg = 'Erro ao criar usuário';
-            if(error.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado';
-            else if(error.code === 'auth/weak-password') msg = 'Senha muito fraca (mínimo 6 caracteres)';
+            if (error.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado';
+            else if (error.code === 'auth/weak-password') msg = 'Senha muito fraca (mínimo 6 caracteres)';
             showToast(msg, 'error');
             return false;
         }
@@ -215,19 +229,16 @@
     }
 
     async function deleteUsuario(id, email) {
-        if(!confirm(`Excluir permanentemente o usuário ${email}? Esta ação não pode ser desfeita.`)) return;
+        if (!confirm(`Excluir permanentemente o usuário ${email}? Esta ação não pode ser desfeita.`)) return;
         try {
-            // Buscar o usuário autenticado para deletar (apenas se tiver permissão)
-            // Nota: para deletar outro usuário, precisamos de uma Cloud Function ou admin SDK.
-            // Aqui vamos apenas deletar o documento do Firestore e deixar o Auth user órfão,
-            // mas é melhor solicitar que o admin use o Firebase Console para deletar Auth.
-            // Vamos apenas remover o documento e mostrar um aviso.
+            // Remove apenas o documento do Firestore. O usuário do Auth permanece (seria órfão),
+            // mas para remover completamente, seria necessário uma Cloud Function.
             await deleteDoc(doc(db, 'usuarios', id));
             showToast(`Usuário ${email} removido do Firestore. Para remover completamente, use o Firebase Console.`, 'warning');
             await carregarUsuarios();
             renderUsuarios();
             updateStats();
-        } catch(error) {
+        } catch (error) {
             showToast('Erro ao excluir: ' + error.message, 'error');
         }
     }
@@ -236,7 +247,7 @@
         try {
             await sendPasswordResetEmail(auth, email);
             showToast(`E-mail de redefinição enviado para ${email}`, 'success');
-        } catch(error) {
+        } catch (error) {
             showToast('Erro ao enviar e-mail: ' + error.message, 'error');
         }
     }
@@ -254,11 +265,11 @@
 
     function validarFormulario(editing = false) {
         const nome = document.getElementById('userNome').value.trim();
-        if(!nome) { showToast('Nome obrigatório!', 'error'); return false; }
+        if (!nome) { showToast('Nome obrigatório!', 'error'); return false; }
         const email = document.getElementById('userEmail').value.trim();
-        if(!validarEmail(email)) { showToast('E-mail inválido!', 'error'); return false; }
-        if(!editing && !document.getElementById('userSenha').value) { showToast('Senha obrigatória para novo usuário!', 'error'); return false; }
-        if(isSuperAdmin && !document.getElementById('userEmpresaId').value) { showToast('Selecione a empresa!', 'error'); return false; }
+        if (!validarEmail(email)) { showToast('E-mail inválido!', 'error'); return false; }
+        if (!editing && !document.getElementById('userSenha').value) { showToast('Senha obrigatória para novo usuário!', 'error'); return false; }
+        if (isSuperAdmin && !document.getElementById('userEmpresaId').value) { showToast('Selecione a empresa!', 'error'); return false; }
         return true;
     }
 
@@ -269,7 +280,7 @@
         document.getElementById('userTelefone').value = '';
         document.getElementById('userPerfil').value = 'usuario';
         document.getElementById('userAtivo').value = 'true';
-        if(isSuperAdmin) document.getElementById('userEmpresaId').value = '';
+        if (isSuperAdmin) document.getElementById('userEmpresaId').value = '';
         editingId = null;
         document.getElementById('cancelEditBtn').style.display = 'none';
         const btn = document.getElementById('saveUserBtn');
@@ -287,28 +298,28 @@
         document.getElementById('userTelefone').value = usuario.telefone || '';
         document.getElementById('userPerfil').value = usuario.perfil || 'usuario';
         document.getElementById('userAtivo').value = usuario.ativo ? 'true' : 'false';
-        if(isSuperAdmin && usuario.empresaId) document.getElementById('userEmpresaId').value = usuario.empresaId;
+        if (isSuperAdmin && usuario.empresaId) document.getElementById('userEmpresaId').value = usuario.empresaId;
         // Em edição, campo senha não é obrigatório
         document.getElementById('senhaGroup').style.display = 'none';
     }
 
     async function salvarUsuario() {
-        if(!validarFormulario(!!editingId)) return;
+        if (!validarFormulario(!!editingId)) return;
         const data = getFormData();
-        if(editingId) {
+        if (editingId) {
             await updateUsuario(editingId, data);
         } else {
             const senha = document.getElementById('userSenha').value;
-            if(!senha) { showToast('Senha obrigatória!', 'error'); return; }
+            if (!senha) { showToast('Senha obrigatória!', 'error'); return; }
             const success = await addUsuario(data, senha);
-            if(!success) return;
+            if (!success) return;
         }
         resetForm();
     }
 
     function editUsuario(id) {
         const user = usuariosCache.find(u => u.id === id);
-        if(user) {
+        if (user) {
             fillForm(user);
             editingId = id;
             document.getElementById('cancelEditBtn').style.display = 'inline-block';
@@ -342,19 +353,17 @@
             const matchStatus = !statusFilter || (u.ativo ? 'true' : 'false') === statusFilter;
             return matchSearch && matchPerfil && matchStatus;
         });
-        // Se não for superadmin, não mostrar superadmin
-        if(!isSuperAdmin) filtered = filtered.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
         const totalPages = Math.ceil(filtered.length / itemsPerPage);
-        if(currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('usuariosTableBody');
-        if(paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário encontrado</td></tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário encontrado</td></table>'; document.getElementById('pagination').innerHTML = ''; return; }
         tbody.innerHTML = paginated.map(u => {
             const empresa = isSuperAdmin ? empresasCache.find(e => e.id === u.empresaId) : currentEmpresa;
             const empresaNome = isSuperAdmin ? (empresa?.emp_razao_social || empresa?.emp_nome_fantasia || '-') : (currentEmpresa?.emp_razao_social || '-');
             const statusClass = u.ativo ? 'status-ativo' : 'status-inativo';
             const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : (u.perfil === 'veterinario' ? '🩺' : (u.perfil === 'tosador' ? '✂️' : '👤')));
-            return `<tr>
+            return `<td>
                 <td><strong>${escapeHtml(u.nome)}</strong></td>
                 <td>${escapeHtml(u.email)}</td>
                 <td>${escapeHtml(u.telefone || '-')}</td>
@@ -365,11 +374,11 @@
                     <button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>
                     <button class="action-btn reset" onclick="openResetModal('${u.email}')"><i class="fas fa-key"></i></button>
                     <button class="action-btn delete" onclick="deleteUsuario('${u.id}', '${u.email}')"><i class="fas fa-trash-alt"></i></button>
-                </td>
+                 </div>
             </tr>`;
         }).join('');
         let pagHtml = '';
-        for(let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
+        for (let i=1; i<=totalPages; i++) pagHtml += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goToPage(${i})">${i}</button>`;
         document.getElementById('pagination').innerHTML = pagHtml;
     }
 
@@ -388,7 +397,6 @@
         showToast('Filtros limpos!', 'success');
     }
 
-    // Máscara de telefone
     function applyMask() {
         const tel = document.getElementById('userTelefone');
         tel.addEventListener('input', (e) => { e.target.value = aplicarMascaraTelefone(e.target.value); });
@@ -403,33 +411,33 @@
     window.logout = () => auth.signOut();
 
     onAuthStateChanged(auth, async (user) => {
-        if(user) {
+        if (user) {
             currentUser = user;
             const isAdmin = await verificarAcessoAdmin(user);
             isSuperAdmin = await verificarSuperAdmin(user);
-            if(!isAdmin && !isSuperAdmin) {
+            if (!isAdmin && !isSuperAdmin) {
                 document.getElementById('loadingScreen').classList.add('hidden');
                 document.getElementById('blockedContent').classList.remove('hidden');
                 return;
             }
             currentEmpresa = await carregarEmpresaUsuario(user);
-            if(!currentEmpresa && !isSuperAdmin) { window.location.href = 'login.html'; return; }
+            if (!currentEmpresa && !isSuperAdmin) { window.location.href = 'login.html'; return; }
             document.getElementById('empresaInfo').innerHTML = isSuperAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
-            
+
             // Exibir alerta de trial (apenas para não superadmin)
-            if(!isSuperAdmin && currentEmpresa) {
+            if (!isSuperAdmin && currentEmpresa) {
                 const statusInfo = verificarStatusEmpresa(currentEmpresa);
                 const trialDiv = document.getElementById('trialAlert');
-                if(statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if(statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if(statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                else if(statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
                 else trialDiv.style.display = 'none';
             } else {
                 document.getElementById('trialAlert').style.display = 'none';
             }
-            
-            if(isSuperAdmin) {
+
+            if (isSuperAdmin) {
                 await carregarEmpresas();
                 document.getElementById('empresaGroup').style.display = 'block';
             } else {
@@ -455,8 +463,8 @@
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('confirmResetBtn').onclick = confirmReset;
     window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'),'_blank'); showToast('Abrindo e-mail...','info'); };
-    // Para fechar modal clicando fora
     window.onclick = (e) => { if(e.target === document.getElementById('resetModal')) fecharResetModal(); };
+    window.setDoc = setDoc; // necessário para addUsuario
 </script>
 </body>
 </html>

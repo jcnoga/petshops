@@ -184,7 +184,7 @@
     let currentEmpresa = null;
     let isSuperAdmin = false;
     let dadosCache = { clientes: [], pets: [], agendamentos: [], produtos: [], profissionais: [], financeiro: [] };
-    let unsubscribes = []; // armazena funções para cancelar listeners
+    let unsubscribes = [];
 
     // ==================== FUNÇÕES DE ATUALIZAÇÃO DA UI ====================
     function atualizarStats() {
@@ -193,7 +193,9 @@
         document.getElementById('totalAgendamentos').innerText = dadosCache.agendamentos.length;
         document.getElementById('totalProdutos').innerText = dadosCache.produtos.length;
         document.getElementById('totalProfissionais').innerText = dadosCache.profissionais.length;
-        const totalGeral = dadosCache.financeiro.filter(f => f.tipo === 'entrada' && f.status === 'pago').reduce((s, f) => s + (f.valor || 0), 0);
+        const totalGeral = dadosCache.financeiro
+            .filter(f => f.tipo === 'entrada' && f.status === 'pago')
+            .reduce((s, f) => s + (f.valor || 0), 0);
         const mesAtual = new Date().getMonth();
         const anoAtual = new Date().getFullYear();
         const faturamentoMes = dadosCache.financeiro.filter(f => {
@@ -218,33 +220,43 @@
                            (userData.perfil === 'veterinario' ? '🩺 Veterinário' :
                            (userData.perfil === 'tosador' ? '✂️ Tosador' : '👤 Usuário')));
         document.getElementById('userPerfil').innerText = perfilLabel;
-        const isAdmin = userData.perfil === 'admin';
+        // *** CORREÇÃO: Agora superadmin também tem acesso aos menus restritos ***
+        const isAdmin = userData.perfil === 'admin' || await verificarSuperAdmin(currentUser);
         document.getElementById('permissoesMenuItem').style.display = isAdmin ? 'flex' : 'none';
         document.getElementById('usuariosMenuItem').style.display = isAdmin ? 'flex' : 'none';
+        // Menu "Todas as Empresas" só aparece para superadmin (já tratado no listener principal)
     }
 
     function atualizarWelcomeMessage() {
         const welcomeDiv = document.getElementById('welcomeMessage');
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Nenhuma empresa associada. Contate o administrador.</p><button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2>
+                                    <p>Nenhuma empresa associada. Contate o administrador.</p>
+                                    <button class="btn btn-primary" onclick="criarEmpresaUrgente()" style="margin-top:10px;">Criar Empresa Agora</button></div>`;
             return;
         }
         if (currentEmpresa.globalAdmin) {
             welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2>
+                                    <p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
             return;
         }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2>
+                                    <p>Período de teste expirado. Solicite liberação.</p>
+                                    <button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else if (statusInfo.status === 'trial_urgente') {
             welcomeDiv.className = 'welcome-message warning';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2><p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p><button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-half"></i> Atenção!</h2>
+                                    <p>Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</p>
+                                    <button class="btn btn-warning" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
         } else {
             welcomeDiv.className = 'welcome-message';
-            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2><p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
+            welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2>
+                                    <p>Empresa: <strong>${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia}</strong> | Gerencie seu negócio com eficiência.</p></div>`;
         }
     }
 
@@ -263,25 +275,20 @@
 
     // ==================== LISTENERS EM TEMPO REAL (onSnapshot) ====================
     function iniciarListeners() {
-        // Cancelar todos os listeners anteriores
         unsubscribes.forEach(unsub => unsub());
         unsubscribes = [];
-
         if (!currentEmpresa) return;
 
-        // Define se é superadmin (acesso a todas empresas) ou empresa específica
-        const empresaId = currentEmpresa.globalAdmin ? null : currentEmpresa.id;
-        const constraints = empresaId ? [where('empresaId', '==', empresaId)] : [];
+        // Se for superadmin, NÃO filtra por empresaId
+        const constraints = (currentEmpresa.globalAdmin) ? [] : [where('empresaId', '==', currentEmpresa.id)];
 
-        // Clientes
         const clientesQuery = query(collection(db, 'clientes'), ...constraints);
         const unsubClientes = onSnapshot(clientesQuery, (snapshot) => {
             dadosCache.clientes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             atualizarStats();
-        }, (error) => console.error('Erro no snapshot clientes:', error));
+        }, (error) => console.error('Erro snapshot clientes:', error));
         unsubscribes.push(unsubClientes);
 
-        // Pets
         const petsQuery = query(collection(db, 'pets'), ...constraints);
         const unsubPets = onSnapshot(petsQuery, (snapshot) => {
             dadosCache.pets = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -289,7 +296,6 @@
         });
         unsubscribes.push(unsubPets);
 
-        // Agendamentos
         const agendamentosQuery = query(collection(db, 'agendamentos'), ...constraints);
         const unsubAgendamentos = onSnapshot(agendamentosQuery, (snapshot) => {
             dadosCache.agendamentos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -297,7 +303,6 @@
         });
         unsubscribes.push(unsubAgendamentos);
 
-        // Produtos
         const produtosQuery = query(collection(db, 'produtos'), ...constraints);
         const unsubProdutos = onSnapshot(produtosQuery, (snapshot) => {
             dadosCache.produtos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -305,7 +310,6 @@
         });
         unsubscribes.push(unsubProdutos);
 
-        // Profissionais
         const profissionaisQuery = query(collection(db, 'profissionais'), ...constraints);
         const unsubProfissionais = onSnapshot(profissionaisQuery, (snapshot) => {
             dadosCache.profissionais = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -313,7 +317,6 @@
         });
         unsubscribes.push(unsubProfissionais);
 
-        // Financeiro
         const financeiroQuery = query(collection(db, 'financeiro'), ...constraints);
         const unsubFinanceiro = onSnapshot(financeiroQuery, (snapshot) => {
             dadosCache.financeiro = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -348,7 +351,6 @@
     };
 
     async function logout() {
-        // Cancelar todos os listeners antes de sair
         unsubscribes.forEach(unsub => unsub());
         await auth.signOut();
         sessionStorage.removeItem('empresa_atual');
@@ -396,7 +398,7 @@
                 document.getElementById('conteudoPrincipal')?.classList.remove('hidden');
                 return;
             }
-            // Se for superadmin sem empresa, cria um objeto especial
+            // Se for superadmin sem empresa, cria um objeto especial (já feito em carregarEmpresaUsuario)
             if (isSuperAdmin && !currentEmpresa) {
                 currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
             }
@@ -413,7 +415,7 @@
                 if (menuSuper) menuSuper.style.display = 'flex';
             }
 
-            // Botão de atualizar manual – agora apenas exibe toast informativo (dados já são real-time)
+            // Botão de atualizar manual – apenas toast informativo (dados já são real-time)
             document.getElementById('refreshBtn').onclick = () => {
                 showToast('Os dados já são atualizados automaticamente em tempo real!', 'info');
             };
