@@ -1,6 +1,6 @@
 /*==============================================================*/
 /* DBMS name:      PostgreSQL 9.x                               */
-/* Created on:     27/04/2026 04:54:08                          */
+/* Created on:     27/04/2026 07:51:40                          */
 /*==============================================================*/
 
 
@@ -429,6 +429,8 @@ create table USUARIOS (
       constraint CKC_USU_PERFIL_USUARIOS check (USU_PERFIL is null or (USU_PERFIL in ('perfil:','- admin','- gerente','- recepcionista','- veterinario','- tosador','- banhista','- vendedor','- financeiro','- estoque','- marketing','admin','gerente','recepcionista','veterinario','tosador','banhista','financeito'))),
    USU_ATIVO            BOOL                 null
       constraint CKC_USU_ATIVO_USUARIOS check (USU_ATIVO is null or (USU_ATIVO in (true,false))),
+   ISSUPERADMIN         BOOL                 null
+      constraint CKC_ISSUPERADMIN_USUARIOS check (ISSUPERADMIN is null or (ISSUPERADMIN in (true,false))),
    USU_CRIADO_EM        TIMESTAMP WITH TIME ZONE null,
    constraint PK_USUARIOS primary key (USU_ID)
 );

@@ -2,16 +2,13 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <title>PerShop | Dashboard Executivo</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        /* ESTILOS (mesmos do original, omitidos por brevidade - inclua os mesmos estilos de antes) */
+        /* ========== ESTILOS (mesmos do original) ========== */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(145deg, #eef2f8 0%, #e0e8f0 100%); min-height: 100vh; }
         .app-container { display: flex; min-height: 100vh; }
@@ -160,42 +157,13 @@
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, onSnapshot, getDoc, doc, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    import { formatCurrency, showToast, carregarEmpresaUsuario, verificarSuperAdmin } from './util.js';
-    // NÃO importa verificarStatusEmpresa para evitar erro
+    import { formatCurrency, showToast, carregarEmpresaUsuario, verificarStatusEmpresa, verificarSuperAdmin } from './util.js';
 
     let currentUser = null;
     let currentEmpresa = null;
     let isSuperAdmin = false;
     let dadosCache = { clientes: [], pets: [], agendamentos: [], produtos: [], profissionais: [], financeiro: [] };
     let unsubscribes = [];
-
-    // Função local para verificar status da empresa (cópia segura)
-    function calcularDiasRestantesLocal(dataExpiracao) {
-        if (!dataExpiracao) return 15;
-        const diff = new Date(dataExpiracao) - new Date();
-        const dias = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        return dias > 0 ? dias : 0;
-    }
-
-    function verificarStatusEmpresaLocal(empresa) {
-        if (!empresa) {
-            return { status: 'nao_cadastrada', statusText: 'Empresa não cadastrada', diasRestantes: 0 };
-        }
-        if (empresa.emp_status === 'ativo') {
-            return { status: 'ativo', statusText: 'Ativo', diasRestantes: null };
-        }
-        if (empresa.emp_status === 'suspenso') {
-            return { status: 'suspenso', statusText: 'Suspenso', diasRestantes: null };
-        }
-        const dias = calcularDiasRestantesLocal(empresa.emp_data_expiracao);
-        if (dias <= 0) {
-            return { status: 'expirado', statusText: 'Expirado', diasRestantes: 0 };
-        }
-        if (dias <= 3) {
-            return { status: 'trial_urgente', statusText: 'Expira em breve', diasRestantes: dias };
-        }
-        return { status: 'trial', statusText: 'Em teste', diasRestantes: dias };
-    }
 
     function atualizarStats() {
         document.getElementById('totalClientes').innerText = dadosCache.clientes.length;
@@ -242,8 +210,8 @@
             welcomeDiv.innerHTML = `<div><h2><i class="fas fa-globe"></i> Super Administrador</h2><p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
             return;
         }
-        // Usa a função local segura
-        const statusInfo = verificarStatusEmpresaLocal(currentEmpresa);
+        // Garantia extra: verificarStatusEmpresa agora trata undefined/null internamente (já corrigido no util.js)
+        const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
             welcomeDiv.innerHTML = `<div><h2><i class="fas fa-hourglass-end"></i> Acesso Bloqueado!</h2><p>Período de teste expirado. Solicite liberação.</p><button class="btn btn-danger" onclick="solicitarLiberacao()" style="margin-top:10px;">Solicitar Liberação</button></div>`;
@@ -260,7 +228,7 @@
         const alertDiv = document.getElementById('trialAlertBar');
         if (!alertDiv) return;
         if (!currentEmpresa || currentEmpresa.globalAdmin) { alertDiv.innerHTML = ''; return; }
-        const statusInfo = verificarStatusEmpresaLocal(currentEmpresa);
+        const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'trial_urgente') {
             alertDiv.innerHTML = `<div class="trial-alert-bar"><div><i class="fas fa-hourglass-half"></i> <strong>Atenção:</strong> Período de teste termina em <strong>${statusInfo.diasRestantes}</strong> dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()" style="padding:5px 12px;">Solicitar Liberação</button></div>`;
         } else if (statusInfo.status === 'expirado') {

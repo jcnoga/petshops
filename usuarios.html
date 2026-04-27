@@ -149,8 +149,7 @@
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    // REFATORADO: removido SUPER_ADMIN_EMAIL da importação
-    import { escapeHtml, showToast, validarEmail, aplicarMascaraTelefone, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin, verificarStatusEmpresa } from './util.js';
+    import { escapeHtml, showToast, validarEmail, aplicarMascaraTelefone, carregarEmpresaUsuario, verificarAcessoAdmin, verificarSuperAdmin, verificarStatusEmpresa, SUPER_ADMIN_EMAIL } from './util.js';
 
     let currentUser = null;
     let currentEmpresa = null;
@@ -186,8 +185,8 @@
             const snapshot = await getDocs(q);
             usuarios = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         }
-        // Não filtra mais por e-mail específico – a segurança agora depende apenas do Firestore
-        usuariosCache = usuarios;
+        // Filtra para não mostrar o superadmin na lista (evita auto-exclusão)
+        usuariosCache = usuarios.filter(u => u.email?.toLowerCase() !== SUPER_ADMIN_EMAIL.toLowerCase());
         return usuariosCache;
     }
 
@@ -203,7 +202,6 @@
                 perfil: data.perfil,
                 ativo: data.ativo,
                 empresaId: data.empresaId,
-                // NUNCA definir globalAdmin = true por padrão
                 criado_em: new Date().toISOString(),
                 criado_por: currentUser.uid
             };
@@ -233,6 +231,8 @@
     async function deleteUsuario(id, email) {
         if (!confirm(`Excluir permanentemente o usuário ${email}? Esta ação não pode ser desfeita.`)) return;
         try {
+            // Remove apenas o documento do Firestore. O usuário do Auth permanece (seria órfão),
+            // mas para remover completamente, seria necessário uma Cloud Function.
             await deleteDoc(doc(db, 'usuarios', id));
             showToast(`Usuário ${email} removido do Firestore. Para remover completamente, use o Firebase Console.`, 'warning');
             await carregarUsuarios();
@@ -287,6 +287,7 @@
         btn.innerHTML = '<i class="fas fa-save"></i> Salvar Usuário';
         btn.classList.remove('btn-success');
         btn.classList.add('btn-primary');
+        // No modo edição, a senha não é obrigatória
         document.getElementById('senhaGroup').style.display = 'block';
     }
 
@@ -298,6 +299,7 @@
         document.getElementById('userPerfil').value = usuario.perfil || 'usuario';
         document.getElementById('userAtivo').value = usuario.ativo ? 'true' : 'false';
         if (isSuperAdmin && usuario.empresaId) document.getElementById('userEmpresaId').value = usuario.empresaId;
+        // Em edição, campo senha não é obrigatório
         document.getElementById('senhaGroup').style.display = 'none';
     }
 
@@ -355,18 +357,18 @@
         if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
         const paginated = filtered.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
         const tbody = document.getElementById('usuariosTableBody');
-        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário encontrado</td><tr>'; document.getElementById('pagination').innerHTML = ''; return; }
+        if (paginated.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário encontrado</td></table>'; document.getElementById('pagination').innerHTML = ''; return; }
         tbody.innerHTML = paginated.map(u => {
             const empresa = isSuperAdmin ? empresasCache.find(e => e.id === u.empresaId) : currentEmpresa;
             const empresaNome = isSuperAdmin ? (empresa?.emp_razao_social || empresa?.emp_nome_fantasia || '-') : (currentEmpresa?.emp_razao_social || '-');
             const statusClass = u.ativo ? 'status-ativo' : 'status-inativo';
             const perfilIcon = u.perfil === 'admin' ? '👑' : (u.perfil === 'gerente' ? '📊' : (u.perfil === 'veterinario' ? '🩺' : (u.perfil === 'tosador' ? '✂️' : '👤')));
-            return `<tr>
+            return `<td>
                 <td><strong>${escapeHtml(u.nome)}</strong></td>
-                <td>${escapeHtml(u.email)}</span></td>
-                <td>${escapeHtml(u.telefone || '-')}</span></td>
-                <td>${perfilIcon} ${u.perfil}</span></td>
-                <td>${escapeHtml(empresaNome)}</span></td>
+                <td>${escapeHtml(u.email)}</td>
+                <td>${escapeHtml(u.telefone || '-')}</td>
+                <td>${perfilIcon} ${u.perfil}</td>
+                <td>${escapeHtml(empresaNome)}</td>
                 <td><span class="status-badge ${statusClass}">${u.ativo ? 'Ativo' : 'Inativo'}</span></td>
                 <td class="action-buttons">
                     <button class="action-btn edit" onclick="editUsuario('${u.id}')"><i class="fas fa-edit"></i></button>
