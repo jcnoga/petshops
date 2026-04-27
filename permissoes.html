@@ -226,11 +226,9 @@
     let totalUsuariosComPermissoes = 0;
     let isLoading = false;
     
-    // Cache da página atual (usuários + suas permissões agregadas)
     let usuariosComPermissoesCache = [];
-    let usuariosCacheFull = [];      // todos os usuários (apenas para select, não para tabela)
-    let permissoesCache = [];        // todas as permissões (apenas para construir checklist)
-    let isLoadingPermissoes = false;
+    let usuariosCacheFull = [];
+    let permissoesCache = [];
 
     // ==================== CONSTRAINTS ====================
     function getConstraints() {
@@ -245,8 +243,10 @@
         const snap = await getDocs(q);
         usuariosCacheFull = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const select = document.getElementById('permUsuarioId');
-        select.innerHTML = '<option value="">Selecione um usuário</option>' + 
-            usuariosCacheFull.map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        if (select) {
+            select.innerHTML = '<option value="">Selecione um usuário</option>' + 
+                usuariosCacheFull.map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        }
     }
 
     // ==================== PAGINAÇÃO DA TABELA (Usuários + Permissões Agregadas) ====================
@@ -255,7 +255,6 @@
         isLoading = true;
         try {
             const constraints = getConstraints();
-            // Primeiro busca os usuários com paginação
             let usuariosQ = query(collection(db, 'usuarios'), ...constraints, orderBy('nome', 'asc'), limit(itemsPerPage));
             if (lastVisibleDoc) usuariosQ = query(usuariosQ, startAfter(lastVisibleDoc));
             const usuariosSnap = await getDocs(usuariosQ);
@@ -269,7 +268,6 @@
                 lastVisibleDoc = usuariosSnap.docs[usuariosSnap.docs.length - 1];
             }
             
-            // Para cada usuário da página, buscar suas permissões (uma query por usuário, mas são poucos, max 10)
             const permissoesPorUsuario = {};
             for (const user of usuariosPagina) {
                 const permQ = query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', user.id));
@@ -277,7 +275,6 @@
                 permissoesPorUsuario[user.id] = permSnap.docs.map(d => d.data().permissao);
             }
             
-            // Montar cache final
             if (reset) {
                 usuariosComPermissoesCache = usuariosPagina.map(u => ({
                     ...u,
@@ -291,11 +288,9 @@
                 usuariosComPermissoesCache = [...usuariosComPermissoesCache, ...novos];
             }
             
-            // Contagem total de usuários (para paginação)
             const totalUsuariosSnap = await getCountFromServer(query(collection(db, 'usuarios'), ...constraints));
             totalUsuariosComPermissoes = totalUsuariosSnap.data().count;
             
-            // Aplicar filtro de busca textual (nome/email)
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             let filtered = usuariosComPermissoesCache;
             if (searchTerm) {
@@ -335,7 +330,6 @@
                 currentPage++;
             }
         } else if (page < currentPage) {
-            // Se voltar, recarrega do início (simplificado)
             await carregarPaginaPermissoes(true);
             currentPage = 1;
             while (currentPage < page && lastVisibleDoc && !isLoading) {
@@ -343,7 +337,6 @@
                 currentPage++;
             }
         }
-        // Reaplicar busca local
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         let filtered = usuariosComPermissoesCache;
         if (searchTerm) {
@@ -360,7 +353,7 @@
         const tbody = document.getElementById('permissoesTableBody');
         if (!tbody) return;
         if (lista.length === 0) {
-            tbody.innerHTML = '<td><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário encontrado</td><\/tr>';
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px;">Nenhum usuário encontrado</td><\/tr>';
             return;
         }
         tbody.innerHTML = lista.map(u => {
@@ -372,7 +365,7 @@
                 const acaoIcon = acao === 'visualizar' ? '👁️' : (acao === 'cadastrar' ? '✏️' : (acao === 'editar' ? '📝' : (acao === 'excluir' ? '🗑️' : (acao === 'exportar' ? '📄' : '⚙️'))));
                 return `<span class="permissao-badge" onclick="filtrarPorPermissao('${p}')" title="Filtrar por esta permissão">${acaoIcon} ${moduloDisplay} › ${acao}</span>`;
             }).join('');
-            return `</td>
+            return `<tr>
                 <td><strong>${escapeHtml(u.nome || '-')}</strong><br><span style="font-size:0.7rem; color:#7a9eb0;">${escapeHtml(u.email || '')}</span><br><span class="badge" style="margin-top:4px;">${u.permissoes?.length || 0} permissões</span></td>
                 <td style="max-width:500px;">${permissoesFormatadas || '-'}</span></td>
                 <td class="action-buttons">
@@ -394,6 +387,7 @@
     
     async function gerarChecklistPermissoes() {
         const container = document.getElementById('permissionsContainer');
+        if (!container) return;
         if (!usuarioSelecionadoId) {
             container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
             return;
@@ -473,10 +467,8 @@
         const permissoesSelecionadas = [];
         checkboxes.forEach(cb => { if (cb.checked) permissoesSelecionadas.push(cb.value); });
         const constraints = getConstraints();
-        // Remove permissões antigas
         const oldPerms = await getDocs(query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', usuarioSelecionadoId)));
         for (const p of oldPerms.docs) await deleteDoc(doc(db, 'permissoes', p.id));
-        // Adiciona novas
         for (const perm of permissoesSelecionadas) {
             await addDoc(collection(db, 'permissoes'), {
                 usuarioId: usuarioSelecionadoId,
@@ -487,7 +479,6 @@
             });
         }
         showToast('Permissões salvas com sucesso!', 'success');
-        // Recarregar tabela e checklist
         await carregarPaginaPermissoes(true);
         await gerarChecklistPermissoes();
     }
@@ -498,16 +489,18 @@
         if (!usuarioSelecionadoId) { showToast('Selecione um usuário destino primeiro!', 'error'); return; }
         copyDestinoId = usuarioSelecionadoId;
         const selectOrigem = document.getElementById('copyUsuarioOrigem');
-        selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
-            usuariosCacheFull.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
-        document.getElementById('copyModal').style.display = 'flex';
+        if (selectOrigem) {
+            selectOrigem.innerHTML = '<option value="">Selecione um usuário</option>' + 
+                usuariosCacheFull.filter(u => u.id !== usuarioSelecionadoId).map(u => `<option value="${u.id}">${escapeHtml(u.nome)} (${u.email})</option>`).join('');
+        }
+        const modal = document.getElementById('copyModal');
+        if (modal) modal.style.display = 'flex';
     }
-    window.fecharCopyModal = () => document.getElementById('copyModal').style.display = 'none';
+    window.fecharCopyModal = () => { const modal = document.getElementById('copyModal'); if (modal) modal.style.display = 'none'; };
     window.confirmarCopiarPermissoes = async () => {
         const usuarioOrigemId = document.getElementById('copyUsuarioOrigem').value;
         if (!usuarioOrigemId) { showToast('Selecione um usuário de origem!', 'error'); return; }
         const origPerms = await carregarPermissoesDoUsuario(usuarioOrigemId);
-        // Remove antigas do destino
         const constraints = getConstraints();
         const oldPerms = await getDocs(query(collection(db, 'permissoes'), ...constraints, where('usuarioId', '==', copyDestinoId)));
         for (const p of oldPerms.docs) await deleteDoc(doc(db, 'permissoes', p.id));
@@ -528,7 +521,8 @@
     
     // ==================== EVENTOS DE USUÁRIO ====================
     window.editarPermissoes = function(usuarioId) {
-        document.getElementById('permUsuarioId').value = usuarioId;
+        const select = document.getElementById('permUsuarioId');
+        if (select) select.value = usuarioId;
         usuarioSelecionadoId = usuarioId;
         gerarChecklistPermissoes();
         const copyBtn = document.getElementById('copyPermissoesBtn');
@@ -536,13 +530,15 @@
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.copiarPermissoesUsuario = function(usuarioId) {
-        document.getElementById('permUsuarioId').value = usuarioId;
+        const select = document.getElementById('permUsuarioId');
+        if (select) select.value = usuarioId;
         usuarioSelecionadoId = usuarioId;
         gerarChecklistPermissoes();
         mostrarModalCopiar();
     };
     window.filtrarPorPermissao = function(permissao) {
-        document.getElementById('searchInput').value = permissao.split('.')[0];
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = permissao.split('.')[0];
         carregarPaginaPermissoes(true);
         showToast(`Filtrando por: ${permissao.split('.')[0]}`, 'info');
     };
@@ -564,26 +560,36 @@
             const isAdmin = await verificarAcessoAdmin(user);
             const isSuper = await verificarSuperAdmin(user);
             if (!isAdmin && !isSuper) {
-                document.getElementById('loadingScreen').classList.add('hidden');
-                document.getElementById('blockedContent').classList.remove('hidden');
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) loadingScreen.classList.add('hidden');
+                const blockedContent = document.getElementById('blockedContent');
+                if (blockedContent) blockedContent.classList.remove('hidden');
+                const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+                if (conteudoPrincipal) conteudoPrincipal.style.display = 'none';
                 return;
             }
             currentEmpresa = await carregarEmpresaUsuario(user);
             if (!currentEmpresa && !isSuper) { window.location.href = 'empresa.html'; return; }
             if (isSuper && !currentEmpresa) currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-            document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            const empresaInfo = document.getElementById('empresaInfo');
+            if (empresaInfo) {
+                empresaInfo.innerHTML = currentEmpresa.globalAdmin ? '<i class="fas fa-globe"></i> Super Administrador' : `<i class="fas fa-building"></i> ${currentEmpresa.emp_razao_social || currentEmpresa.emp_nome_fantasia || 'Empresa'}`;
+            }
             
             // Alerta trial
-            if (!currentEmpresa.globalAdmin) {
+            if (!currentEmpresa.globalAdmin && currentEmpresa) {
                 const statusInfo = verificarStatusEmpresa(currentEmpresa);
                 const trialDiv = document.getElementById('trialAlert');
-                if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
-                else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
-                else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
-                else trialDiv.style.display = 'none';
+                if (trialDiv) {
+                    if (statusInfo.status === 'trial_urgente') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-half"></i> Teste termina em ${statusInfo.diasRestantes} dia(s)!</div><button class="btn btn-warning" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    else if (statusInfo.status === 'expirado') trialDiv.innerHTML = `<div><i class="fas fa-hourglass-end"></i> Teste expirado! Bloqueado.</div><button class="btn btn-danger" onclick="solicitarLiberacao()">Solicitar Liberação</button>`;
+                    else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
+                    else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
+                    else trialDiv.style.display = 'none';
+                }
             } else {
-                document.getElementById('trialAlert').style.display = 'none';
+                const trialDiv = document.getElementById('trialAlert');
+                if (trialDiv) trialDiv.style.display = 'none';
             }
             
             await carregarUsuariosParaSelect();
@@ -591,42 +597,53 @@
             await updateStats();
             
             // Eventos
-            document.getElementById('permUsuarioId').addEventListener('change', (e) => {
-                usuarioSelecionadoId = e.target.value;
-                if (usuarioSelecionadoId) {
-                    gerarChecklistPermissoes();
-                    document.getElementById('copyPermissoesBtn').style.display = 'inline-block';
-                } else {
-                    document.getElementById('permissionsContainer').innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
-                    document.getElementById('copyPermissoesBtn').style.display = 'none';
-                }
-            });
-            document.getElementById('savePermissaoBtn').onclick = salvarPermissoes;
-            document.getElementById('copyPermissoesBtn').onclick = mostrarModalCopiar;
-            document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; carregarPaginaPermissoes(true); });
-            document.getElementById('clearSearchBtn').onclick = () => { document.getElementById('searchInput').value = ''; carregarPaginaPermissoes(true); };
-            document.getElementById('refreshTableBtn').onclick = () => carregarPaginaPermissoes(true);
-            document.getElementById('refreshPermissoesBtn').onclick = () => { if (usuarioSelecionadoId) gerarChecklistPermissoes(); };
-            document.getElementById('permissaoSearch').addEventListener('input', () => gerarChecklistPermissoes());
-            document.getElementById('logoutBtn').onclick = () => auth.signOut();
-            document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
-            window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
-            window.solicitarLiberacao = () => {
-                window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank');
-                showToast('Abrindo e-mail...', 'info');
-            };
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('conteudoPrincipal').style.display = 'block';
+            const permUsuarioSelect = document.getElementById('permUsuarioId');
+            if (permUsuarioSelect) {
+                permUsuarioSelect.addEventListener('change', (e) => {
+                    usuarioSelecionadoId = e.target.value;
+                    if (usuarioSelecionadoId) {
+                        gerarChecklistPermissoes();
+                        const copyBtn = document.getElementById('copyPermissoesBtn');
+                        if (copyBtn) copyBtn.style.display = 'inline-block';
+                    } else {
+                        const container = document.getElementById('permissionsContainer');
+                        if (container) container.innerHTML = '<div style="text-align:center; padding:40px;">👈 Selecione um usuário para gerenciar as permissões</div>';
+                        const copyBtn = document.getElementById('copyPermissoesBtn');
+                        if (copyBtn) copyBtn.style.display = 'none';
+                    }
+                });
+            }
+            const savePermissaoBtn = document.getElementById('savePermissaoBtn');
+            if (savePermissaoBtn) savePermissaoBtn.onclick = salvarPermissoes;
+            const copyPermissoesBtn = document.getElementById('copyPermissoesBtn');
+            if (copyPermissoesBtn) copyPermissoesBtn.onclick = mostrarModalCopiar;
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.addEventListener('input', () => { currentPage = 1; carregarPaginaPermissoes(true); });
+            const clearSearchBtn = document.getElementById('clearSearchBtn');
+            if (clearSearchBtn) clearSearchBtn.onclick = () => { if (searchInput) searchInput.value = ''; carregarPaginaPermissoes(true); };
+            const refreshTableBtn = document.getElementById('refreshTableBtn');
+            if (refreshTableBtn) refreshTableBtn.onclick = () => carregarPaginaPermissoes(true);
+            const refreshPermissoesBtn = document.getElementById('refreshPermissoesBtn');
+            if (refreshPermissoesBtn) refreshPermissoesBtn.onclick = () => { if (usuarioSelecionadoId) gerarChecklistPermissoes(); };
+            const permissaoSearch = document.getElementById('permissaoSearch');
+            if (permissaoSearch) permissaoSearch.addEventListener('input', () => gerarChecklistPermissoes());
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) logoutBtn.onclick = () => auth.signOut();
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+            if (modalCloseBtn) modalCloseBtn.onclick = () => { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; };
+            window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) { const modal = document.getElementById('viewModal'); if (modal) modal.style.display = 'none'; } };
+            
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) loadingScreen.style.display = 'none';
+            const conteudoPrincipal = document.getElementById('conteudoPrincipal');
+            if (conteudoPrincipal) conteudoPrincipal.style.display = 'block';
         } else {
             window.location.href = 'login.html';
         }
     });
     
-    // Funções globais para modais (view ainda não implementada, mas pode ser adicionada)
-    window.viewCanal = function(id) { showToast('Função em desenvolvimento', 'info'); };
-    window.viewTemplate = function(id) { showToast('Função em desenvolvimento', 'info'); };
-    window.viewRegra = function(id) { showToast('Função em desenvolvimento', 'info'); };
-    window.viewHistorico = function(id) { showToast('Função em desenvolvimento', 'info'); };
+    window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank'); showToast('Abrindo e-mail...', 'info'); };
+    window.logout = () => auth.signOut();
     console.log('✅ Permissões refatorado - sem onSnapshot, com paginação real');
 </script>
 </body>
