@@ -1,4 +1,4 @@
-// ==================== util.js (REFATORADO FINAL) ====================
+// ==================== util.js (REFATORADO FINAL - COM TRATAMENTO SEGURO) ====================
 import { auth, db } from './firebase-config.js';
 import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -93,8 +93,8 @@ export function calcularDiasRestantes(dataExpiracao) {
     return dias > 0 ? dias : 0;
 }
 
+// CORREÇÃO CRÍTICA: trata empresa nula/indefinida
 export function verificarStatusEmpresa(empresa) {
-    // Tratamento seguro para empresa nula/indefinida
     if (!empresa) {
         return { status: 'nao_cadastrada', statusText: 'Empresa não cadastrada', diasRestantes: 0 };
     }
@@ -114,14 +114,14 @@ export function verificarStatusEmpresa(empresa) {
     return { status: 'trial', statusText: 'Em teste', diasRestantes: dias };
 }
 
-// ---------- Superadmin – APENAS pelo Firestore (sem e-mail hardcoded) ----------
+// ---------- Superadmin – SOMENTE via Firestore (sem e-mail hardcoded) ----------
 export async function verificarSuperAdmin(user) {
     if (!user) return false;
     const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
     return userDoc.exists() && userDoc.data().globalAdmin === true;
 }
 
-// ---------- Admin com suporte a SUPERADMIN ----------
+// ---------- Admin com suporte a superadmin ----------
 export async function verificarAcessoAdmin(user) {
     if (!user) return false;
     if (await verificarSuperAdmin(user)) return true;
@@ -130,7 +130,7 @@ export async function verificarAcessoAdmin(user) {
     return userDoc.data().perfil === 'admin';
 }
 
-// Carregar empresa do usuário – para superadmin retorna objeto especial
+// Carregar empresa do usuário – superadmin recebe objeto especial
 export async function carregarEmpresaUsuario(user) {
     if (!user) return null;
     const isSuper = await verificarSuperAdmin(user);
@@ -168,7 +168,7 @@ export async function carregarEmpresaUsuario(user) {
     return { id: empresaDoc.id, ...empresaDoc.data() };
 }
 
-// Função auxiliar para montar query respeitando superadmin
+// Auxiliar para queries respeitando superadmin
 export function getQueryConstraints(currentEmpresa, extraFilters = []) {
     if (currentEmpresa && currentEmpresa.globalAdmin) return extraFilters;
     return [where('empresaId', '==', currentEmpresa.id), ...extraFilters];
