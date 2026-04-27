@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Produtos | Modo Eficiente</title>
+    <title>PerShop - Produtos + Categorias</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -39,7 +39,8 @@
         .quick-form h3 { font-size: 0.8rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
         .form-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
         .field-group { flex: 1; min-width: 100px; display: flex; flex-direction: column; gap: 4px; }
-        .field-group label { font-size: 0.6rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
+        .field-group label { font-size: 0.6rem; font-weight: 600; color: #4a6272; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+        .field-group label i { cursor: pointer; color: #2c7da0; font-size: 0.8rem; }
         .field-group input, .field-group select { padding: 6px 10px; border-radius: 10px; border: 1px solid #e2edf2; font-size: 0.75rem; background: white; }
         .field-group input:focus { outline: none; border-color: #2c7da0; }
         .filter-bar { background: white; border-radius: 20px; padding: 8px 16px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
@@ -63,6 +64,17 @@
         .toast { position: fixed; bottom: 20px; right: 20px; background: #1f5068; color: white; padding: 8px 16px; border-radius: 30px; font-size: 0.7rem; z-index: 1000; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .footer { text-align: center; padding: 12px; font-size: 0.6rem; color: #8aa4b8; margin-top: 16px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: white; border-radius: 24px; width: 90%; max-width: 700px; max-height: 85vh; overflow: auto; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1rem; color: #1f5068; }
+        .modal-header .close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #7a9eb0; }
+        .modal-body { padding: 20px; }
+        .categoria-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eef2f5; }
+        .categoria-info { flex: 1; }
+        .categoria-nome { font-weight: 600; font-size: 0.8rem; }
+        .categoria-desc { font-size: 0.7rem; color: #7a9eb0; }
+        .categoria-actions { display: flex; gap: 8px; }
         @media (max-width: 680px) { .form-row { flex-direction: column; align-items: stretch; } .filter-bar { flex-direction: column; align-items: stretch; } }
         .shortcut-hint { font-size: 0.55rem; color: #aaa; margin-left: 6px; }
     </style>
@@ -77,7 +89,7 @@
 
     <div id="trialAlert" class="trial-alert" style="display: none;"></div>
 
-    <!-- Cards de estatísticas (filtros rápidos) -->
+    <!-- Cards de estatísticas -->
     <div class="stats-row" id="statsRow">
         <div class="stat-card" data-filter="all"><div class="stat-value" id="totalProdutos">0</div><div class="stat-label">Total</div></div>
         <div class="stat-card" data-filter="active"><div class="stat-value" id="totalAtivos">0</div><div class="stat-label">Ativos</div></div>
@@ -93,13 +105,16 @@
             <div class="field-group"><label>Preço Venda * (R$)</label><input type="text" id="quickPreco" placeholder="0,00"></div>
             <div class="field-group"><label>Estoque</label><input type="number" id="quickEstoque" value="0" step="1"></div>
             <div class="field-group"><label>Mínimo</label><input type="number" id="quickEstoqueMin" value="0" step="1"></div>
-            <div class="field-group"><label>Categoria</label><select id="quickCategoriaId"><option value="">-- Selecione --</option></select></div>
+            <div class="field-group">
+                <label>Categoria <i id="openCategoriaModalBtn" class="fas fa-edit" style="cursor: pointer;" title="Gerenciar categorias"></i></label>
+                <select id="quickCategoriaId"><option value="">-- Sem categoria --</option></select>
+            </div>
             <div class="field-group"><label>Status</label><select id="quickAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
             <div class="field-group"><div style="display: flex; gap: 6px;"><button id="saveQuickBtn" class="btn btn-success"><i class="fas fa-save"></i> Salvar</button><button id="cancelQuickBtn" class="btn btn-outline" style="display:none;">Cancelar</button></div></div>
         </div>
     </div>
 
-    <!-- Filtros e busca -->
+    <!-- Filtros -->
     <div class="filter-bar">
         <div class="filter-group">
             <input type="text" id="searchInput" placeholder="🔍 Buscar produto..." autocomplete="off">
@@ -115,7 +130,7 @@
         </div>
     </div>
 
-    <!-- Grid de produtos (tabela editável) -->
+    <!-- Grid de produtos -->
     <div class="table-wrapper">
         <table>
             <thead>
@@ -130,6 +145,29 @@
     <div class="footer">✅ Dica: duplo clique para editar | Ctrl+D duplica produto | F2 edita célula | Esc cancela</div>
 </div>
 
+<!-- Modal de Gerenciamento de Categorias -->
+<div id="categoriaModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-tags"></i> Gerenciar Categorias</h3>
+            <button class="close" id="closeCategoriaModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="quick-form" style="padding: 12px; margin-bottom: 16px;">
+                <div class="form-row">
+                    <div class="field-group" style="flex:2"><label>Nova categoria</label><input type="text" id="novaCategoriaNome" placeholder="Ex: Alimentação, Higiene"></div>
+                    <div class="field-group" style="flex:3"><label>Descrição (opcional)</label><input type="text" id="novaCategoriaDesc" placeholder="Breve descrição"></div>
+                    <div class="field-group"><button id="salvarCategoriaBtn" class="btn btn-success"><i class="fas fa-save"></i> Adicionar</button></div>
+                </div>
+            </div>
+            <div id="listaCategorias" style="max-height: 400px; overflow-y: auto;">
+                <!-- lista dinâmica de categorias -->
+                <div style="text-align:center; padding:20px;">Carregando categorias...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script type="module">
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, orderBy, limit, startAfter, getCountFromServer } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -139,7 +177,7 @@
     let currentUser, currentEmpresa, editingId = null;
     let currentPage = 1, itemsPerPage = 15, lastVisibleDoc = null, totalCount = 0, isLoading = false;
     let produtosCache = [], categoriasCache = [];
-    let activeFilter = 'all';  // all, active, inactive, lowstock
+    let activeFilter = 'all';
     let activeInlineEdit = null, autoSaveTimeout = null, searchDebounce = null;
 
     // ========== CONSTRAINTS ==========
@@ -148,7 +186,7 @@
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ========== CARREGAR CATEGORIAS ==========
+    // ========== CARREGAR CATEGORIAS (cache e select) ==========
     async function carregarCategorias() {
         const constraints = getConstraints();
         const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints, orderBy('nome')));
@@ -160,7 +198,82 @@
         if (filter) filter.innerHTML = '<option value="">Todas categorias</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
     }
 
-    // ========== CARREGAR PRODUTOS (PAGINAÇÃO + FILTROS) ==========
+    // ========== MODAL DE CATEGORIAS ==========
+    function abrirModalCategorias() {
+        const modal = document.getElementById('categoriaModal');
+        modal.style.display = 'flex';
+        renderizarListaCategorias();
+    }
+    function fecharModalCategorias() {
+        document.getElementById('categoriaModal').style.display = 'none';
+    }
+    async function renderizarListaCategorias() {
+        const container = document.getElementById('listaCategorias');
+        if (categoriasCache.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px;">Nenhuma categoria cadastrada.</div>';
+            return;
+        }
+        container.innerHTML = categoriasCache.map(cat => `
+            <div class="categoria-row" data-id="${cat.id}">
+                <div class="categoria-info">
+                    <div class="categoria-nome">${escapeHtml(cat.nome)}</div>
+                    <div class="categoria-desc">${escapeHtml(cat.descricao || '')}</div>
+                </div>
+                <div class="categoria-actions">
+                    <button class="btn-icon editar-categoria" data-id="${cat.id}" data-nome="${escapeHtml(cat.nome)}" data-desc="${escapeHtml(cat.descricao || '')}"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon excluir-categoria" data-id="${cat.id}"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>
+        `).join('');
+        // Eventos dos botões
+        document.querySelectorAll('.editar-categoria').forEach(btn => {
+            btn.onclick = () => editarCategoria(btn.dataset.id, btn.dataset.nome, btn.dataset.desc);
+        });
+        document.querySelectorAll('.excluir-categoria').forEach(btn => {
+            btn.onclick = () => excluirCategoria(btn.dataset.id);
+        });
+    }
+    async function adicionarCategoria() {
+        const nome = document.getElementById('novaCategoriaNome').value.trim();
+        if (!nome) { showToast('Nome da categoria é obrigatório', 'error'); return; }
+        const descricao = document.getElementById('novaCategoriaDesc').value.trim();
+        try {
+            await addDoc(collection(db, 'categorias_produtos'), {
+                nome,
+                descricao,
+                empresaId: currentEmpresa.id,
+                criado_em: new Date().toISOString()
+            });
+            showToast('Categoria adicionada', 'success');
+            document.getElementById('novaCategoriaNome').value = '';
+            document.getElementById('novaCategoriaDesc').value = '';
+            await carregarCategorias();  // recarrega cache e selects
+            renderizarListaCategorias();
+            // Não precisa recarregar produtos, apenas o select já foi atualizado
+        } catch(e) { showToast('Erro ao adicionar categoria', 'error'); }
+    }
+    async function editarCategoria(id, nomeAtual, descAtual) {
+        const novoNome = prompt('Editar nome da categoria:', nomeAtual);
+        if (!novoNome || novoNome === nomeAtual) return;
+        const novaDesc = prompt('Editar descrição (opcional):', descAtual) || '';
+        try {
+            await updateDoc(doc(db, 'categorias_produtos', id), { nome: novoNome, descricao: novaDesc });
+            showToast('Categoria atualizada', 'success');
+            await carregarCategorias();
+            renderizarListaCategorias();
+        } catch(e) { showToast('Erro ao editar', 'error'); }
+    }
+    async function excluirCategoria(id) {
+        if (!confirm('Excluir esta categoria? Produtos que a utilizam ficarão sem categoria.')) return;
+        try {
+            await deleteDoc(doc(db, 'categorias_produtos', id));
+            showToast('Categoria excluída', 'success');
+            await carregarCategorias();
+            renderizarListaCategorias();
+        } catch(e) { showToast('Erro ao excluir', 'error'); }
+    }
+
+    // ========== CARREGAR PRODUTOS ==========
     async function carregarProdutos(reset = true) {
         if (isLoading) return;
         isLoading = true;
@@ -169,14 +282,10 @@
             const constraints = getConstraints();
             let q = query(collection(db, 'produtos'), ...constraints);
             
-            // Filtro de status (ativo/inativo) – aplicado no Firestore
             if (activeFilter === 'active') q = query(q, where('ativo', '==', true));
             else if (activeFilter === 'inactive') q = query(q, where('ativo', '==', false));
-            // lowstock será tratado após o carregamento
-            
             const catFilter = document.getElementById('categoriaFilter').value;
             if (catFilter) q = query(q, where('categoriaId', '==', catFilter));
-            
             const searchTerm = document.getElementById('searchInput').value.trim();
             if (searchTerm) {
                 const end = searchTerm + '\uf8ff';
@@ -184,7 +293,6 @@
             }
             q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
             if (lastVisibleDoc) q = query(q, startAfter(lastVisibleDoc));
-            
             const snapshot = await getDocs(q);
             let novos = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
             if (activeFilter === 'lowstock') {
@@ -193,8 +301,6 @@
             if (reset) produtosCache = novos;
             else produtosCache = [...produtosCache, ...novos];
             lastVisibleDoc = snapshot.docs[snapshot.docs.length - 1];
-            
-            // Contagem total (ignorar lowstock para precisão)
             if (reset) {
                 let countQ = query(collection(db, 'produtos'), ...constraints);
                 if (activeFilter === 'active') countQ = query(countQ, where('ativo', '==', true));
@@ -228,15 +334,14 @@
                 <td>${escapeHtml(cat)}</td>
                 <td class="editable" data-field="ativo" data-value="${p.ativo}"><span class="status-badge ${statusClass}">${statusText}</span></td>
                 <td><button class="btn-icon duplicate-btn" data-id="${p.id}" title="Duplicar"><i class="fas fa-copy"></i></button> <button class="btn-icon delete-btn" data-id="${p.id}" title="Excluir"><i class="fas fa-trash-alt"></i></button></td>
-            </tr>`;
+            </td>`;
         }).join('');
-        // Eventos de edição
         document.querySelectorAll('.editable').forEach(cell => cell.ondblclick = () => startInlineEdit(cell));
         document.querySelectorAll('.duplicate-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); duplicarProduto(btn.dataset.id); });
         document.querySelectorAll('.delete-btn').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); deleteProduto(btn.dataset.id); });
     }
 
-    // ========== EDIÇÃO INLINE COM AUTOSAVE ==========
+    // ========== EDIÇÃO INLINE ==========
     function startInlineEdit(cell) {
         if (activeInlineEdit) cancelInlineEdit();
         const row = cell.closest('tr');
@@ -245,7 +350,6 @@
         const index = parseInt(row.dataset.index);
         const product = produtosCache[index];
         if (!product) return;
-        
         let input;
         if (field === 'ativo') {
             input = document.createElement('select');
@@ -265,7 +369,6 @@
         cell.appendChild(input);
         cell.classList.add('editing');
         input.focus();
-        
         const save = async () => {
             let newValue;
             if (field === 'precoVenda') newValue = parseCurrency(input.value);
@@ -278,7 +381,7 @@
                 product[field] = newValue;
                 renderTabela();
                 showToast(`${field} atualizado!`, 'success');
-                await carregarProdutos(true); // recarrega para manter consistência de ordenação
+                await carregarProdutos(true);
             } catch(e) { showToast('Erro ao salvar', 'error'); }
             cancelInlineEdit();
         };
@@ -291,7 +394,7 @@
         renderTabela();
     }
 
-    // ========== DUPLICAR PRODUTO ==========
+    // ========== DUPLICAR, EXCLUIR, SALVAR RÁPIDO ==========
     async function duplicarProduto(id) {
         const original = produtosCache.find(p => p.id === id);
         if (!original) return;
@@ -308,16 +411,12 @@
         document.getElementById('quickNome').focus();
         showToast('Altere o nome e salve para criar cópia', 'info');
     }
-
-    // ========== EXCLUIR PRODUTO ==========
     async function deleteProduto(id) {
         if (!confirm('Excluir produto permanentemente?')) return;
         await deleteDoc(doc(db, 'produtos', id));
         showToast('Produto excluído', 'success');
         await carregarProdutos(true);
     }
-
-    // ========== FORMULÁRIO RÁPIDO ==========
     async function salvarRapido() {
         const nome = document.getElementById('quickNome').value.trim();
         if (!nome) { showToast('Nome obrigatório', 'error'); document.getElementById('quickNome').focus(); return; }
@@ -327,9 +426,7 @@
         const estoqueMin = parseInt(document.getElementById('quickEstoqueMin').value) || 0;
         const categoriaId = document.getElementById('quickCategoriaId').value || null;
         const ativo = document.getElementById('quickAtivo').value === 'true';
-        
         const data = { nome, precoVenda, estoque, estoqueMin, categoriaId, ativo, empresaId: currentEmpresa.id, atualizado_em: new Date().toISOString() };
-        
         if (editingId) {
             await updateDoc(doc(db, 'produtos', editingId), data);
             showToast('Produto atualizado', 'success');
@@ -360,7 +457,7 @@
         showToast('Edição cancelada', 'info');
     }
 
-    // ========== ESTATÍSTICAS E FILTROS ==========
+    // ========== ESTATÍSTICAS E PAGINAÇÃO ==========
     async function atualizarStats() {
         const constraints = getConstraints();
         const total = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
@@ -372,7 +469,6 @@
         document.getElementById('totalInativos').innerText = total.data().count - ativos.data().count;
         document.getElementById('totalEstoqueBaixo').innerText = baixo;
     }
-
     function atualizarPaginacao() {
         const totalPages = Math.ceil(totalCount / itemsPerPage);
         const pagDiv = document.getElementById('pagination');
@@ -386,22 +482,13 @@
     window.goToPage = async (page) => {
         if (page < 1) return;
         if (page > currentPage) {
-            while (currentPage < page && lastVisibleDoc && !isLoading) {
-                await carregarProdutos(false);
-                currentPage++;
-            }
+            while (currentPage < page && lastVisibleDoc && !isLoading) { await carregarProdutos(false); currentPage++; }
         } else if (page < currentPage) {
-            await carregarProdutos(true);
-            currentPage = 1;
-            while (currentPage < page && lastVisibleDoc && !isLoading) {
-                await carregarProdutos(false);
-                currentPage++;
-            }
+            await carregarProdutos(true); currentPage = 1;
+            while (currentPage < page && lastVisibleDoc && !isLoading) { await carregarProdutos(false); currentPage++; }
         }
-        renderTabela();
-        atualizarPaginacao();
+        renderTabela(); atualizarPaginacao();
     };
-
     function setFilter(filter) {
         activeFilter = filter;
         document.querySelectorAll('.chip').forEach(ch => ch.classList.remove('active'));
@@ -410,13 +497,11 @@
         document.querySelector(`.stat-card[data-filter="${filter}"]`)?.classList.add('active');
         carregarProdutos(true);
     }
-
     function limparFiltros() {
         document.getElementById('searchInput').value = '';
         document.getElementById('categoriaFilter').value = '';
         setFilter('all');
     }
-    
     function configurarEventosFiltros() {
         document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => setFilter(ch.dataset.filter));
         document.querySelectorAll('.stat-card').forEach(card => card.onclick = () => setFilter(card.dataset.filter));
@@ -453,7 +538,7 @@
         } catch(e) { showToast('Erro PDF', 'error'); }
     }
 
-    // ========== ATALHOS DE TECLADO ==========
+    // ========== ATALHOS ==========
     function setupShortcuts() {
         window.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'n') { e.preventDefault(); document.getElementById('quickNome').focus(); }
@@ -471,8 +556,6 @@
         currentEmpresa = await carregarEmpresaUsuario(user);
         if (!currentEmpresa && !currentEmpresa?.globalAdmin) { window.location.href = 'login.html'; return; }
         document.getElementById('empresaInfo').innerHTML = currentEmpresa.globalAdmin ? 'Super Admin' : (currentEmpresa.emp_razao_social || 'Empresa');
-        
-        // Verificar trial (apenas para empresas normais)
         if (!currentEmpresa.globalAdmin && currentEmpresa) {
             const statusInfo = verificarStatusEmpresa(currentEmpresa);
             const trialDiv = document.getElementById('trialAlert');
@@ -482,7 +565,6 @@
             else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
             else trialDiv.style.display = 'none';
         }
-        
         await carregarCategorias();
         await carregarProdutos(true);
         configurarMascaraValor('quickPreco');
@@ -493,8 +575,12 @@
         document.getElementById('exportPdfBtn').onclick = exportarPDF;
         document.getElementById('logoutBtn').onclick = () => auth.signOut();
         document.getElementById('quickNome').focus();
+        // Modal de categorias
+        document.getElementById('openCategoriaModalBtn').onclick = abrirModalCategorias;
+        document.getElementById('closeCategoriaModalBtn').onclick = fecharModalCategorias;
+        document.getElementById('salvarCategoriaBtn').onclick = adicionarCategoria;
+        window.onclick = (e) => { if (e.target === document.getElementById('categoriaModal')) fecharModalCategorias(); };
     });
-    
     window.solicitarLiberacao = () => { window.open('mailto:jcnvap@gmail.com?subject=Liberação - ' + encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank'); showToast('Abrindo e-mail...','info'); };
 </script>
 </body>
