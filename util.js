@@ -1,5 +1,5 @@
-// ==================== util.js ====================
-// Funções utilitárias compartilhadas – agora com suporte a SUPERADMIN
+// ==================== util.js (REFATORADO) ====================
+// Funções utilitárias compartilhadas – suporte a SUPERADMIN
 
 import { auth, db } from './firebase-config.js';
 import { doc, getDoc, updateDoc, addDoc, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -114,6 +114,18 @@ export async function verificarSuperAdmin(user) {
     return userDoc.exists() && userDoc.data().globalAdmin === true;
 }
 
+// ---------- ADMIN COM SUPORTE A SUPERADMIN ----------
+// *** FUNÇÃO CORRIGIDA: agora reconhece o superadmin como administrador ***
+export async function verificarAcessoAdmin(user) {
+    if (!user) return false;
+    // Superadmin tem acesso total (admin)
+    if (await verificarSuperAdmin(user)) return true;
+    // Usuários normais: verificar perfil 'admin'
+    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
+    if (!userDoc.exists()) return false;
+    return userDoc.data().perfil === 'admin';
+}
+
 // Carregar empresa do usuário – para superadmin retorna objeto especial
 export async function carregarEmpresaUsuario(user) {
     if (!user) return null;
@@ -169,13 +181,6 @@ export function getQueryComEmpresa(collectionName, currentEmpresa, ...extraConst
         baseRef = query(baseRef, ...extraConstraints);
     }
     return baseRef;
-}
-
-export async function verificarAcessoAdmin(user) {
-    if (!user) return false;
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    if (!userDoc.exists()) return false;
-    return userDoc.data().perfil === 'admin';
 }
 
 export function configurarMascaraValor(idCampo) {
