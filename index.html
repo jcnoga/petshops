@@ -114,7 +114,7 @@
         </div>
         <div id="permissoesMenuItem" class="nav-item" style="display: none;" data-page="permissoes.html"><i class="fas fa-lock"></i><span>Permissões</span><span class="admin-badge">Admin</span></div>
         <div id="usuariosMenuItem" class="nav-item" style="display: none;" data-page="usuarios.html"><i class="fas fa-users"></i><span>Usuários</span><span class="admin-badge">Admin</span></div>
-        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globais.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
+        <div id="todasEmpresasMenuItem" class="nav-item" style="display: none;" data-page="empresas_globales.html"><i class="fas fa-globe"></i><span>Todas as Empresas (Super)</span></div>
     </aside>
     <main class="main-content">
         <div class="top-bar">
@@ -220,15 +220,14 @@
                            (userData.perfil === 'veterinario' ? '🩺 Veterinário' :
                            (userData.perfil === 'tosador' ? '✂️ Tosador' : '👤 Usuário')));
         document.getElementById('userPerfil').innerText = perfilLabel;
-        // *** CORREÇÃO: Agora superadmin também tem acesso aos menus restritos ***
-        const isAdmin = userData.perfil === 'admin' || await verificarSuperAdmin(currentUser);
+        const isAdmin = userData.perfil === 'admin' || isSuperAdmin;
         document.getElementById('permissoesMenuItem').style.display = isAdmin ? 'flex' : 'none';
         document.getElementById('usuariosMenuItem').style.display = isAdmin ? 'flex' : 'none';
-        // Menu "Todas as Empresas" só aparece para superadmin (já tratado no listener principal)
     }
 
     function atualizarWelcomeMessage() {
         const welcomeDiv = document.getElementById('welcomeMessage');
+        if (!welcomeDiv) return;
         const nomeUser = currentUser?.email?.split('@')[0] || 'Usuário';
         if (!currentEmpresa) {
             welcomeDiv.innerHTML = `<div><h2><i class="fas fa-paw"></i> Bem-vindo, ${nomeUser}!</h2>
@@ -242,6 +241,7 @@
                                     <p>Você tem acesso total a <strong>TODAS as empresas</strong> do sistema.</p></div>`;
             return;
         }
+        // Para empresa normal, verifica status
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'expirado') {
             welcomeDiv.className = 'welcome-message expired';
@@ -262,6 +262,7 @@
 
     function adicionarAlertaTrial() {
         const alertDiv = document.getElementById('trialAlertBar');
+        if (!alertDiv) return;
         if (!currentEmpresa || currentEmpresa.globalAdmin) { alertDiv.innerHTML = ''; return; }
         const statusInfo = verificarStatusEmpresa(currentEmpresa);
         if (statusInfo.status === 'trial_urgente') {
@@ -361,12 +362,16 @@
     function confirmarLogout() { fecharModalLogout(); logout(); }
 
     function setupNavegacao() {
-        document.querySelectorAll('.stat-card, .quick-btn, .nav-item[data-page]').forEach(el => {
+        // Seleciona todos os elementos que têm data-page e não são submenus
+        const navItems = document.querySelectorAll('.nav-item[data-page], .quick-btn[data-page], .stat-card[data-page]');
+        navItems.forEach(el => {
             el.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const page = el.getAttribute('data-page');
                 if (page) window.location.href = page;
             });
         });
+        // Tratamento especial para submenu de comunicação
         const comunicacaoMenu = document.getElementById('comunicacaoMenu');
         const comunicacaoSubmenu = document.getElementById('comunicacaoSubmenu');
         if (comunicacaoMenu && comunicacaoSubmenu) {
@@ -380,49 +385,58 @@
     }
 
     // ==================== AUTENTICAÇÃO E INICIALIZAÇÃO ====================
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            currentUser = user;
-            isSuperAdmin = await verificarSuperAdmin(user);
-            await carregarInfoUsuario();
-            currentEmpresa = await carregarEmpresaUsuario(user);
-            if (!currentEmpresa && !isSuperAdmin) {
-                console.warn('Nenhuma empresa associada. Exibindo botão de criação.');
+    document.addEventListener('DOMContentLoaded', () => {
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                isSuperAdmin = await verificarSuperAdmin(user);
+                await carregarInfoUsuario();
+                currentEmpresa = await carregarEmpresaUsuario(user);
+                if (!currentEmpresa && !isSuperAdmin) {
+                    console.warn('Nenhuma empresa associada. Exibindo botão de criação.');
+                    atualizarWelcomeMessage();
+                    document.getElementById('statsGrid').style.display = 'none';
+                    if (isSuperAdmin) {
+                        const menuSuper = document.getElementById('todasEmpresasMenuItem');
+                        if (menuSuper) menuSuper.style.display = 'flex';
+                    }
+                    // Ainda assim configura navegação para que o usuário possa tentar criar empresa?
+                    setupNavegacao();
+                    return;
+                }
+                // Se for superadmin sem empresa, cria um objeto especial (já feito em carregarEmpresaUsuario)
+                if (isSuperAdmin && !currentEmpresa) {
+                    currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
+                }
                 atualizarWelcomeMessage();
-                document.getElementById('statsGrid').style.display = 'none';
-                if (isSuperAdmin) {
+                adicionarAlertaTrial();
+                
+                // Só chama os listeners se tiver empresa (para superadmin, será tratado dentro de iniciarListeners)
+                if (currentEmpresa) {
+                    iniciarListeners();
+                } else {
+                    // Se não tem empresa, mas é superadmin, ainda pode usar o sistema? Nesse caso não há dados, mas menu funciona.
+                    console.log('Superadmin sem empresa específica - dados não carregados');
+                }
+                
+                // Configurar navegação após garantir que o DOM está pronto (já está, pois DOMContentLoaded já disparou)
+                setupNavegacao();
+
+                // Exibir menu de superadmin se for o caso
+                if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) {
                     const menuSuper = document.getElementById('todasEmpresasMenuItem');
                     if (menuSuper) menuSuper.style.display = 'flex';
                 }
-                document.getElementById('loadingScreen')?.remove();
-                document.getElementById('conteudoPrincipal')?.classList.remove('hidden');
-                return;
-            }
-            // Se for superadmin sem empresa, cria um objeto especial (já feito em carregarEmpresaUsuario)
-            if (isSuperAdmin && !currentEmpresa) {
-                currentEmpresa = { globalAdmin: true, id: 'SUPER_ADMIN' };
-            }
-            atualizarWelcomeMessage();
-            adicionarAlertaTrial();
-            setupNavegacao();
 
-            // Iniciar listeners em tempo real
-            iniciarListeners();
-
-            // Exibir menu de superadmin se for o caso
-            if (isSuperAdmin || (currentEmpresa && currentEmpresa.globalAdmin)) {
-                const menuSuper = document.getElementById('todasEmpresasMenuItem');
-                if (menuSuper) menuSuper.style.display = 'flex';
+                // Botão de atualizar manual – apenas toast informativo (dados já são real-time)
+                document.getElementById('refreshBtn').onclick = () => {
+                    showToast('Os dados já são atualizados automaticamente em tempo real!', 'info');
+                };
+                document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
+            } else {
+                window.location.href = 'login.html';
             }
-
-            // Botão de atualizar manual – apenas toast informativo (dados já são real-time)
-            document.getElementById('refreshBtn').onclick = () => {
-                showToast('Os dados já são atualizados automaticamente em tempo real!', 'info');
-            };
-            document.getElementById('logoutBtn').onclick = () => abrirModalLogout();
-        } else {
-            window.location.href = 'login.html';
-        }
+        });
     });
 
     window.abrirModalLogout = abrirModalLogout;
