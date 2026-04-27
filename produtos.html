@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>PerShop - Módulo de Produtos | Firebase + Firestore (Refatorado com Paginação)</title>
+    <title>PerShop - Módulo de Produtos | Firebase + Firestore (Refatorado)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* ========== ESTILOS (mesmos do original) ========== */
+        /* ESTILOS (mesmos do original) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: linear-gradient(135deg, #f0f7fa 0%, #e6f0f5 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1400px; margin: 0 auto; }
-        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+        .header { background: white; border-radius: 24px; padding: 20px 30px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .logo { display: flex; align-items: center; gap: 12px; }
         .logo-icon { width: 45px; height: 45px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: white; }
         .logo h1 { font-size: 1.5rem; color: #1f5068; }
@@ -26,12 +26,11 @@
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(44,125,160,0.3); }
         .btn-outline { border: 1.5px solid #2c7da0; background: transparent; color: #2c7da0; }
         .btn-outline:hover { background: #2c7da0; color: white; }
-        .btn-success { background: linear-gradient(135deg, #2a9d8f, #21867a); color: white; }
+        .btn-success { background: #2a9d8f; color: white; }
         .btn-danger { background: #e76f51; color: white; }
-        .btn-warning { background: #e9c46a; color: #1f5068; }
         .badge { background: #d4e6f1; padding: 6px 14px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
-        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); transition: transform 0.2s; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; cursor: pointer; }
+        .stat-card { background: white; padding: 20px; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-3px); }
         .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .stat-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #2c7da0, #61a5c2); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: white; }
@@ -40,20 +39,19 @@
         .tabs { display: flex; gap: 10px; margin-bottom: 25px; border-bottom: 2px solid #e2edf2; padding-bottom: 10px; flex-wrap: wrap; }
         .tab-btn { background: none; border: none; padding: 10px 24px; font-weight: 600; cursor: pointer; border-radius: 40px; transition: 0.2s; color: #4a6272; }
         .tab-btn.active { background: #2c7da0; color: white; }
-        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+        .form-card { background: white; border-radius: 28px; margin-bottom: 30px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
         .form-header { background: linear-gradient(135deg, #1f5068, #2c7da0); padding: 18px 25px; color: white; }
         .form-header h2 { font-size: 1.2rem; margin-bottom: 3px; }
         .form-header p { opacity: 0.8; font-size: 0.75rem; }
         .form-body { padding: 25px; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
-        .form-section { grid-column: 1 / -1; margin: 15px 0 5px 0; padding-bottom: 8px; border-bottom: 2px solid #2c7da0; display: flex; align-items: center; gap: 10px; }
         .input-group { display: flex; flex-direction: column; gap: 5px; }
         .input-group label { font-size: 0.7rem; font-weight: 600; color: #4a6272; text-transform: uppercase; }
         .input-group input, .input-group select, .input-group textarea { padding: 10px 14px; border-radius: 14px; border: 1.5px solid #e2edf2; font-size: 0.85rem; transition: all 0.2s; }
         .input-group input:focus, .input-group select:focus { outline: none; border-color: #2c7da0; box-shadow: 0 0 0 3px rgba(44,125,160,0.1); }
         .required::after { content: '*'; color: #e76f51; margin-left: 4px; }
         .form-actions { grid-column: 1 / -1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eef2f5; }
-        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); margin-bottom: 30px; }
+        .table-card { background: white; border-radius: 28px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.06); margin-bottom: 30px; }
         .table-header { padding: 18px 25px; border-bottom: 1px solid #eef2f5; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .table-header h3 { font-size: 1.1rem; color: #1f5068; }
         .search-area { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
@@ -66,8 +64,6 @@
         .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.65rem; font-weight: 600; }
         .status-ativo { background: #2a9d8f20; color: #2a9d8f; }
         .status-inativo { background: #e9c46a20; color: #e9c46a; }
-        .status-estoque-baixo { background: #e76f5120; color: #e76f51; }
-        .type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 50px; font-size: 0.6rem; font-weight: 600; }
         .action-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
         .action-btn { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: #f0f4f8; color: #5e7c8c; border: none; transition: all 0.2s; }
         .action-btn:hover { transform: scale(1.05); }
@@ -94,11 +90,11 @@
         .trial-alert { background: #fff3e0; border-left: 4px solid #e9c46a; border-radius: 16px; padding: 15px 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
         .trial-alert.warning { background: #ffe8e0; border-left-color: #e76f51; }
         .trial-alert.expired { background: #fce4e4; border-left-color: #e76f51; }
-        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
-        .breadcrumb a { color: #2c7da0; text-decoration: none; }
         .loading-screen { text-align: center; padding: 60px; }
         .loading-screen i { font-size: 3rem; color: #2c7da0; margin-bottom: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .breadcrumb { background: white; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; color: #7a9eb0; }
+        .breadcrumb a { color: #2c7da0; text-decoration: none; }
         @media (max-width: 768px) { body { padding: 12px; } .form-body { padding: 18px; } .form-grid { grid-template-columns: 1fr; } .tabs { flex-direction: column; } }
     </style>
 </head>
@@ -125,7 +121,7 @@
             <button class="tab-btn" data-tab="movimentos"><i class="fas fa-exchange-alt"></i> Movimento Estoque</button>
         </div>
 
-        <!-- PAINEL PRODUTOS (REFATORADO COM PAGINAÇÃO) -->
+        <!-- PAINEL PRODUTOS (REFATORADO) -->
         <div id="produtosPanel" class="panel">
             <div class="form-card"><div class="form-header"><h2><i class="fas fa-plus-circle"></i> Cadastro de Produto</h2><p>Preencha os campos para cadastrar um produto</p></div><div class="form-body"><div class="form-grid">
                 <div class="input-group"><label class="required">Nome</label><input type="text" id="prodNome" placeholder="Nome do produto"></div>
@@ -141,13 +137,16 @@
                 <div class="input-group" style="grid-column: span 2;"><label>Descrição</label><textarea id="prodDescricao" rows="2"></textarea></div>
                 <div class="form-actions"><button type="button" id="cancelProdutoBtn" class="btn btn-outline" style="display: none;">Cancelar</button><button type="button" id="saveProdutoBtn" class="btn btn-primary">Salvar</button></div>
             </div></div></div>
-            <div class="table-card"><div class="table-header"><h3>Produtos</h3><div class="search-area"><input type="text" id="searchProduto" placeholder="Buscar..."><select id="statusProdutoFilter"><option value="">Todos status</option><option value="true">Ativos</option><option value="false">Inativos</option></select><button id="clearProdutoFilters" class="btn btn-outline">Limpar</button><button id="exportProdutosPdfBtn" class="btn btn-primary">Exportar PDF</button></div></div><div class="table-wrapper"><table id="produtosTable"><thead><tr><th>Produto</th><th>Código</th><th>Preço Venda</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="produtosTableBody"></tbody>}</div><div class="pagination" id="produtosPagination"></div></div>
+            <div class="table-card"><div class="table-header"><h3>Produtos</h3><div class="search-area"><input type="text" id="searchProduto" placeholder="Buscar..."><select id="statusProdutoFilter"><option value="">Todos status</option><option value="true">Ativos</option><option value="false">Inativos</option></select><button id="clearProdutoFilters" class="btn btn-outline">Limpar</button><button id="refreshProdutosBtn" class="btn btn-primary"><i class="fas fa-sync-alt"></i> Atualizar</button><button id="exportProdutosPdfBtn" class="btn btn-primary">Exportar PDF</button></div></div>
+                <div class="table-wrapper"><table id="produtosTable"><thead><tr><th>Produto</th><th>Código</th><th>Preço Venda</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead><tbody id="produtosTableBody"></tbody>}</div>
+                <div class="pagination" id="produtosPagination"></div>
+            </div>
         </div>
 
-        <!-- PAINEL CATEGORIAS (pequeno, sem alterações) -->
+        <!-- PAINEL CATEGORIAS (sem paginação, poucos registros) -->
         <div id="categoriasPanel" class="panel" style="display:none;"><div class="form-card"><div class="form-header"><h2><i class="fas fa-plus-circle"></i> Nova Categoria</h2><p>Cadastre categorias para organizar produtos</p></div><div class="form-body"><div class="form-grid"><div class="input-group"><label class="required">Nome da Categoria</label><input type="text" id="catNome" placeholder="Ex: Alimentação, Higiene"></div><div class="input-group"><label>Descrição</label><input type="text" id="catDescricao"></div><div class="form-actions"><button type="button" id="saveCategoriaBtn" class="btn btn-primary">Salvar Categoria</button></div></div></div></div><div class="table-card"><div class="table-header"><h3>Categorias</h3><div class="search-area"><input type="text" id="searchCategoria" placeholder="Buscar categoria..."></div></div><div class="table-wrapper"><table id="categoriasTable"><thead><tr><th>Nome</th><th>Descrição</th><th>Produtos</th><th>Ações</th></tr></thead><tbody id="categoriasTableBody"></tbody>}</div></div></div>
 
-        <!-- PAINEL MOVIMENTO ESTOQUE (resumido, também com paginação) -->
+        <!-- PAINEL MOVIMENTO ESTOQUE (resumido, com paginação) -->
         <div id="movimentosPanel" class="panel" style="display:none;"><div class="form-card"><div class="form-header"><h2><i class="fas fa-exchange-alt"></i> Registrar Movimentação</h2></div><div class="form-body"><div class="form-grid"><div class="input-group"><label class="required">Produto</label><select id="movProdutoId"><option value="">Selecione</option></select></div><div class="input-group"><label class="required">Tipo</label><select id="movTipo"><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="ajuste">Ajuste</option></select></div><div class="input-group"><label class="required">Quantidade</label><input type="number" id="movQtde" min="1"></div><div class="input-group"><label>Responsável</label><input type="text" id="movResponsavel"></div><div class="input-group"><label>Motivo</label><input type="text" id="movMotivo"></div><div class="form-actions"><button type="button" id="saveMovimentoBtn" class="btn btn-primary">Registrar</button></div></div></div></div><div class="table-card"><div class="table-header"><h3>Histórico</h3><div class="search-area"><input type="text" id="searchMovimento" placeholder="Buscar..."><select id="movTipoFilter"><option value="">Todos tipos</option><option value="entrada">Entrada</option><option value="saida">Saída</option><option value="ajuste">Ajuste</option></select><button id="clearMovimentoFilters" class="btn btn-outline">Limpar</button><button id="exportMovimentosPdfBtn" class="btn btn-primary">Exportar PDF</button></div></div><div class="table-wrapper"><table id="movimentosTable"><thead><tr><th>Data</th><th>Produto</th><th>Tipo</th><th>Quantidade</th><th>Responsável</th><th>Motivo</th><th>Ações</th></tr></thead><tbody id="movimentosTableBody"></tbody>}</div><div class="pagination" id="movimentosPagination"></div></div></div>
     </div>
     <div class="footer">PerShop Enterprise - Módulo de Produtos | Dados paginados</div>
@@ -158,88 +157,109 @@
     import { auth, db, onAuthStateChanged } from './firebase-config.js';
     import { 
         collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, 
-        runTransaction, orderBy, limit, startAfter, getCountFromServer
+        runTransaction, orderBy, limit, startAfter, getCountFromServer, getDoc
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { 
         escapeHtml, showToast, formatCurrency, parseCurrency, carregarEmpresaUsuario, 
-        verificarStatusEmpresa, configurarMascaraValor, verificarSuperAdmin
+        verificarStatusEmpresa, configurarMascaraValor
     } from './util.js';
 
-    let currentUser, currentEmpresa;
+    // ========== ESTADO GLOBAL ==========
+    let currentUser = null;
+    let currentEmpresa = null;
     let editingProdutoId = null;
     let currentProdutoPage = 1, currentMovimentoPage = 1;
     const itemsPerPage = 10;
-    let produtosCache = [];      // apenas página atual
+    let produtosCache = [];     
     let categoriasCache = [];
-    let movimentosCache = [];     // apenas página atual
+    let movimentosCache = [];    
     let lastProdutoDoc = null, lastMovimentoDoc = null;
     let totalProdutosCount = 0, totalMovimentosCount = 0;
     let isLoadingProdutos = false, isLoadingMovimentos = false;
 
-    // ==================== CONSTRAINTS ====================
+    // ========== AUXILIAR: CONSTRAINTS ==========
     function getConstraints() {
         if (currentEmpresa && currentEmpresa.globalAdmin) return [];
         return [where('empresaId', '==', currentEmpresa.id)];
     }
 
-    // ==================== CARREGAR CATEGORIAS (pequeno, sem paginação) ====================
+    // ========== CATEGORIAS (pequeno, sem paginação) ==========
     async function carregarCategorias() {
         if (!currentEmpresa) return;
         const constraints = getConstraints();
-        const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints));
+        const snap = await getDocs(query(collection(db, 'categorias_produtos'), ...constraints, orderBy('nome', 'asc')));
         categoriasCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         atualizarSelectCategorias();
         renderCategorias();
     }
 
-    // ==================== PAGINAÇÃO PRODUTOS ====================
+    function renderCategorias() {
+        const tbody = document.getElementById('categoriasTableBody');
+        if (!tbody) return;
+        if (categoriasCache.length === 0) { tbody.innerHTML = '<tr><td colspan="4">Nenhuma categoria</td></tr>'; return; }
+        tbody.innerHTML = categoriasCache.map(c => `<tr>
+            <td><strong>${escapeHtml(c.nome)}</strong></td>
+            <td>${escapeHtml(c.descricao || '')}</span></td>
+            <td>${produtosCache.filter(p => p.categoriaId === c.id).length} produtos</span> (estimado)</td>
+            <td class="action-buttons"><button class="action-btn delete" onclick="deleteCategoria('${c.id}')"><i class="fas fa-trash-alt"></i></button></span>
+        </tr>`).join('');
+    }
+
+    async function addCategoria(data) {
+        if (categoriasCache.some(c => c.nome.toLowerCase() === data.nome.toLowerCase())) { showToast('Categoria já existe!', 'error'); return false; }
+        const docRef = await addDoc(collection(db, 'categorias_produtos'), { ...data, empresaId: currentEmpresa.id, criado_em: new Date().toISOString() });
+        categoriasCache.push({ id: docRef.id, ...data });
+        renderCategorias();
+        atualizarSelectCategorias();
+        showToast('Categoria criada!', 'success');
+        return true;
+    }
+    async function deleteCategoria(id) { 
+        await deleteDoc(doc(db, 'categorias_produtos', id)); 
+        categoriasCache = categoriasCache.filter(c => c.id !== id); 
+        renderCategorias(); 
+        atualizarSelectCategorias(); 
+        showToast('Categoria excluída!', 'success');
+    }
+    window.deleteCategoria = deleteCategoria;
+
+    function atualizarSelectCategorias() {
+        const select = document.getElementById('prodCategoriaId');
+        if (select) select.innerHTML = '<option value="">Selecione</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
+    }
+
+    // ========== PAGINAÇÃO PRODUTOS ==========
     async function carregarPaginaProdutos(reset = true) {
         if (isLoadingProdutos) return;
         isLoadingProdutos = true;
         try {
-            if (reset) {
-                currentProdutoPage = 1;
-                lastProdutoDoc = null;
-                produtosCache = [];
-            }
-            
+            if (reset) { currentProdutoPage = 1; lastProdutoDoc = null; produtosCache = []; }
             const constraints = getConstraints();
             let q = query(collection(db, 'produtos'), ...constraints);
-            
-            // Filtro status
             const statusFilter = document.getElementById('statusProdutoFilter')?.value || '';
-            if (statusFilter) {
-                q = query(q, where('ativo', '==', (statusFilter === 'true')));
-            }
-            
-            // Busca por nome (prefixo) - requer índice composto (empresaId, nome)
+            if (statusFilter) q = query(q, where('ativo', '==', (statusFilter === 'true')));
             const searchTerm = document.getElementById('searchProduto')?.value.trim() || '';
             if (searchTerm) {
-                const endPrefix = searchTerm + '\uf8ff';
-                q = query(q, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
+                const end = searchTerm + '\uf8ff';
+                q = query(q, where('nome', '>=', searchTerm), where('nome', '<=', end));
             }
-            
             q = query(q, orderBy('nome', 'asc'), limit(itemsPerPage));
             if (lastProdutoDoc) q = query(q, startAfter(lastProdutoDoc));
-            
             const snapshot = await getDocs(q);
             const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            if (reset) produtosCache = novos;
-            else produtosCache = [...produtosCache, ...novos];
+            produtosCache = reset ? novos : [...produtosCache, ...novos];
             lastProdutoDoc = snapshot.docs[snapshot.docs.length - 1];
             
-            // Contagem total (respeitando filtros)
             if (reset) {
-                let countQuery = query(collection(db, 'produtos'), ...constraints);
-                if (statusFilter) countQuery = query(countQuery, where('ativo', '==', (statusFilter === 'true')));
+                let countQ = query(collection(db, 'produtos'), ...constraints);
+                if (statusFilter) countQ = query(countQ, where('ativo', '==', (statusFilter === 'true')));
                 if (searchTerm) {
-                    const endPrefix = searchTerm + '\uf8ff';
-                    countQuery = query(countQuery, where('nome', '>=', searchTerm), where('nome', '<=', endPrefix));
+                    const end = searchTerm + '\uf8ff';
+                    countQ = query(countQ, where('nome', '>=', searchTerm), where('nome', '<=', end));
                 }
-                const countSnap = await getCountFromServer(countQuery);
+                const countSnap = await getCountFromServer(countQ);
                 totalProdutosCount = countSnap.data().count;
             }
-            
             renderProdutos();
             atualizarPaginacaoProdutos();
             await updateStats();
@@ -250,19 +270,19 @@
             isLoadingProdutos = false;
         }
     }
-    
+
     function atualizarPaginacaoProdutos() {
         const totalPages = Math.ceil(totalProdutosCount / itemsPerPage);
         const paginationDiv = document.getElementById('produtosPagination');
         if (!paginationDiv) return;
         let html = `<button class="page-btn" onclick="goToProdutoPage(1)" ${currentProdutoPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
-        for (let i=1; i<=totalPages; i++) {
-            html += `<button class="page-btn ${i===currentProdutoPage?'active':''}" onclick="goToProdutoPage(${i})">${i}</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<button class="page-btn ${i === currentProdutoPage ? 'active' : ''}" onclick="goToProdutoPage(${i})">${i}</button>`;
         }
         html += `<button class="page-btn" onclick="goToProdutoPage(${totalPages})" ${currentProdutoPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
         paginationDiv.innerHTML = html;
     }
-    
+
     window.goToProdutoPage = async function(page) {
         if (page < 1) return;
         if (page > currentProdutoPage) {
@@ -281,12 +301,12 @@
         renderProdutos();
         atualizarPaginacaoProdutos();
     };
-    
+
     function renderProdutos() {
         const tbody = document.getElementById('produtosTableBody');
         if (!tbody) return;
         if (produtosCache.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum produto encontrado</td></tr>';
+            tbody.innerHTML = '<td><td colspan="6" style="text-align:center;">Nenhum produto encontrado</td></tr>';
             return;
         }
         tbody.innerHTML = produtosCache.map(p => `<tr>
@@ -302,106 +322,8 @@
             </div>
         </tr>`).join('');
     }
-    
-    // ==================== PAGINAÇÃO MOVIMENTOS ====================
-    async function carregarPaginaMovimentos(reset = true) {
-        if (isLoadingMovimentos) return;
-        isLoadingMovimentos = true;
-        try {
-            if (reset) {
-                currentMovimentoPage = 1;
-                lastMovimentoDoc = null;
-                movimentosCache = [];
-            }
-            const constraints = getConstraints();
-            let q = query(collection(db, 'movimento_estoque'), ...constraints);
-            const tipoFilter = document.getElementById('movTipoFilter')?.value || '';
-            if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
-            q = query(q, orderBy('data', 'desc'), limit(itemsPerPage));
-            if (lastMovimentoDoc) q = query(q, startAfter(lastMovimentoDoc));
-            const snapshot = await getDocs(q);
-            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            if (reset) movimentosCache = novos;
-            else movimentosCache = [...movimentosCache, ...novos];
-            lastMovimentoDoc = snapshot.docs[snapshot.docs.length - 1];
-            
-            if (reset) {
-                let countQuery = query(collection(db, 'movimento_estoque'), ...constraints);
-                if (tipoFilter) countQuery = query(countQuery, where('tipo', '==', tipoFilter));
-                const countSnap = await getCountFromServer(countQuery);
-                totalMovimentosCount = countSnap.data().count;
-            }
-            renderMovimentos();
-            atualizarPaginacaoMovimentos();
-        } catch (error) {
-            console.error("Erro ao carregar movimentos:", error);
-            showToast("Erro ao carregar movimentos. Verifique índices.", "error");
-        } finally {
-            isLoadingMovimentos = false;
-        }
-    }
-    
-    function atualizarPaginacaoMovimentos() {
-        const totalPages = Math.ceil(totalMovimentosCount / itemsPerPage);
-        const paginationDiv = document.getElementById('movimentosPagination');
-        if (!paginationDiv) return;
-        let html = `<button class="page-btn" onclick="goToMovimentoPage(1)" ${currentMovimentoPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
-        for (let i=1; i<=totalPages; i++) {
-            html += `<button class="page-btn ${i===currentMovimentoPage?'active':''}" onclick="goToMovimentoPage(${i})">${i}</button>`;
-        }
-        html += `<button class="page-btn" onclick="goToMovimentoPage(${totalPages})" ${currentMovimentoPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
-        paginationDiv.innerHTML = html;
-    }
-    
-    window.goToMovimentoPage = async function(page) {
-        if (page < 1) return;
-        if (page > currentMovimentoPage) {
-            while (currentMovimentoPage < page && lastMovimentoDoc && !isLoadingMovimentos) {
-                await carregarPaginaMovimentos(false);
-                currentMovimentoPage++;
-            }
-        } else if (page < currentMovimentoPage) {
-            await carregarPaginaMovimentos(true);
-            currentMovimentoPage = 1;
-            while (currentMovimentoPage < page && lastMovimentoDoc && !isLoadingMovimentos) {
-                await carregarPaginaMovimentos(false);
-                currentMovimentoPage++;
-            }
-        }
-        renderMovimentos();
-        atualizarPaginacaoMovimentos();
-    };
-    
-    function renderMovimentos() {
-        const tbody = document.getElementById('movimentosTableBody');
-        if (!tbody) return;
-        if (movimentosCache.length === 0) {
-            tbody.innerHTML = '<td><td colspan="7">Nenhuma movimentação</td></tr>';
-            return;
-        }
-        // Buscar produtos apenas para os IDs dos movimentos da página (otimização)
-        const produtoIds = [...new Set(movimentosCache.map(m => m.produtoId))];
-        let produtosMap = new Map();
-        if (produtoIds.length) {
-            const constraints = getConstraints();
-            const produtosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints, where('__name__', 'in', produtoIds.slice(0,30))));
-            produtosSnap.forEach(doc => produtosMap.set(doc.id, doc.data()));
-        }
-        tbody.innerHTML = movimentosCache.map(m => {
-            const prod = produtosMap.get(m.produtoId);
-            return `<tr>
-                <td style="white-space:nowrap;">${new Date(m.data).toLocaleString()}</td>
-                <td><strong>${escapeHtml(prod?.nome || '-')}</strong></td>
-                <td><span class="type-badge">${m.tipo === 'entrada' ? '📥 Entrada' : m.tipo === 'saida' ? '📤 Saída' : '⚙️ Ajuste'}</span></td>
-                <td>${m.quantidade}</td>
-                <td>${escapeHtml(m.responsavel || '-')}</td>
-                <td style="max-width:200px;">${escapeHtml(m.motivo || '-')}</td>
-                <td class="action-buttons"><button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button></div>
-            </tr>`;
-        }).join('');
-    }
-    
-    // ==================== CRUD PRODUTOS (com transação de unicidade) ====================
+
+    // ========== CRUD PRODUTOS ==========
     async function salvarProdutoComUnicidade(dados, isUpdate = false, id = null) {
         const empresaId = currentEmpresa.id;
         await runTransaction(db, async (transaction) => {
@@ -421,21 +343,13 @@
             }
         });
     }
-    
     async function addProduto(data) {
-        try {
-            await salvarProdutoComUnicidade(data, false);
-            showToast('Produto cadastrado!', 'success');
-            await carregarPaginaProdutos(true);
-            await carregarCategorias(); // atualiza contagem de produtos por categoria
-        } catch (error) { showToast(error.message, 'error'); throw error; }
+        try { await salvarProdutoComUnicidade(data, false); showToast('Produto cadastrado!', 'success'); await carregarPaginaProdutos(true); await carregarCategorias(); } 
+        catch (error) { showToast(error.message, 'error'); throw error; }
     }
     async function updateProduto(id, data) {
-        try {
-            await salvarProdutoComUnicidade(data, true, id);
-            showToast('Produto atualizado!', 'success');
-            await carregarPaginaProdutos(true);
-        } catch (error) { showToast(error.message, 'error'); throw error; }
+        try { await salvarProdutoComUnicidade(data, true, id); showToast('Produto atualizado!', 'success'); await carregarPaginaProdutos(true); } 
+        catch (error) { showToast(error.message, 'error'); throw error; }
     }
     async function deleteProduto(id) {
         if (!confirm('Excluir produto? Esta ação não pode ser desfeita.')) return;
@@ -445,8 +359,7 @@
         await carregarCategorias();
     }
     window.deleteProduto = deleteProduto;
-    
-    // ==================== FORMULÁRIO PRODUTOS ====================
+
     function getProdutoForm() {
         return {
             nome: document.getElementById('prodNome').value,
@@ -522,8 +435,6 @@
         resetProdutoForm();
     }
     window.editProduto = function(id) {
-        // Precisa buscar o produto atual (pode não estar no cache se a página mudou)
-        const constraints = getConstraints();
         getDoc(doc(db, 'produtos', id)).then(docSnap => {
             if (docSnap.exists()) {
                 fillProdutoForm(docSnap.data());
@@ -556,45 +467,88 @@
             document.getElementById('viewModal').style.display = 'flex';
         });
     };
-    
-    // ==================== CATEGORIAS (sem paginação, poucas) ====================
-    async function addCategoria(data) {
-        if (categoriasCache.some(c => c.nome.toLowerCase() === data.nome.toLowerCase())) { showToast('Categoria já existe!', 'error'); return false; }
-        const docRef = await addDoc(collection(db, 'categorias_produtos'), { ...data, empresaId: currentEmpresa.id, criado_em: new Date().toISOString() });
-        categoriasCache.push({ id: docRef.id, ...data });
-        renderCategorias();
-        atualizarSelectCategorias();
-        showToast('Categoria criada!', 'success');
+
+    // ========== MOVIMENTOS ESTOQUE (resumido, com paginação) ==========
+    async function carregarPaginaMovimentos(reset = true) {
+        if (isLoadingMovimentos) return;
+        isLoadingMovimentos = true;
+        try {
+            if (reset) { currentMovimentoPage = 1; lastMovimentoDoc = null; movimentosCache = []; }
+            const constraints = getConstraints();
+            let q = query(collection(db, 'movimento_estoque'), ...constraints);
+            const tipoFilter = document.getElementById('movTipoFilter')?.value || '';
+            if (tipoFilter) q = query(q, where('tipo', '==', tipoFilter));
+            q = query(q, orderBy('data', 'desc'), limit(itemsPerPage));
+            if (lastMovimentoDoc) q = query(q, startAfter(lastMovimentoDoc));
+            const snapshot = await getDocs(q);
+            const novos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            movimentosCache = reset ? novos : [...movimentosCache, ...novos];
+            lastMovimentoDoc = snapshot.docs[snapshot.docs.length - 1];
+            if (reset) {
+                let countQ = query(collection(db, 'movimento_estoque'), ...constraints);
+                if (tipoFilter) countQ = query(countQ, where('tipo', '==', tipoFilter));
+                const countSnap = await getCountFromServer(countQ);
+                totalMovimentosCount = countSnap.data().count;
+            }
+            renderMovimentos();
+            atualizarPaginacaoMovimentos();
+        } catch(e) { console.error(e); showToast('Erro ao carregar movimentos', 'error'); }
+        finally { isLoadingMovimentos = false; }
     }
-    async function deleteCategoria(id) { 
-        await deleteDoc(doc(db, 'categorias_produtos', id)); 
-        categoriasCache = categoriasCache.filter(c => c.id !== id); 
-        renderCategorias(); 
-        atualizarSelectCategorias(); 
-        showToast('Categoria excluída!', 'success');
+    function atualizarPaginacaoMovimentos() {
+        const totalPages = Math.ceil(totalMovimentosCount / itemsPerPage);
+        const paginationDiv = document.getElementById('movimentosPagination');
+        if (!paginationDiv) return;
+        let html = `<button class="page-btn" onclick="goToMovimentoPage(1)" ${currentMovimentoPage === 1 ? 'disabled' : ''}>&laquo;</button>`;
+        for (let i = 1; i <= totalPages; i++) html += `<button class="page-btn ${i === currentMovimentoPage ? 'active' : ''}" onclick="goToMovimentoPage(${i})">${i}</button>`;
+        html += `<button class="page-btn" onclick="goToMovimentoPage(${totalPages})" ${currentMovimentoPage === totalPages ? 'disabled' : ''}>&raquo;</button>`;
+        paginationDiv.innerHTML = html;
     }
-    function renderCategorias() {
-        const search = document.getElementById('searchCategoria')?.value.toLowerCase() || '';
-        let filtered = categoriasCache.filter(c => !search || c.nome.toLowerCase().includes(search));
-        const tbody = document.getElementById('categoriasTableBody');
+    window.goToMovimentoPage = async function(page) {
+        if (page < 1) return;
+        if (page > currentMovimentoPage) {
+            while (currentMovimentoPage < page && lastMovimentoDoc && !isLoadingMovimentos) {
+                await carregarPaginaMovimentos(false);
+                currentMovimentoPage++;
+            }
+        } else if (page < currentMovimentoPage) {
+            await carregarPaginaMovimentos(true);
+            currentMovimentoPage = 1;
+            while (currentMovimentoPage < page && lastMovimentoDoc && !isLoadingMovimentos) {
+                await carregarPaginaMovimentos(false);
+                currentMovimentoPage++;
+            }
+        }
+        renderMovimentos();
+        atualizarPaginacaoMovimentos();
+    };
+    function renderMovimentos() {
+        const tbody = document.getElementById('movimentosTableBody');
         if (!tbody) return;
-        if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="4">Nenhuma categoria</td></tr>'; return; }
-        tbody.innerHTML = filtered.map(c => `<tr>
-            <td><strong>${escapeHtml(c.nome)}</strong></td>
-            <td>${escapeHtml(c.descricao || '')}</span></td>
-            <td>${produtosCache.filter(p => p.categoriaId === c.id).length} produtos</span> (estimado)</td>
-            <td class="action-buttons"><button class="action-btn delete" onclick="deleteCategoria('${c.id}')"><i class="fas fa-trash-alt"></i></button></span>
-        </tr>`).join('');
+        if (movimentosCache.length === 0) { tbody.innerHTML = '<tr><td colspan="7">Nenhuma movimentação</td></tr>'; return; }
+        const produtoIds = [...new Set(movimentosCache.map(m => m.produtoId))];
+        let produtosMap = new Map();
+        if (produtoIds.length) {
+            const constraints = getConstraints();
+            getDocs(query(collection(db, 'produtos'), ...constraints, where('__name__', 'in', produtoIds.slice(0,30)))).then(snap => {
+                snap.docs.forEach(d => produtosMap.set(d.id, d.data()));
+            });
+        }
+        tbody.innerHTML = movimentosCache.map(m => {
+            const prod = produtosMap.get(m.produtoId);
+            return `<tr>
+                <td>${new Date(m.data).toLocaleString()}</td>
+                <td><strong>${escapeHtml(prod?.nome || '-')}</strong></td>
+                <td>${m.tipo === 'entrada' ? '📥 Entrada' : m.tipo === 'saida' ? '📤 Saída' : '⚙️ Ajuste'}</td>
+                <td>${m.quantidade}</td>
+                <td>${escapeHtml(m.responsavel || '-')}</td>
+                <td>${escapeHtml(m.motivo || '-')}</td>
+                <td class="action-buttons"><button class="action-btn delete" onclick="deleteMovimento('${m.id}')"><i class="fas fa-trash-alt"></i></button></td>
+            </table>`;
+        }).join('');
     }
-    function atualizarSelectCategorias() {
-        const select = document.getElementById('prodCategoriaId');
-        if (select) select.innerHTML = '<option value="">Selecione</option>' + categoriasCache.map(c => `<option value="${c.id}">${escapeHtml(c.nome)}</option>`).join('');
-    }
-    
-    // ==================== MOVIMENTOS (CRUD simplificado) ====================
     async function addMovimento(produtoId, tipo, quantidade, responsavel, motivo) {
         if (!produtoId || quantidade <= 0) { showToast('Dados inválidos!', 'error'); return false; }
-        // Obter produto para verificar estoque
         const prodRef = doc(db, 'produtos', produtoId);
         const prodSnap = await getDoc(prodRef);
         if (!prodSnap.exists()) { showToast('Produto não encontrado!', 'error'); return false; }
@@ -608,7 +562,7 @@
         const newMov = { produtoId, tipo, quantidade, responsavel, motivo, data: new Date().toISOString(), empresaId: currentEmpresa.id, criado_em: new Date().toISOString(), criado_por: currentUser.uid };
         await addDoc(collection(db, 'movimento_estoque'), newMov);
         await carregarPaginaMovimentos(true);
-        await carregarPaginaProdutos(true); // atualiza estoque na listagem
+        await carregarPaginaProdutos(true);
         showToast('Movimentação registrada!', 'success');
     }
     async function deleteMovimento(id) { 
@@ -634,40 +588,33 @@
     function atualizarSelectProdutos() {
         const select = document.getElementById('movProdutoId');
         if (!select) return;
-        // Carregar apenas os produtos ativos (primeiros 100 para não travar)
         const constraints = getConstraints();
-        getDocs(query(collection(db, 'produtos'), ...constraints, where('ativo', '==', true), limit(100)))
-            .then(snap => {
-                const options = snap.docs.map(d => `<option value="${d.id}">${escapeHtml(d.data().nome)} (Estoque: ${d.data().estoque || 0})</option>`).join('');
-                select.innerHTML = '<option value="">Selecione</option>' + options;
-            });
+        getDocs(query(collection(db, 'produtos'), ...constraints, where('ativo', '==', true), limit(200))).then(snap => {
+            const options = snap.docs.map(d => `<option value="${d.id}">${escapeHtml(d.data().nome)} (Estoque: ${d.data().estoque || 0})</option>`).join('');
+            select.innerHTML = '<option value="">Selecione</option>' + options;
+        });
     }
-    
-    // ==================== ESTATÍSTICAS ====================
+
+    // ========== ESTATÍSTICAS ==========
     async function updateStats() {
         const constraints = getConstraints();
         const totalSnap = await getCountFromServer(query(collection(db, 'produtos'), ...constraints));
         document.getElementById('totalProdutos').innerText = totalSnap.data().count;
         const ativosSnap = await getCountFromServer(query(collection(db, 'produtos'), ...constraints, where('ativo', '==', true)));
         document.getElementById('totalAtivos').innerText = ativosSnap.data().count;
-        // Estoque baixo: consulta produtos com estoque <= estoqueMin e estoqueMin > 0
-        const baixosSnap = await getDocs(query(collection(db, 'produtos'), ...constraints, where('estoque', '<=', where('estoqueMin', '>', 0)))); // Note: não é possível two where com desigualdade sem índice composto. Simplificar: busca todos e filtra client-side (aceitável porque número de produtos é paginado, mas estatística pode ficar desatualizada)
-        // Alternativa: usar contagem via getCountFromServer não é possível com duas condições. Vamos fazer uma query simples e contar client-side, mas limitar a 1000 produtos.
-        const todosProdutos = await getDocs(query(collection(db, 'produtos'), ...constraints, limit(1000)));
+        const todosProdutos = await getDocs(query(collection(db, 'produtos'), ...constraints, limit(2000)));
         const baixoCount = todosProdutos.docs.filter(d => {
             const p = d.data();
             return (p.estoque || 0) <= (p.estoqueMin || 0) && p.estoqueMin > 0;
         }).length;
         document.getElementById('totalEstoqueBaixo').innerText = baixoCount;
-        const valor = todosProdutos.docs.reduce((s, d) => {
-            const p = d.data();
-            return s + ((p.precoCusto || p.precoVenda || 0) * (p.estoque || 0));
-        }, 0);
+        const valor = todosProdutos.docs.reduce((s, d) => { const p = d.data(); return s + ((p.precoCusto || p.precoVenda || 0) * (p.estoque || 0)); }, 0);
         document.getElementById('valorEstoque').innerHTML = `R$ ${formatCurrency(valor)}`;
     }
-    
-    // ==================== EXPORT ====================
+
+    // ========== EXPORT PDF ==========
     async function exportProdutosPDF() {
+        if (totalProdutosCount === 0) { showToast('Não há produtos para exportar!', 'error'); return; }
         showToast('Gerando PDF...', 'info');
         try {
             const { jsPDF } = window.jspdf;
@@ -682,9 +629,8 @@
             let x = 14;
             colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; });
             doc.setTextColor(0,0,0); y += 12;
-            // Buscar todos os produtos (limitado a 1000 para não estourar memória)
             const constraints = getConstraints();
-            const allProdutos = await getDocs(query(collection(db, 'produtos'), ...constraints, orderBy('nome', 'asc'), limit(1000)));
+            const allProdutos = await getDocs(query(collection(db, 'produtos'), ...constraints, orderBy('nome', 'asc'), limit(2000)));
             for (const docSnap of allProdutos.docs) {
                 const p = docSnap.data();
                 if (y > 190) { doc.addPage(); y = 30; x = 14; colunas.forEach(col => { doc.rect(x, y, col.width, 10, 'F'); doc.text(col.label, x+2, y+7); x += col.width; }); y += 12; x = 14; doc.setTextColor(0,0,0); }
@@ -698,10 +644,10 @@
             for (let i=1; i<=doc.internal.getNumberOfPages(); i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150,150,150); doc.text(`Página ${i} de ${doc.internal.getNumberOfPages()}`, 14, 200); }
             doc.save(`produtos_${new Date().toISOString().split('T')[0]}.pdf`);
             showToast('PDF gerado!', 'success');
-        } catch(e) { showToast('Erro ao gerar PDF!', 'error'); }
+        } catch(e) { showToast('Erro ao gerar PDF', 'error'); }
     }
-    
-    // ==================== FILTROS ====================
+
+    // ========== FILTROS ==========
     function clearProdutoFilters() {
         document.getElementById('searchProduto').value = '';
         document.getElementById('statusProdutoFilter').value = '';
@@ -714,20 +660,21 @@
         carregarPaginaMovimentos(true);
         showToast('Filtros limpos!', 'success');
     }
-    
-    // ==================== MÁSCARAS ====================
+
+    // ========== MÁSCARAS ==========
     function applyMasks() {
         configurarMascaraValor('prodPrecoVenda');
-        document.getElementById('prodPrecoVenda').addEventListener('input', calcularMargem);
-        document.getElementById('prodPrecoCusto').addEventListener('input', (e) => {
+        const precoVenda = document.getElementById('prodPrecoVenda');
+        const precoCusto = document.getElementById('prodPrecoCusto');
+        if (precoVenda) precoVenda.addEventListener('input', calcularMargem);
+        if (precoCusto) precoCusto.addEventListener('input', (e) => {
             let v = e.target.value.replace(/\D/g, '');
-            if (v === '') e.target.value = '';
-            else e.target.value = formatCurrency(parseInt(v)/100);
+            e.target.value = v === '' ? '' : formatCurrency(parseInt(v)/100);
             calcularMargem();
         });
     }
-    
-    // ==================== TABS ====================
+
+    // ========== TABS ==========
     function setupTabs() {
         document.querySelectorAll('.tab-btn').forEach(btn => {
             btn.onclick = () => {
@@ -736,20 +683,14 @@
                 document.getElementById(`${tab}Panel`).style.display = 'block';
                 document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                if (tab === 'categorias') {
-                    renderCategorias();
-                    carregarCategorias();
-                }
-                if (tab === 'movimentos') {
-                    carregarPaginaMovimentos(true);
-                    atualizarSelectProdutos();
-                }
+                if (tab === 'categorias') carregarCategorias();
+                if (tab === 'movimentos') { carregarPaginaMovimentos(true); atualizarSelectProdutos(); }
                 if (tab === 'produtos') carregarPaginaProdutos(true);
             };
         });
     }
-    
-    // ==================== AUTENTICAÇÃO ====================
+
+    // ========== AUTENTICAÇÃO ==========
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUser = user;
@@ -763,7 +704,6 @@
             else if (statusInfo.status === 'trial') trialDiv.innerHTML = `<div><i class="fas fa-calendar-alt"></i> Teste: ${statusInfo.diasRestantes} dias restantes.</div>`;
             else if (statusInfo.status === 'ativo') trialDiv.innerHTML = `<div><i class="fas fa-check-circle"></i> Conta liberada!</div>`;
             else trialDiv.style.display = 'none';
-            
             await carregarCategorias();
             await carregarPaginaProdutos(true);
             await carregarPaginaMovimentos(true);
@@ -774,8 +714,8 @@
             document.getElementById('conteudoPrincipal').style.display = 'block';
         } else window.location.href = 'login.html';
     });
-    
-    // ==================== EVENTOS ====================
+
+    // ========== EVENTOS ==========
     document.getElementById('saveProdutoBtn').onclick = salvarProduto;
     document.getElementById('cancelProdutoBtn').onclick = resetProdutoForm;
     document.getElementById('saveCategoriaBtn').onclick = async () => { 
@@ -789,6 +729,7 @@
     document.getElementById('searchProduto').addEventListener('input', () => carregarPaginaProdutos(true));
     document.getElementById('statusProdutoFilter').addEventListener('change', () => carregarPaginaProdutos(true));
     document.getElementById('clearProdutoFilters').onclick = clearProdutoFilters;
+    document.getElementById('refreshProdutosBtn').onclick = () => carregarPaginaProdutos(true);
     document.getElementById('clearMovimentoFilters').onclick = clearMovimentoFilters;
     document.getElementById('exportProdutosPdfBtn').onclick = exportProdutosPDF;
     document.getElementById('searchCategoria').addEventListener('input', renderCategorias);
@@ -797,7 +738,6 @@
     document.getElementById('logoutBtn').onclick = () => auth.signOut();
     document.getElementById('modalCloseBtn').onclick = () => document.getElementById('viewModal').style.display = 'none';
     window.onclick = (e) => { if (e.target === document.getElementById('viewModal')) document.getElementById('viewModal').style.display = 'none'; };
-    window.deleteCategoria = deleteCategoria;
     window.solicitarLiberacao = () => {
         window.open('mailto:jcnvap@gmail.com?subject=Liberação - '+encodeURIComponent(currentEmpresa?.emp_razao_social||'Empresa'), '_blank');
         showToast('Abrindo e-mail...', 'info');
